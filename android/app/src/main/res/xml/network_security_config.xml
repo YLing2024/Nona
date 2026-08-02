@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 默认策略：允许明文 HTTP 流量，用于连接用户自定义的 baseUrl
+         （可能是局域网/本地 LLM 服务，如 Ollama、LM Studio 等）。
+         如需收紧，可将 cleartextTrafficPermitted 改为 false，
+         并在 domain-config 中仅对信任域名放行明文。 -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+</network-security-config>
