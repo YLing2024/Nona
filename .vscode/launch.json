@@ -1,0 +1,32 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "ai_chat",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "ai_chat (Windows)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "windows",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "ai_chat (Chrome)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "chrome",
+            "program": "lib/main.dart"
+        },
+        {
+            "name": "ai_chat (Edge)",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "edge",
+            "program": "lib/main.dart"
+        }
+    ]
+}
