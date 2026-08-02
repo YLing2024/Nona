@@ -215,6 +215,10 @@ class _ChatScreenState extends State<ChatScreen> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    // 设置页中可能新增/修改了服务商与模型，返回后刷新
+    final providers = await _providerService.load();
+    if (!mounted) return;
+    setState(() => _providers = providers);
   }
 
   Future<void> _openContextSettings() async {
