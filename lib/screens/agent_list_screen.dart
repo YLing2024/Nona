@@ -64,7 +64,10 @@ class _AgentListScreenState extends State<AgentListScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('取消'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('删除'),
           ),
@@ -78,6 +81,7 @@ class _AgentListScreenState extends State<AgentListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Agent 配置'),
@@ -89,69 +93,107 @@ class _AgentListScreenState extends State<AgentListScreen> {
           ),
         ],
       ),
-      body: _agents.isEmpty
-          ? const Center(child: Text('暂无 Agent，点右上角添加'))
-          : ListView.builder(
-              itemCount: _agents.length,
-              itemBuilder: (context, index) {
-                final a = _agents[index];
-                final theme = Theme.of(context);
-                return ListTile(
-                  selected: a.isDefault,
-                  leading: CircleAvatar(
-                    backgroundColor: a.isDefault
-                        ? theme.colorScheme.primaryContainer
-                        : null,
-                    child: Icon(
+      body: SafeArea(
+        top: false,
+        child: _agents.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
                       Icons.smart_toy_outlined,
-                      color: a.isDefault ? theme.colorScheme.primary : null,
+                      size: 44,
+                      color: theme.colorScheme.outline,
                     ),
-                  ),
-                  title: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          a.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                    const SizedBox(height: 12),
+                    Text(
+                      '暂无 Agent，点右上角添加',
+                      style: TextStyle(color: theme.colorScheme.outline),
+                    ),
+                  ],
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: _agents.length,
+                itemBuilder: (context, index) {
+                  final a = _agents[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: a.isDefault
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          Icons.smart_toy_outlined,
+                          size: 20,
+                          color: a.isDefault
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
                         ),
                       ),
-                      if (a.isDefault)
-                        Container(
-                          margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '默认',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onPrimaryContainer,
+                      title: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              a.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    a.options.systemPrompt.isEmpty
-                        ? '默认参数'
-                        : a.options.systemPrompt,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    tooltip: '删除',
-                    onPressed: () => _delete(a),
-                  ),
-                  onTap: () => _openEditor(a),
-                );
-              },
-            ),
+                          if (a.isDefault)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                '默认',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Text(
+                        a.options.systemPrompt.isEmpty
+                            ? '默认参数'
+                            : a.options.systemPrompt,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: '删除',
+                        onPressed: () => _delete(a),
+                      ),
+                      onTap: () => _openEditor(a),
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }

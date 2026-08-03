@@ -115,9 +115,11 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         title: Text(widget.provider == null ? '添加服务商' : '服务商设置'),
         actions: [TextButton(onPressed: _save, child: const Text('保存'))],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
           TextField(
             controller: _nameController,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
@@ -212,6 +214,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
                 },
               ),
         ],
+        ),
       ),
     );
   }

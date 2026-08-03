@@ -9,10 +9,30 @@ class ChatMessage {
   /// 思考内容（assistant 专属，流式时累加更新）。
   String reasoningContent;
 
+  /// 生成是否被用户手动停止（assistant 专属）。
+  bool interrupted;
+
+  /// 请求是否失败（assistant 专属，失败但保留部分内容时标记）。
+  bool failed;
+
+  /// 本次回复的 prompt 用量（tokens），assistant 专属。
+  int? promptTokens;
+
+  /// 本次回复的 completion 用量（tokens），assistant 专属。
+  int? completionTokens;
+
+  /// 生成耗时（毫秒），assistant 专属。
+  int? elapsedMs;
+
   ChatMessage({
     required this.role,
     required this.content,
     this.reasoningContent = '',
+    this.interrupted = false,
+    this.failed = false,
+    this.promptTokens,
+    this.completionTokens,
+    this.elapsedMs,
   });
 
   /// 转为 OpenAI API 请求中的消息格式。
@@ -23,6 +43,11 @@ class ChatMessage {
       role: json['role'] as String,
       content: json['content'] as String,
       reasoningContent: json['reasoningContent'] as String? ?? '',
+      interrupted: json['interrupted'] as bool? ?? false,
+      failed: json['failed'] as bool? ?? false,
+      promptTokens: json['promptTokens'] as int?,
+      completionTokens: json['completionTokens'] as int?,
+      elapsedMs: json['elapsedMs'] as int?,
     );
   }
 
@@ -30,5 +55,10 @@ class ChatMessage {
     'role': role,
     'content': content,
     'reasoningContent': reasoningContent,
+    'interrupted': interrupted,
+    'failed': failed,
+    'promptTokens': promptTokens,
+    'completionTokens': completionTokens,
+    'elapsedMs': elapsedMs,
   };
 }

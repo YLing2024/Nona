@@ -22,23 +22,3 @@ String themeModeLabel(String value) => switch (value) {
   'dark' => '深色',
   _ => '跟随系统',
 };
-
-ThemeData buildLightTheme() {
-  return ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-    useMaterial3: true,
-  );
-}
-
-/// 深色模式：OLED 屏幕纯黑背景（surface 与页面背景均为 #000000）。
-ThemeData buildDarkTheme() {
-  final scheme = ColorScheme.fromSeed(
-    seedColor: Colors.deepPurple,
-    brightness: Brightness.dark,
-  ).copyWith(surface: Colors.black);
-  return ThemeData(
-    useMaterial3: true,
-    colorScheme: scheme,
-    scaffoldBackgroundColor: Colors.black,
-  );
-}

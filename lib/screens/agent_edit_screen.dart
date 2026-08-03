@@ -59,9 +59,11 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
         title: Text(widget.agent == null ? '新建 Agent' : '编辑 Agent'),
         actions: [TextButton(onPressed: _save, child: const Text('保存'))],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
+      body: SafeArea(
+        top: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
           TextField(
             controller: _nameController,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
@@ -85,6 +87,7 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
             initial: widget.agent?.options ?? const ChatOptions(),
           ),
         ],
+        ),
       ),
     );
   }

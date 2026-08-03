@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/chat_provider.dart';
 import '../services/provider_service.dart';
 import 'provider_edit_screen.dart';
-
 /// 服务商管理页：分组展示各服务商及其配置的模型。
 class ProviderListScreen extends StatefulWidget {
   const ProviderListScreen({super.key});
@@ -83,16 +82,19 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
           ),
         ],
       ),
-      body: _providers.isEmpty
-          ? const Center(child: Text('暂无服务商，点右上角添加'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _providers.length,
-              itemBuilder: (context, index) {
-                final p = _providers[index];
-                return _buildProviderGroup(p);
-              },
-            ),
+      body: SafeArea(
+        top: false,
+        child: _providers.isEmpty
+            ? const Center(child: Text('暂无服务商，点右上角添加'))
+            : ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: _providers.length,
+                itemBuilder: (context, index) {
+                  final p = _providers[index];
+                  return _buildProviderGroup(p);
+                },
+              ),
+      ),
     );
   }
 
@@ -105,8 +107,60 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
-            leading: CircleAvatar(child: Text(provider.name.characters.first)),
-            title: Text(provider.name),
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    theme.colorScheme.primary,
+                    theme.colorScheme.secondary,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                provider.name.characters.first,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            title: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    provider.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (provider.id == ProviderService.debugProviderId)
+                  Container(
+                    margin: const EdgeInsets.only(left: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '调试',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             subtitle: Text(
               '${provider.baseUrl}\n${provider.modelIds.length} 个模型',
               maxLines: 2,
@@ -131,7 +185,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
           ),
           if (provider.modelIds.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -139,18 +193,31 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                   for (final model in provider.modelIds)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
+                        horizontal: 10,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
+                        color: theme.colorScheme.secondaryContainer
+                            .withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                      child: Text(
-                        model,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onSecondaryContainer,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_rounded,
+                            size: 12,
+                            color: theme.colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            model,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -158,7 +225,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             )
           else
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Text(
                 '未配置模型',
                 style: theme.textTheme.bodySmall?.copyWith(

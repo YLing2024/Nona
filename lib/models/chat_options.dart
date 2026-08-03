@@ -36,6 +36,13 @@ class ChatOptions {
   /// 是否流式输出。
   final bool stream;
 
+  /// 上下文窗口上限（tokens）：发送前估算超出时自动裁剪早期消息。
+  /// null 表示不限制。
+  final int? maxContextTokens;
+
+  /// 是否允许自动裁剪超限的早期消息。
+  final bool autoTrim;
+
   const ChatOptions({
     this.systemPrompt = '',
     this.temperature = 1.0,
@@ -49,6 +56,8 @@ class ChatOptions {
     this.responseFormat,
     this.reasoningEffort,
     this.stream = true,
+    this.maxContextTokens,
+    this.autoTrim = true,
   });
 
   static const _unset = Object();
@@ -66,6 +75,8 @@ class ChatOptions {
     Object? responseFormat = _unset,
     Object? reasoningEffort = _unset,
     bool? stream,
+    Object? maxContextTokens = _unset,
+    bool? autoTrim,
   }) {
     return ChatOptions(
       systemPrompt: systemPrompt ?? this.systemPrompt,
@@ -84,6 +95,10 @@ class ChatOptions {
           ? this.reasoningEffort
           : reasoningEffort as String?,
       stream: stream ?? this.stream,
+      maxContextTokens: maxContextTokens == _unset
+          ? this.maxContextTokens
+          : maxContextTokens as int?,
+      autoTrim: autoTrim ?? this.autoTrim,
     );
   }
 
@@ -102,6 +117,8 @@ class ChatOptions {
       responseFormat: json['responseFormat'] as String?,
       reasoningEffort: json['reasoningEffort'] as String?,
       stream: json['stream'] as bool? ?? true,
+      maxContextTokens: json['maxContextTokens'] as int?,
+      autoTrim: json['autoTrim'] as bool? ?? true,
     );
   }
 
@@ -118,5 +135,7 @@ class ChatOptions {
     'responseFormat': responseFormat,
     'reasoningEffort': reasoningEffort,
     'stream': stream,
+    'maxContextTokens': maxContextTokens,
+    'autoTrim': autoTrim,
   };
 }

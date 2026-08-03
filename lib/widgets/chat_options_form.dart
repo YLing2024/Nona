@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/chat_options.dart';
 
-/// 可复用的会话上下文参数表单（含全部 OpenAI 生成参数）。
+/// 可复用的会话上下文参数表单（含全部 OpenAI 生成参数 + 上下文窗口管理）。
 class ChatOptionsForm extends StatefulWidget {
   final ChatOptions initial;
 
@@ -19,6 +19,7 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
   late final TextEditingController _nController;
   late final TextEditingController _stopController;
   late final TextEditingController _seedController;
+  late final TextEditingController _maxContextTokensController;
   late double _temperature;
   late double _topP;
   late double _presencePenalty;
@@ -30,6 +31,7 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
   /// 思考强度与流式开关由聊天工具条维护，表单原样保留。
   late String? _reasoningEffort;
   late bool _stream;
+  late bool _autoTrim;
 
   /// 快捷配置（Agent）模式为只读，仅自定义模式可编辑。
   bool _readOnly = false;
@@ -52,6 +54,7 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
     _nController.dispose();
     _stopController.dispose();
     _seedController.dispose();
+    _maxContextTokensController.dispose();
     super.dispose();
   }
 
@@ -65,6 +68,9 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
       _nController = TextEditingController(text: o.n?.toString() ?? '');
       _stopController = TextEditingController(text: o.stop.join(','));
       _seedController = TextEditingController(text: o.seed?.toString() ?? '');
+      _maxContextTokensController = TextEditingController(
+        text: o.maxContextTokens?.toString() ?? '',
+      );
       _controllersReady = true;
     } else {
       _systemPromptController.text = o.systemPrompt;
@@ -72,6 +78,7 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
       _nController.text = o.n?.toString() ?? '';
       _stopController.text = o.stop.join(',');
       _seedController.text = o.seed?.toString() ?? '';
+      _maxContextTokensController.text = o.maxContextTokens?.toString() ?? '';
     }
     setState(() {
       _temperature = o.temperature;
@@ -81,6 +88,7 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
       _responseFormat = o.responseFormat ?? 'auto';
       _reasoningEffort = o.reasoningEffort;
       _stream = o.stream;
+      _autoTrim = o.autoTrim;
     });
   }
 
@@ -101,6 +109,8 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
     responseFormat: _responseFormat == 'auto' ? null : _responseFormat,
     reasoningEffort: _reasoningEffort,
     stream: _stream,
+    maxContextTokens: int.tryParse(_maxContextTokensController.text.trim()),
+    autoTrim: _autoTrim,
   );
 
   @override
@@ -281,6 +291,43 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
                 : (v) => setState(() => _responseFormat = v!),
           ),
         ),
+        _ConfigCard(
+          icon: Icons.view_agenda_outlined,
+          title: '上下文窗口管理',
+          valueText: _maxContextTokensController.text.isEmpty
+              ? '不限制'
+              : '${_maxContextTokensController.text} tokens',
+          tipsTitle: '上下文窗口管理',
+          tips:
+              '控制发送给模型的对话历史长度：\n\n• 最大上下文：超出该 token 数时按策略处理，留空表示不限制\n• 自动裁剪：发送前估算对话长度，超限时自动移除最早的消息\n\n可避免长对话超出发送方的上下文窗口上限，节省费用并防止报错。',
+          child: Column(
+            children: [
+              TextField(
+                controller: _maxContextTokensController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                readOnly: _readOnly,
+                onTapOutside: (_) =>
+                    FocusManager.instance.primaryFocus?.unfocus(),
+                decoration: const InputDecoration(
+                  hintText: '如 32000，留空表示不限制',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SwitchListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text('自动裁剪早期消息'),
+                subtitle: const Text('超出上限时自动移除最早的对话记录'),
+                value: _autoTrim,
+                onChanged: _readOnly
+                    ? null
+                    : (v) => setState(() => _autoTrim = v),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -331,19 +378,35 @@ class _ConfigCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(child: Text(title, style: theme.textTheme.titleSmall)),
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title, style: theme.textTheme.titleSmall),
+              ),
               if (valueText != null)
                 Padding(
                   padding: const EdgeInsets.only(right: 4),
@@ -351,6 +414,7 @@ class _ConfigCard extends StatelessWidget {
                     valueText!,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.outline,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -362,7 +426,7 @@ class _ConfigCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
           child,
         ],
       ),

@@ -18,6 +18,9 @@ class ChatSession {
   final DateTime createdAt;
   DateTime updatedAt;
 
+  /// 是否置顶（置顶会话显示在会话列表最上方）。
+  bool pinned;
+
   ChatSession({
     required this.id,
     required this.title,
@@ -28,6 +31,7 @@ class ChatSession {
     required this.messages,
     required this.createdAt,
     required this.updatedAt,
+    this.pinned = false,
   });
 
   /// 创建一个新的空会话。
@@ -55,6 +59,42 @@ class ChatSession {
     }
   }
 
+  /// 复制会话（新 id，标题带副本后缀，保留全部消息与参数）。
+  ChatSession duplicate() {
+    final now = DateTime.now();
+    return ChatSession(
+      id: now.microsecondsSinceEpoch.toString(),
+      title: '$title（副本）',
+      options: options,
+      agentId: agentId,
+      providerId: providerId,
+      modelId: modelId,
+      messages: messages
+          .map(
+            (m) => ChatMessage(
+              role: m.role,
+              content: m.content,
+              reasoningContent: m.reasoningContent,
+              interrupted: m.interrupted,
+              failed: m.failed,
+              promptTokens: m.promptTokens,
+              completionTokens: m.completionTokens,
+              elapsedMs: m.elapsedMs,
+            ),
+          )
+          .toList(),
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  /// 删除 [index] 及之后的所有消息。
+  void truncateMessagesFrom(int index) {
+    if (index >= 0 && index < messages.length) {
+      messages.removeRange(index, messages.length);
+    }
+  }
+
   factory ChatSession.fromJson(Map<String, dynamic> json) {
     return ChatSession(
       id: json['id'] as String,
@@ -68,6 +108,7 @@ class ChatSession {
           .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      pinned: json['pinned'] as bool? ?? false,
     );
   }
 
@@ -81,5 +122,6 @@ class ChatSession {
     'messages': messages.map((m) => m.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
+    'pinned': pinned,
   };
 }

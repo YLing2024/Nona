@@ -36,19 +36,22 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('主题配置')),
-      body: RadioGroup<String>(
-        groupValue: _selected,
-        onChanged: (v) {
-          if (v != null) _select(v);
-        },
-        child: ListView(
-          children: [
-            for (final option in const ['system', 'light', 'dark'])
-              RadioListTile<String>(
-                value: option,
-                title: Text(themeModeLabel(option)),
-              ),
-          ],
+      body: SafeArea(
+        top: false,
+        child: RadioGroup<String>(
+          groupValue: _selected,
+          onChanged: (v) {
+            if (v != null) _select(v);
+          },
+          child: ListView(
+            children: [
+              for (final option in const ['system', 'light', 'dark'])
+                RadioListTile<String>(
+                  value: option,
+                  title: Text(themeModeLabel(option)),
+                ),
+            ],
+          ),
         ),
       ),
     );
