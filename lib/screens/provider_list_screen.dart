@@ -86,12 +86,25 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         top: false,
         child: _providers.isEmpty
             ? const Center(child: Text('暂无服务商，点右上角添加'))
-            : ListView.builder(
+            : ReorderableListView.builder(
                 padding: const EdgeInsets.all(12),
+                buildDefaultDragHandles: false,
                 itemCount: _providers.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex--;
+                    final p = _providers.removeAt(oldIndex);
+                    _providers.insert(newIndex, p);
+                  });
+                  _persist();
+                },
                 itemBuilder: (context, index) {
                   final p = _providers[index];
-                  return _buildProviderGroup(p);
+                  return ReorderableDelayedDragStartListener(
+                    key: ValueKey(p.id),
+                    index: index,
+                    child: _buildProviderGroup(p),
+                  );
                 },
               ),
       ),
@@ -169,6 +182,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Icon(Icons.drag_indicator, size: 20, color: theme.colorScheme.outlineVariant),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
                   tooltip: '编辑',

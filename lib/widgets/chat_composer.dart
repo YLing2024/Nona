@@ -32,6 +32,10 @@ class ChatComposer extends StatefulWidget {
   /// 偏好：Enter 是否发送消息（否则 Enter 换行、Ctrl+Enter 发送）。
   final bool sendOnEnter;
 
+  /// 当 [modelId] 为 null 时是否自动选择第一个模型。
+  /// 为 false 时返回 null，显示「未选择模型」。
+  final bool autoSelectModel;
+
   const ChatComposer({
     super.key,
     required this.controller,
@@ -49,6 +53,7 @@ class ChatComposer extends StatefulWidget {
     required this.sendOnEnter,
     required this.usagePrompt,
     required this.usageCompletion,
+    this.autoSelectModel = true,
   });
 
   @override
@@ -57,11 +62,10 @@ class ChatComposer extends StatefulWidget {
 
 class _ChatComposerState extends State<ChatComposer> {
   static const _effortOptions = [
-    (null, '思考：自动'),
-    ('min', '思考：极低'),
-    ('low', '思考：低'),
-    ('medium', '思考：中'),
-    ('high', '思考：高'),
+    (null, '自动'),
+    ('low', '低'),
+    ('medium', '中'),
+    ('high', '高'),
   ];
 
   ChatProvider? get _provider {
@@ -80,6 +84,7 @@ class _ChatComposerState extends State<ChatComposer> {
     if (provider == null || provider.modelIds.isEmpty) return null;
     final model = widget.modelId;
     if (model != null && provider.modelIds.contains(model)) return model;
+    if (!widget.autoSelectModel) return null;
     return provider.modelIds.first;
   }
 
@@ -127,7 +132,17 @@ class _ChatComposerState extends State<ChatComposer> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildToolbar(theme, scheme, model, provider, options, overLimit),
+          SizedBox(
+            width: double.infinity,
+            child: _buildToolbar(
+              theme,
+              scheme,
+              model,
+              provider,
+              options,
+              overLimit,
+            ),
+          ),
           const SizedBox(height: 6),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -388,7 +403,6 @@ class _ChatComposerState extends State<ChatComposer> {
   }
 
   String _effortLabel(String? value) => switch (value) {
-    'min' => '思考：极低',
     'low' => '思考：低',
     'medium' => '思考：中',
     'high' => '思考：高',

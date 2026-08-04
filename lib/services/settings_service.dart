@@ -14,12 +14,24 @@ class AppSettings {
   /// 关：Enter 换行、Ctrl+Enter 发送。
   final bool sendOnEnter;
 
+  /// 模型连通性测试的提示词（服务商设置页「测试」时发送给模型的最小请求内容）。
+  final String testPrompt;
+
+  /// 新建 Agent 时的默认模型 ID。
+  final String defaultAgentModel;
+
+  /// 默认聊天模型 ID（用于新建会话），空字符串表示无默认值（需手动选择）。
+  final String chatModel;
+
   const AppSettings({
     this.apiKey = '',
     this.baseUrl = 'https://api.openai.com/v1',
     this.model = 'gpt-4o-mini',
     this.themeMode = 'system',
     this.sendOnEnter = false,
+    this.testPrompt = 'ping',
+    this.defaultAgentModel = '',
+    this.chatModel = '',
   });
 
   AppSettings copyWith({
@@ -28,6 +40,9 @@ class AppSettings {
     String? model,
     String? themeMode,
     bool? sendOnEnter,
+    String? testPrompt,
+    String? defaultAgentModel,
+    String? chatModel,
   }) {
     return AppSettings(
       apiKey: apiKey ?? this.apiKey,
@@ -35,6 +50,9 @@ class AppSettings {
       model: model ?? this.model,
       themeMode: themeMode ?? this.themeMode,
       sendOnEnter: sendOnEnter ?? this.sendOnEnter,
+      testPrompt: testPrompt ?? this.testPrompt,
+      defaultAgentModel: defaultAgentModel ?? this.defaultAgentModel,
+      chatModel: chatModel ?? this.chatModel,
     );
   }
 }
@@ -46,6 +64,9 @@ class SettingsService {
   static const _kModel = 'model';
   static const _kThemeMode = 'theme_mode';
   static const _kSendOnEnter = 'send_on_enter';
+  static const _kTestPrompt = 'test_prompt';
+  static const _kDefaultAgentModel = 'default_agent_model';
+  static const _kChatModel = 'chat_model';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -55,6 +76,9 @@ class SettingsService {
       model: prefs.getString(_kModel) ?? 'gpt-4o-mini',
       themeMode: prefs.getString(_kThemeMode) ?? 'system',
       sendOnEnter: prefs.getBool(_kSendOnEnter) ?? false,
+      testPrompt: prefs.getString(_kTestPrompt) ?? 'ping',
+      defaultAgentModel: prefs.getString(_kDefaultAgentModel) ?? '',
+      chatModel: prefs.getString(_kChatModel) ?? '',
     );
   }
 
@@ -65,5 +89,8 @@ class SettingsService {
     await prefs.setString(_kModel, settings.model);
     await prefs.setString(_kThemeMode, settings.themeMode);
     await prefs.setBool(_kSendOnEnter, settings.sendOnEnter);
+    await prefs.setString(_kTestPrompt, settings.testPrompt);
+    await prefs.setString(_kDefaultAgentModel, settings.defaultAgentModel);
+    await prefs.setString(_kChatModel, settings.chatModel);
   }
 }

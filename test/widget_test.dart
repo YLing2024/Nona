@@ -112,7 +112,9 @@ void main() {
 
   testWidgets('Chat uses first provider that has models, not empty first',
       (WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'chat_model': 'gpt-debug-model',
+    });
     dotenv.clean();
     dotenv.testLoad(fileInput: 'NONA_DEBUG_API_KEY=sk-test\n');
 

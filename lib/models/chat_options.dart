@@ -30,7 +30,7 @@ class ChatOptions {
   /// 响应格式：null / 'text' / 'json_object'。
   final String? responseFormat;
 
-  /// 思考强度：null / 'min' / 'low' / 'medium' / 'high'，null 表示自动。
+  /// 思考强度：null / 'low' / 'medium' / 'high'，null 表示自动（不传该参数）。
   final String? reasoningEffort;
 
   /// 是否流式输出。

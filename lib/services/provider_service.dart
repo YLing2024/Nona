@@ -138,6 +138,49 @@ class ProviderService {
         .toList();
   }
 
+  /// 连通性测试结果。
+  Future<ModelTestResult> testModel(
+    ChatProvider provider,
+    String modelId, {
+    String prompt = 'ping',
+  }) async {
+    final baseUrl = provider.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    final uri = Uri.parse('$baseUrl/chat/completions');
+    final started = DateTime.now();
+    final body = jsonEncode({
+      'model': modelId,
+      'messages': [
+        {'role': 'user', 'content': prompt},
+      ],
+      'max_tokens': 1,
+      'stream': false,
+    });
+    try {
+      final response = await http
+          .post(uri, headers: {
+            'Authorization': 'Bearer ${provider.apiKey}',
+            'Content-Type': 'application/json',
+          }, body: body)
+          .timeout(const Duration(seconds: 30));
+      final elapsedMs = DateTime.now().difference(started).inMilliseconds;
+      if (response.statusCode == 200) {
+        return ModelTestResult(success: true, elapsedMs: elapsedMs);
+      }
+      return ModelTestResult(
+        success: false,
+        elapsedMs: elapsedMs,
+        error: _extractError(response.body),
+      );
+    } catch (e) {
+      final elapsedMs = DateTime.now().difference(started).inMilliseconds;
+      return ModelTestResult(
+        success: false,
+        elapsedMs: elapsedMs,
+        error: e.toString(),
+      );
+    }
+  }
+
   String _extractError(String body) {
     try {
       final data = jsonDecode(body) as Map<String, dynamic>;
@@ -149,5 +192,70 @@ class ProviderService {
       // 忽略解析失败
     }
     return body;
+  }
+}
+
+/// 单一模型连通性测试结果。
+class ModelTestResult {
+  final bool success;
+  final int elapsedMs;
+  final String? error;
+
+  const ModelTestResult({
+    required this.success,
+    required this.elapsedMs,
+    this.error,
+  });
+
+  String get displayLabel {
+    if (success) return '${elapsedMs}ms';
+    return error ?? '失败';
+  }
+
+  factory ModelTestResult.fromJson(Map<String, dynamic> json) {
+    return ModelTestResult(
+      success: json['success'] as bool? ?? false,
+      elapsedMs: json['elapsedMs'] as int? ?? 0,
+      error: json['error'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'success': success,
+    'elapsedMs': elapsedMs,
+    if (error != null) 'error': error,
+  };
+}
+
+/// 连通性测试结果持久化（按服务商存储）。
+class TestResultStorage {
+  static String _key(String providerId) => 'test_results_$providerId';
+
+  static Future<void> save(
+    String providerId,
+    Map<String, ModelTestResult?> results,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = <String, dynamic>{};
+    for (final entry in results.entries) {
+      if (entry.value != null) {
+        data[entry.key] = entry.value!.toJson();
+      }
+    }
+    await prefs.setString(_key(providerId), jsonEncode(data));
+  }
+
+  static Future<Map<String, ModelTestResult?>> load(String providerId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key(providerId));
+    if (raw == null || raw.isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map(
+        (k, v) => MapEntry(k, ModelTestResult.fromJson(v as Map<String, dynamic>)),
+      );
+    } catch (_) {
+      return {};
+    }
   }
 }

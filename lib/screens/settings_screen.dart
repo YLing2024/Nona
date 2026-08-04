@@ -8,6 +8,7 @@ import '../services/settings_service.dart';
 import '../services/theme_controller.dart';
 import '../theme/app_theme.dart';
 import 'agent_list_screen.dart';
+import 'model_config_screen.dart';
 import 'preferences_screen.dart';
 import 'provider_list_screen.dart';
 import 'theme_settings_screen.dart';
@@ -187,6 +188,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'Agent 配置',
                   subtitle: '$_agentCount 个预设，新建会话时一键套用',
                   onTap: _openAgentList,
+                ),
+                const _TileDivider(),
+                _SettingsTile(
+                  icon: Icons.model_training_outlined,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                  title: '模型配置',
+                  subtitle: '新建 Agent 的默认模型等',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ModelConfigScreen(),
+                    ),
+                  ),
                 ),
               ],
             ),

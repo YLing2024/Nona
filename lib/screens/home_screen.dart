@@ -37,6 +37,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _sidebarKey = GlobalKey<SessionSidebarState>();
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  /// 全局设置缓存。
+  AppSettings _settings = const AppSettings();
+
   /// 偏好：Enter 是否发送。
   bool _sendOnEnter = false;
 
@@ -95,15 +98,34 @@ class _HomeScreenState extends State<HomeScreen> {
       await _sessionService.save(sessions);
     }
     final settings = await SettingsService().load();
+    if (settings.chatModel.isNotEmpty && sessions.isNotEmpty) {
+      for (final s in sessions) {
+        if (s.modelId == null) _applyDefaultModel(s, settings, providers);
+      }
+    }
     if (!mounted) return;
     setState(() {
       _providers = providers;
       _agents = agents;
+      _settings = settings;
       _sessions = sessions;
       _currentSessionId = sessions.first.id;
       _sendOnEnter = settings.sendOnEnter;
     });
     _bumpTokenVersion();
+  }
+
+  void _applyDefaultModel(ChatSession session, [AppSettings? settings, List<ChatProvider>? providers]) {
+    final s = settings ?? _settings;
+    final ps = providers ?? _providers;
+    if (s.chatModel.isEmpty) return;
+    for (final p in ps) {
+      if (p.modelIds.contains(s.chatModel)) {
+        session.providerId = p.id;
+        session.modelId = s.chatModel;
+        return;
+      }
+    }
   }
 
   Future<void> _persist() async {
@@ -163,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _newSession({Agent? agent}) async {
     if (_isLoading) return;
     final session = ChatSession.create();
+    _applyDefaultModel(session);
     if (agent != null) {
       session.options = agent.options;
       session.agentId = agent.id;
@@ -205,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       if (_sessions.isEmpty) {
         final s = ChatSession.create();
+        _applyDefaultModel(s);
         _sessions.add(s);
         _currentSessionId = s.id;
       }
@@ -263,6 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _isAnonymous = !_isAnonymous;
       if (_isAnonymous && _anonymousSession == null) {
         _anonymousSession = ChatSession.create()..title = '匿名会话';
+          _applyDefaultModel(_anonymousSession!);
       }
     });
     _bumpTokenVersion();
@@ -409,11 +434,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     var modelId = session.modelId;
-    if (modelId == null || !provider.modelIds.contains(modelId)) {
-      modelId = provider.modelIds.firstOrNull;
-    }
     if (modelId == null) {
-      _snack('该服务商未配置模型，请到设置中添加');
+      _snack('请先选择模型');
+      return;
+    }
+    if (!provider.modelIds.contains(modelId)) {
+      _snack('当前服务商不包含该模型，请到设置中检查');
       await _openSettings();
       return;
     }
@@ -760,8 +786,10 @@ class _HomeScreenState extends State<HomeScreen> {
       sessionUsage:
           session == null ? (0, 0) : _sessionUsage(session),
       sendOnEnter: _sendOnEnter,
+      autoSelectModel: _settings.chatModel.isNotEmpty,
       scrollController: _scrollController,
-      inputController: _inputController,      showSidebarToggle: !_isWide,
+      inputController: _inputController,
+      showSidebarToggle: !_isWide,
       onToggleSidebar: () => _scaffoldKey.currentState?.openDrawer(),
       onOpenContextSettings: _openContextSettings,
       onRename: () {

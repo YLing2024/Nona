@@ -19,6 +19,7 @@ class ChatView extends StatelessWidget {
   final (int, int) sessionUsage;
 
   final bool sendOnEnter;
+  final bool autoSelectModel;
   final ScrollController scrollController;
   final TextEditingController inputController;
   final bool showSidebarToggle;
@@ -52,6 +53,7 @@ class ChatView extends StatelessWidget {
     required this.estimatedTokens,
     required this.sessionUsage,
     required this.sendOnEnter,
+    this.autoSelectModel = true,
     required this.scrollController,
     required this.inputController,
     required this.showSidebarToggle,
@@ -116,6 +118,7 @@ class ChatView extends StatelessWidget {
             estimatedTokens: estimatedTokens,
             usagePrompt: sessionUsage.$1,
             usageCompletion: sessionUsage.$2,
+            autoSelectModel: autoSelectModel,
             sendOnEnter: sendOnEnter,
             onModelChanged: onModelChanged,
             onEffortChanged: onEffortChanged,
