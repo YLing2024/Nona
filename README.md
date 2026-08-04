@@ -24,6 +24,7 @@
 
 ### 配置体系
 - **多服务商配置**：可添加多个服务商（OpenAI 或任何兼容 OpenAI 格式的第三方），各自独立配置 Base URL 与 API Key；支持调用 `/models` 接口获取模型列表并多选启用
+- **模型配置**：全局模型默认值配置页面，可统一设置聊天模型、Agent 模型等默认选项；支持手动输入模型 ID 或通过 `/models` 接口批量拉取并勾选添加
 - **Agent 预设**：可配置多个 Agent（名称 + 完整上下文参数），设置默认 Agent 后「新建会话」自动套用；新建时也可从下拉菜单指定 Agent
 - **会话上下文**：每个会话可独立配置系统提示词、Temperature、Top P、Max Tokens、Presence/Frequency Penalty、N、Stop、Seed、Response Format、思考强度等 OpenAI 参数，每项带说明（tips）
 
@@ -55,9 +56,9 @@ lib/
 ├── theme/                           # 设计系统（靛蓝紫双主题 + 组件主题化）
 ├── models/                          # 数据模型（消息/会话/上下文/服务商/Agent）
 ├── services/                        # 业务服务（聊天/存储/配置/导出）
-├── screens/                         # 页面（主界面/设置/会话上下文/服务商/Agent）
+├── screens/                         # 页面（主界面/设置/会话上下文/服务商/Agent/模型配置）
 ├── utils/                           # 工具（token 估算）
-└── widgets/                         # 复用组件（侧边栏/消息流/输入区/代码高亮等）
+└── widgets/                         # 复用组件（侧边栏/消息流/输入区/代码高亮/添加模型对话框等）
 ```
 
 ## 技术说明
@@ -66,3 +67,11 @@ lib/
 - 依赖：`http`（API 请求）、`shared_preferences`（本地存储）、`flutter_markdown` + `highlight`（Markdown 渲染与代码高亮）、`url_launcher`（链接跳转）、`file_selector`（导出/导入文件）
 - 兼容 OpenAI Chat Completions 与 `/models` 接口格式
 - 支持平台：Windows / macOS / Linux / Android / iOS / Web
+
+## 更新日志
+
+### v1.0.1
+- 新增模型配置页面，支持全局模型默认值设置
+- 新增添加模型对话框，支持手动输入与 `/models` 接口批量拉取
+- 优化服务商编辑页面交互体验
+- 改进设置服务与服务商服务的稳定性
