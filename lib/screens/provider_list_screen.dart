@@ -30,20 +30,11 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   Future<void> _persist() => _providerService.save(_providers);
 
   Future<void> _openEditor([ChatProvider? provider]) async {
-    final result = await Navigator.of(context).push<ChatProvider>(
+    // 编辑页内修改即保存，返回后重载列表即可
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => ProviderEditScreen(provider: provider)),
     );
-    if (result != null) {
-      setState(() {
-        final index = _providers.indexWhere((p) => p.id == result.id);
-        if (index >= 0) {
-          _providers[index] = result;
-        } else {
-          _providers.add(result);
-        }
-      });
-      await _persist();
-    }
+    await _load();
   }
 
   Future<void> _delete(ChatProvider provider) async {
@@ -67,6 +58,8 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
     if (confirmed != true) return;
     setState(() => _providers.removeWhere((p) => p.id == provider.id));
     await _persist();
+    // 联动清理：服务商被删除后，清除指向其模型的全局默认配置
+    await _providerService.clearStaleDefaultModels();
   }
 
   @override
@@ -136,7 +129,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
               ),
               alignment: Alignment.center,
               child: Text(
-                provider.name.characters.first,
+                provider.name.isEmpty ? '?' : provider.name.characters.first,
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,

@@ -21,17 +21,25 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
   late final TextEditingController _apiKeyController;
   bool _obscureApiKey = true;
 
+  /// 服务商 id：编辑已有服务商时沿用原 id，新增时立即生成。
+  late final String _providerId;
+
   final List<String> _modelIds = [];
   final Map<String, ModelTestResult?> _testResults = {};
   final Set<String> _testingModels = {};
   bool _testingAll = false;
 
-  /// 模型级配置（多模态/推理等），后续可持久化。
-  final Map<String, Map<String, dynamic>> _modelConfig = {};
+  /// 模型级配置（多模态/推理等），随服务商一起持久化。
+  final Map<String, ModelConfig> _modelConfig = {};
+
+  /// 持久化串行链，避免并发读改写丢更新。
+  Future<void>? _persistChain;
 
   @override
   void initState() {
     super.initState();
+    _providerId =
+        widget.provider?.id ?? DateTime.now().microsecondsSinceEpoch.toString();
     _nameController = TextEditingController(text: widget.provider?.name ?? '');
     _baseUrlController = TextEditingController(
       text: widget.provider?.baseUrl ?? '',
@@ -41,23 +49,45 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
     );
     if (widget.provider != null) {
       _modelIds.addAll(widget.provider!.modelIds);
+      _modelConfig.addAll(widget.provider!.modelConfigs);
     }
     _loadTestResults();
   }
 
   Future<void> _loadTestResults() async {
-    final pid = widget.provider?.id;
-    if (pid == null) return;
-    final results = await TestResultStorage.load(pid);
+    final results = await TestResultStorage.load(_providerId);
     if (!mounted) return;
     setState(() => _testResults.addAll(results));
   }
 
   void _persistTestResults() {
-    final pid = widget.provider?.id;
-    if (pid == null) return;
-    TestResultStorage.save(pid, _testResults);
+    TestResultStorage.save(_providerId, _testResults);
   }
+
+  /// 将当前编辑内容写回持久化存储；修改即生效。
+  Future<void> _persist() async {
+    try {
+      final providers = await ProviderService().load();
+      final index = providers.indexWhere((p) => p.id == _providerId);
+      final current = _buildProvider();
+      if (index >= 0) {
+        providers[index] = current;
+      } else {
+        providers.add(current);
+      }
+      await ProviderService().save(providers);
+    } catch (e) {
+      // 写入失败不阻塞操作，但打印出来便于排查
+      debugPrint('[ProviderEdit] 保存失败: $e');
+    }
+  }
+
+  void _schedulePersist() {
+    _persistChain = (_persistChain ?? Future.value()).then((_) => _persist());
+  }
+
+  /// 离开页面时调用：等待队列中所有实时修改落盘，避免返回后丢失。
+  Future<void> _flushPending() => _persistChain ?? Future.value();
 
   @override
   void dispose() {
@@ -69,13 +99,14 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 
   ChatProvider _buildProvider() {
     return ChatProvider(
-      id:
-          widget.provider?.id ??
-          DateTime.now().microsecondsSinceEpoch.toString(),
+      id: _providerId,
       name: _nameController.text.trim(),
       baseUrl: _baseUrlController.text.trim(),
       apiKey: _apiKeyController.text.trim(),
       modelIds: List.of(_modelIds),
+      // 联动兜底：只持久化当前模型列表内模型的配置，避免残留孤儿配置
+      modelConfigs: Map.of(_modelConfig)
+        ..removeWhere((model, _) => !_modelIds.contains(model)),
     );
   }
 
@@ -87,7 +118,14 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       existing: _modelIds.toSet(),
     );
     if (added == null || added.isEmpty || !mounted) return;
-    setState(() => _modelIds.addAll(added.where((m) => !_modelIds.contains(m))));
+    setState(() {
+      for (final (model, config) in added) {
+        if (_modelIds.contains(model)) continue;
+        _modelIds.add(model);
+        _modelConfig[model] = config;
+      }
+    });
+    _schedulePersist();
   }
 
   ChatProvider _currentProvider() => ChatProvider(
@@ -96,6 +134,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         baseUrl: _baseUrlController.text.trim(),
         apiKey: _apiKeyController.text.trim(),
         modelIds: List.of(_modelIds),
+        modelConfigs: Map.of(_modelConfig),
       );
 
   Future<ModelTestResult?> _testSingle(String model) async {
@@ -179,34 +218,147 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
   Widget _buildLatencyLabel(String model) {
     final scheme = Theme.of(context).colorScheme;
     if (_testingModels.contains(model)) {
-      return SizedBox(
+      return const SizedBox(
         width: 18,
         height: 18,
         child: CircularProgressIndicator(strokeWidth: 2),
       );
     }
     final result = _testResults[model];
-    if (result != null) {
-      if (result.success) {
-        Color color;
-        if (result.elapsedMs < 1000) {
-          color = Colors.green;
-        } else if (result.elapsedMs < 3000) {
-          color = Colors.orange;
-        } else {
-          color = Colors.red;
-        }
-        return Text(
-          '${result.elapsedMs}ms',
-          style: TextStyle(fontSize: 11.5, color: color, fontWeight: FontWeight.w500),
-        );
-      }
-      return Text(
-        '-1ms',
-        style: TextStyle(fontSize: 11.5, color: scheme.error, fontWeight: FontWeight.w500),
+    // 未测试过的模型显示占位文案，点击可发起测试
+    if (result == null) {
+      return Tooltip(
+        message: '点击测试',
+        child: InkWell(
+          onTap: () => _testSingle(model),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Text(
+              '未测试',
+              style: TextStyle(
+                fontSize: 11.5,
+                color: scheme.outline,
+              ),
+            ),
+          ),
+        ),
       );
     }
-    return const SizedBox.shrink();
+    final Color color;
+    final String text;
+    if (result.success) {
+      color = result.elapsedMs < 1000
+          ? Colors.green
+          : result.elapsedMs < 3000
+              ? Colors.orange
+              : Colors.red;
+      text = '${result.elapsedMs}ms';
+    } else {
+      color = scheme.error;
+      text = '-1ms';
+    }
+    // 点击毫秒数重新测试该模型连通性
+    return Tooltip(
+      message: '点击重新测试',
+      child: InkWell(
+        onTap: () => _testSingle(model),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 11.5,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 模型能力标签列表（多模态 / 推理），无标签时返回空列表。
+  List<Widget> _buildModelBadges(String model, ColorScheme scheme) {
+    final config = _modelConfig[model];
+    return [
+      if (config?.multimodal == true)
+        _CapabilityBadge(
+          label: '多模态',
+          color: scheme.tertiary,
+        ),
+      if (config?.reasoning == true)
+        _CapabilityBadge(
+          label: '推理',
+          color: scheme.primary,
+        ),
+    ];
+  }
+
+  /// 模型行：名称可换行完整展示，能力标签与延迟状态放次行，操作按钮置右。
+  Widget _buildModelItem(String model, ColorScheme scheme) {
+    final badges = _buildModelBadges(model, scheme);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+      child: Row(
+        children: [
+          Icon(Icons.drag_indicator, size: 18, color: scheme.outlineVariant),
+          const SizedBox(width: 4),
+          const Icon(Icons.model_training_outlined, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  model,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (badges.isNotEmpty)
+                      ...badges
+                    else
+                      // 无能力标签时给个占位，避免第二行左侧空荡
+                      Text(
+                        '无',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.outline,
+                        ),
+                      ),
+                    const Spacer(),
+                    _buildLatencyLabel(model),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 18),
+            tooltip: '模型设置',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _openModelSettingsDialog(model),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 18),
+            tooltip: '移除',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _confirmDelete(model),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _confirmDelete(String model) async {
@@ -230,22 +382,32 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         ],
       ),
     );
-    if (confirmed == true) setState(() => _modelIds.remove(model));
+    if (confirmed == true) {
+      setState(() {
+        _modelIds.remove(model);
+        // 联动清理：模型被移除后，其能力配置与延迟测试结果一并清除
+        _modelConfig.remove(model);
+        _testResults.remove(model);
+      });
+      _schedulePersist();
+      _persistTestResults();
+      // 等待写入完成，再清理指向该模型的全局默认配置
+      await _persistChain;
+      await ProviderService().clearStaleDefaultModels();
+    }
   }
 
   void _openModelSettingsDialog(String model) {
-    final config = _modelConfig.putIfAbsent(model, () => {
-      'multimodal': false,
-      'reasoning': false,
-    });
+    final config = _modelConfig.putIfAbsent(model, () => const ModelConfig());
 
     showDialog(
       context: context,
       builder: (ctx) => _ModelSettingsDialog(
         model: model,
         config: config,
-        onConfigChanged: (key, value) {
-          setState(() => config[key] = value);
+        onConfigChanged: (c) {
+          setState(() => _modelConfig[model] = c);
+          _schedulePersist();
         },
         onReTest: () => _testSingle(model),
         testResult: _testResults[model],
@@ -254,70 +416,23 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
     );
   }
 
-  Future<void> _openSettingsDialog() async {
-    final settings = await SettingsService().load();
-    if (!mounted) return;
-    final controller = TextEditingController(text: settings.testPrompt);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('服务商设置'),
-        content: TextField(
-          controller: controller,
-          minLines: 2,
-          maxLines: 4,
-          decoration: const InputDecoration(
-            labelText: '连通性测试提示词',
-            hintText: '例如：ping',
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (result == null || !mounted) return;
-    await SettingsService().save(settings.copyWith(testPrompt: result));
-  }
-
-  void _save() {
-    final name = _nameController.text.trim();
-    final baseUrl = _baseUrlController.text.trim();
-    final apiKey = _apiKeyController.text.trim();
-    if (name.isEmpty || baseUrl.isEmpty || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写服务商名称、Base URL 和 API Key')),
-      );
-      return;
-    }
-    Navigator.of(context).pop(_buildProvider());
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return Scaffold(
+    return PopScope(
+      // 返回前先把队列里所有实时修改落盘，避免丢改动
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final navigator = Navigator.of(context);
+        _flushPending().then((_) {
+          if (mounted) navigator.pop();
+        });
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(widget.provider == null ? '添加服务商' : '服务商设置'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 20),
-            tooltip: '设置',
-            onPressed: _openSettingsDialog,
-          ),
-          TextButton(onPressed: _save, child: const Text('保存')),
-        ],
       ),
       body: SafeArea(
         top: false,
@@ -327,6 +442,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
           TextField(
             controller: _nameController,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            onChanged: (_) => _schedulePersist(),
             decoration: const InputDecoration(
               labelText: '服务商名称',
               hintText: '例如：OpenAI',
@@ -338,6 +454,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
             controller: _baseUrlController,
             autocorrect: false,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            onChanged: (_) => _schedulePersist(),
             decoration: const InputDecoration(
               labelText: 'Base URL',
               hintText: 'https://api.openai.com/v1',
@@ -351,6 +468,7 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
             autocorrect: false,
             enableSuggestions: false,
             onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            onChanged: (_) => _schedulePersist(),
             decoration: InputDecoration(
               labelText: 'API Key',
               hintText: 'sk-...',
@@ -426,47 +544,20 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
                   final item = _modelIds.removeAt(oldIndex);
                   _modelIds.insert(newIndex, item);
                 });
+                _schedulePersist();
               },
               children: [
                 for (final model in _modelIds)
                   ReorderableDelayedDragStartListener(
                     key: ValueKey(model),
                     index: _modelIds.indexOf(model),
-                    child: ListTile(
-                      dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      leading: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.drag_indicator, size: 18, color: scheme.outlineVariant),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.model_training_outlined, size: 18),
-                        ],
-                      ),
-                      title: Text(model, style: const TextStyle(fontSize: 13)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildLatencyLabel(model),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(Icons.settings_outlined, size: 18),
-                            tooltip: '模型设置',
-                            onPressed: () => _openModelSettingsDialog(model),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, size: 18),
-                            tooltip: '移除',
-                            onPressed: () => _confirmDelete(model),
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: _buildModelItem(model, scheme),
                   ),
               ],
             ),
         ],
         ),
+      ),
       ),
     );
   }
@@ -475,8 +566,8 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
 /// 模型设置弹窗：基础设置 + 高级设置（TabBar），内容列表可滚动。
 class _ModelSettingsDialog extends StatefulWidget {
   final String model;
-  final Map<String, dynamic> config;
-  final void Function(String key, dynamic value) onConfigChanged;
+  final ModelConfig config;
+  final void Function(ModelConfig config) onConfigChanged;
   final Future<ModelTestResult?> Function() onReTest;
   final ModelTestResult? testResult;
   final bool isTesting;
@@ -496,6 +587,18 @@ class _ModelSettingsDialog extends StatefulWidget {
 
 class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
   int _selectedTab = 0;
+  late ModelConfig _config;
+
+  @override
+  void initState() {
+    super.initState();
+    _config = widget.config;
+  }
+
+  void _setConfig(ModelConfig config) {
+    setState(() => _config = config);
+    widget.onConfigChanged(config);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,8 +672,8 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
           '支持图片、文件等非文本输入',
           style: TextStyle(fontSize: 12, color: scheme.outline),
         ),
-        value: widget.config['multimodal'] ?? false,
-        onChanged: (v) => widget.onConfigChanged('multimodal', v),
+        value: _config.multimodal,
+        onChanged: (v) => _setConfig(_config.copyWith(multimodal: v)),
       ),
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
@@ -580,8 +683,8 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
           '启用深度推理能力（如 o1、o3 系列）',
           style: TextStyle(fontSize: 12, color: scheme.outline),
         ),
-        value: widget.config['reasoning'] ?? false,
-        onChanged: (v) => widget.onConfigChanged('reasoning', v),
+        value: _config.reasoning,
+        onChanged: (v) => _setConfig(_config.copyWith(reasoning: v)),
       ),
     ];
   }
@@ -794,6 +897,34 @@ class _TabButton extends StatelessWidget {
               color: selected ? scheme.onPrimaryContainer : scheme.outline,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 模型能力小标签（多模态 / 推理）。
+class _CapabilityBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _CapabilityBadge({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
         ),
       ),
     );

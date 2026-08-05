@@ -5,6 +5,8 @@
 #include <gdk/gdkx.h>
 #endif
 
+#include <gdk-pixbuf/gdk-pixbuf.h>
+
 #include "flutter/generated_plugin_registrant.h"
 
 struct _MyApplication {
@@ -18,6 +20,23 @@ G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 static void first_frame_cb(MyApplication* self, FlView *view)
 {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// 设置应用窗口图标：图标由 CMake 构建时复制到可执行文件同目录（nona_icon.png）。
+static void set_app_icon(GtkWindow* window) {
+  g_autofree gchar* exe_path = g_file_read_link("/proc/self/exe", nullptr);
+  if (exe_path == nullptr) return;
+  g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
+  g_autofree gchar* icon_path =
+      g_build_filename(exe_dir, "nona_icon.png", nullptr);
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(GdkPixbuf) icon = gdk_pixbuf_new_from_file(icon_path, &error);
+  if (icon == nullptr) {
+    g_warning("Failed to load app icon: %s",
+              error != nullptr ? error->message : "unknown");
+    return;
+  }
+  gtk_window_set_icon(window, icon);
 }
 
 // Implements GApplication::activate.
@@ -54,6 +73,8 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  set_app_icon(window);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);

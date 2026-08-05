@@ -24,6 +24,10 @@ class ChatMessage {
   /// 生成耗时（毫秒），assistant 专属。
   int? elapsedMs;
 
+  /// 本次回复使用的服务商名称与模型 id（assistant 专属，用于消息头标注）。
+  String? providerName;
+  String? modelId;
+
   ChatMessage({
     required this.role,
     required this.content,
@@ -33,6 +37,8 @@ class ChatMessage {
     this.promptTokens,
     this.completionTokens,
     this.elapsedMs,
+    this.providerName,
+    this.modelId,
   });
 
   /// 转为 OpenAI API 请求中的消息格式。
@@ -48,6 +54,8 @@ class ChatMessage {
       promptTokens: json['promptTokens'] as int?,
       completionTokens: json['completionTokens'] as int?,
       elapsedMs: json['elapsedMs'] as int?,
+      providerName: json['providerName'] as String?,
+      modelId: json['modelId'] as String?,
     );
   }
 
@@ -60,5 +68,7 @@ class ChatMessage {
     'promptTokens': promptTokens,
     'completionTokens': completionTokens,
     'elapsedMs': elapsedMs,
+    'providerName': providerName,
+    'modelId': modelId,
   };
 }

@@ -64,6 +64,10 @@ NONA_DEBUG_BASE_URL=https://debug.example.com/v1
           baseUrl: 'https://debug.example.com/v1',
           apiKey: 'sk-test-debug-key',
           modelIds: const ['model-x', 'model-y'],
+          modelConfigs: const {
+            'model-x': ModelConfig(multimodal: true),
+            'model-y': ModelConfig(reasoning: true),
+          },
         ),
       ]);
 
@@ -82,6 +86,31 @@ NONA_DEBUG_BASE_URL=https://debug.example.com/v1
           .where((p) => p.id == ProviderService.debugProviderId)
           .firstOrNull;
       expect(debug!.modelIds, containsAll(['model-x', 'model-y']));
+      // 模型级配置（多模态/推理）同样单独持久化
+      expect(debug.modelConfigs['model-x']?.multimodal, isTrue);
+      expect(debug.modelConfigs['model-y']?.reasoning, isTrue);
+    });
+
+    test('模型能力配置（多模态/推理）保存后能完整读回', () async {
+      final service = ProviderService();
+      await service.save([
+        ChatProvider(
+          id: 'provider-custom',
+          name: 'Custom',
+          baseUrl: 'https://example.com/v1',
+          apiKey: 'sk-test',
+          modelIds: const ['gpt-4o', 'o1'],
+          modelConfigs: {
+            'gpt-4o': const ModelConfig(multimodal: true),
+            'o1': const ModelConfig(reasoning: true),
+          },
+        ),
+      ]);
+
+      final providers = await service.load();
+      final p = providers.firstWhere((e) => e.id == 'provider-custom');
+      expect(p.modelConfigs['gpt-4o']?.multimodal, isTrue);
+      expect(p.modelConfigs['o1']?.reasoning, isTrue);
     });
   });
 }

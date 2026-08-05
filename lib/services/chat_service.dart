@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/chat_message.dart';
 import '../models/chat_options.dart';
+import 'network_log_service.dart';
 import 'settings_service.dart';
 
 /// 一次回复的 token 用量。
@@ -129,6 +130,16 @@ class _ChatRequestRunner {
   late final Completer<ChatResult> _completer;
   late final DateTime _started;
 
+  /// 网络日志记录器（启用日志时非空）。
+  NetworkLogBuilder? _logBuilder;
+  bool _logEnded = false;
+  int? _responseStatus;
+  Map<String, String>? _responseHeaders;
+  final StringBuffer _logBody = StringBuffer();
+
+  /// 日志原始响应流暂存上限，超出即停止追加（防止超大流撑爆内存）。
+  static const int _logBodyCap = 200000;
+
   _ChatRequestRunner({
     required this.settings,
     required this.messages,
@@ -154,19 +165,34 @@ class _ChatRequestRunner {
     _idleTimer?.cancel();
     await _sub?.cancel();
     _client?.close();
+    _endLog(error: '用户取消');
     if (!_completer.isCompleted) {
       _completer.completeError(const ChatCancelledException());
     }
   }
 
+  /// 结束网络日志（成功/失败/取消均只记录一次）。
+  void _endLog({String? body, String? error}) {
+    if (_logBuilder == null || _logEnded) return;
+    _logEnded = true;
+    _logBuilder!.end(
+      statusCode: _responseStatus,
+      responseHeaders: _responseHeaders,
+      responseBody: body ?? _logBody.toString(),
+      error: error,
+    );
+  }
+
   void _fail(Object error) {
     if (_cancelled || _completer.isCompleted) return;
+    _endLog(error: error.toString());
     _completer.completeError(error);
   }
 
   void _done() {
     if (_cancelled || _completer.isCompleted) return;
     final elapsed = DateTime.now().difference(_started).inMilliseconds;
+    _endLog();
     _completer.complete(
       ChatResult(content: _full.toString(), usage: _usage, elapsedMs: elapsed),
     );
@@ -203,6 +229,16 @@ class _ChatRequestRunner {
 
     final client = http.Client();
     _client = client;
+    _logBuilder = NetworkLogService.begin(
+      method: 'POST',
+      url: uri.toString(),
+      requestHeaders: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${settings.apiKey}',
+      },
+      requestBody: body,
+      type: NetworkLogType.chat,
+    );
     try {
       final request = http.Request('POST', uri)
         ..headers['Content-Type'] = 'application/json'
@@ -213,8 +249,11 @@ class _ChatRequestRunner {
         ChatService.kConnectTimeout,
       );
       if (_cancelled) return;
+      _responseStatus = response.statusCode;
+      _responseHeaders = Map.of(response.headers);
       if (response.statusCode != 200) {
         final errBody = await response.stream.bytesToString();
+        _endLog(body: errBody, error: 'HTTP ${response.statusCode}');
         throw ChatException(
           '请求失败 (HTTP ${response.statusCode})：'
           '${ChatService()._extractError(errBody)}',
@@ -256,9 +295,20 @@ class _ChatRequestRunner {
   void _handleLine(String line) {
     _idleReset?.call();
     if (_cancelled) return;
+    // 启用网络日志时暂存原始响应流（限量），用于日志详情展示
+    if (_logBuilder != null &&
+        !_logEnded &&
+        _logBody.length < _logBodyCap) {
+      _logBody.write(line);
+      _logBody.write('\n');
+    }
     if (!line.startsWith('data:')) {
-      // 非流式：整包 JSON 可能分多行到达，先暂存
-      if (!options.stream) _rawBuffer.add(line);
+      // 整包 JSON 可能分多行到达（非流式，或服务端忽略 stream 参数的兜底）：
+      // 从首个 `{` 起暂存，供 _handleDone 合并解析。
+      // 流式 SSE 的空白行/注释行不会以 `{` 开头，不会被误收集。
+      if (line.trimLeft().startsWith('{') || _rawBuffer.isNotEmpty) {
+        _rawBuffer.add(line);
+      }
       return;
     }
     final data = line.substring(5).trim();
@@ -297,15 +347,18 @@ class _ChatRequestRunner {
         }
       }
     } catch (_) {
-      // 忽略无法解析的行
+      // 非流式下 SSE 包装的多行 JSON：首行 `data: {` 无法单独解析，
+      // 去掉前缀后暂存，等待 _handleDone 与后续行合并解析。
+      if (!options.stream) _rawBuffer.add(data);
     }
   }
 
   void _handleDone() {
     _idleTimer?.cancel();
     if (_cancelled) return;
-    if (!options.stream && _full.isEmpty && _rawBuffer.isNotEmpty) {
-      // 逐行没解析到内容：把暂存的行合并后整体解析
+    if (_full.isEmpty && _rawBuffer.isNotEmpty) {
+      // 逐行没解析到内容（非流式整包 JSON，或服务端忽略 stream 参数返回整包 JSON）：
+      // 把暂存的行合并后整体解析
       final raw = _rawBuffer.join('\n').trim();
       if (raw.isNotEmpty) {
         try {

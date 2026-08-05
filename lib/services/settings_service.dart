@@ -23,6 +23,18 @@ class AppSettings {
   /// 默认聊天模型 ID（用于新建会话），空字符串表示无默认值（需手动选择）。
   final String chatModel;
 
+  /// 开发者模式：开启后设置页显示「开发者选项」高级设置入口。
+  final bool developerMode;
+
+  /// 开发者选项：启动时自动联网更新模型能力映射表。
+  final bool autoUpdateModelCapabilities;
+
+  /// 开发者选项：启用网络日志记录。
+  final bool networkLogEnabled;
+
+  /// 开发者选项：网络日志最大保留条数，0 表示不限制。
+  final int networkLogMaxLogs;
+
   const AppSettings({
     this.apiKey = '',
     this.baseUrl = 'https://api.openai.com/v1',
@@ -32,6 +44,10 @@ class AppSettings {
     this.testPrompt = 'ping',
     this.defaultAgentModel = '',
     this.chatModel = '',
+    this.developerMode = false,
+    this.autoUpdateModelCapabilities = false,
+    this.networkLogEnabled = false,
+    this.networkLogMaxLogs = 0,
   });
 
   AppSettings copyWith({
@@ -43,6 +59,10 @@ class AppSettings {
     String? testPrompt,
     String? defaultAgentModel,
     String? chatModel,
+    bool? developerMode,
+    bool? autoUpdateModelCapabilities,
+    bool? networkLogEnabled,
+    int? networkLogMaxLogs,
   }) {
     return AppSettings(
       apiKey: apiKey ?? this.apiKey,
@@ -53,6 +73,11 @@ class AppSettings {
       testPrompt: testPrompt ?? this.testPrompt,
       defaultAgentModel: defaultAgentModel ?? this.defaultAgentModel,
       chatModel: chatModel ?? this.chatModel,
+      developerMode: developerMode ?? this.developerMode,
+      autoUpdateModelCapabilities:
+          autoUpdateModelCapabilities ?? this.autoUpdateModelCapabilities,
+      networkLogEnabled: networkLogEnabled ?? this.networkLogEnabled,
+      networkLogMaxLogs: networkLogMaxLogs ?? this.networkLogMaxLogs,
     );
   }
 }
@@ -67,6 +92,10 @@ class SettingsService {
   static const _kTestPrompt = 'test_prompt';
   static const _kDefaultAgentModel = 'default_agent_model';
   static const _kChatModel = 'chat_model';
+  static const _kDeveloperMode = 'developer_mode';
+  static const _kAutoUpdateModelCapabilities = 'auto_update_model_capabilities';
+  static const _kNetworkLogEnabled = 'network_log_enabled';
+  static const _kNetworkLogMaxLogs = 'network_log_max_logs';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,6 +108,11 @@ class SettingsService {
       testPrompt: prefs.getString(_kTestPrompt) ?? 'ping',
       defaultAgentModel: prefs.getString(_kDefaultAgentModel) ?? '',
       chatModel: prefs.getString(_kChatModel) ?? '',
+      developerMode: prefs.getBool(_kDeveloperMode) ?? false,
+      autoUpdateModelCapabilities:
+          prefs.getBool(_kAutoUpdateModelCapabilities) ?? false,
+      networkLogEnabled: prefs.getBool(_kNetworkLogEnabled) ?? false,
+      networkLogMaxLogs: prefs.getInt(_kNetworkLogMaxLogs) ?? 0,
     );
   }
 
@@ -92,5 +126,12 @@ class SettingsService {
     await prefs.setString(_kTestPrompt, settings.testPrompt);
     await prefs.setString(_kDefaultAgentModel, settings.defaultAgentModel);
     await prefs.setString(_kChatModel, settings.chatModel);
+    await prefs.setBool(_kDeveloperMode, settings.developerMode);
+    await prefs.setBool(
+      _kAutoUpdateModelCapabilities,
+      settings.autoUpdateModelCapabilities,
+    );
+    await prefs.setBool(_kNetworkLogEnabled, settings.networkLogEnabled);
+    await prefs.setInt(_kNetworkLogMaxLogs, settings.networkLogMaxLogs);
   }
 }

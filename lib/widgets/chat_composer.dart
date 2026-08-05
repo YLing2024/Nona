@@ -88,6 +88,14 @@ class _ChatComposerState extends State<ChatComposer> {
     return provider.modelIds.first;
   }
 
+  /// 当前模型是否为推理模型；未标记为推理（或未配置）时思考不可用。
+  bool get _reasoningEnabled {
+    final model = _resolvedModel;
+    final provider = _provider;
+    if (model == null || provider == null) return true;
+    return provider.modelConfigs[model]?.reasoning ?? false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -298,13 +306,14 @@ class _ChatComposerState extends State<ChatComposer> {
     bool overLimit,
   ) {
     // 窄屏下工具条横向滚动，避免溢出
+    final hasModels = widget.providers.any((p) => p.modelIds.isNotEmpty);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
         // 模型选择
-        if (model == null)
+        if (!hasModels)
           _ToolbarChip(
             icon: Icons.model_training,
             label: '未配置模型',
@@ -344,7 +353,7 @@ class _ChatComposerState extends State<ChatComposer> {
               ],
             ],
             builder: (context, controller, child) => _ModelChip(
-              modelName: model,
+              modelName: model ?? '选择模型',
               onTap: () {
                 if (controller.isOpen) {
                   controller.close();
@@ -355,37 +364,38 @@ class _ChatComposerState extends State<ChatComposer> {
             ),
           ),
         const SizedBox(width: 6),
-        // 思考强度
-        MenuAnchor(
-          alignmentOffset: const Offset(0, 6),
-          menuChildren: [
-            for (final (value, label) in _effortOptions)
-              MenuItemButton(
-                leadingIcon: Icon(
-                  options.reasoningEffort == value
-                      ? Icons.check_rounded
-                      : Icons.circle_outlined,
-                  size: 16,
-                  color: options.reasoningEffort == value
-                      ? scheme.primary
-                      : scheme.outline,
+        // 思考强度（仅推理模型显示）
+        if (_reasoningEnabled)
+          MenuAnchor(
+            alignmentOffset: const Offset(0, 6),
+            menuChildren: [
+              for (final (value, label) in _effortOptions)
+                MenuItemButton(
+                  leadingIcon: Icon(
+                    options.reasoningEffort == value
+                        ? Icons.check_rounded
+                        : Icons.circle_outlined,
+                    size: 16,
+                    color: options.reasoningEffort == value
+                        ? scheme.primary
+                        : scheme.outline,
+                  ),
+                  child: Text(label, style: const TextStyle(fontSize: 13)),
+                  onPressed: () => widget.onEffortChanged(value),
                 ),
-                child: Text(label, style: const TextStyle(fontSize: 13)),
-                onPressed: () => widget.onEffortChanged(value),
-              ),
-          ],
-          builder: (context, controller, child) => _ToolbarChip(
-            icon: Icons.psychology_outlined,
-            label: _effortLabel(options.reasoningEffort),
-            onTap: () {
-              if (controller.isOpen) {
-                controller.close();
-              } else {
-                controller.open();
-              }
-            },
+            ],
+            builder: (context, controller, child) => _ToolbarChip(
+              icon: Icons.psychology_outlined,
+              label: _effortLabel(options.reasoningEffort),
+              onTap: () {
+                if (controller.isOpen) {
+                  controller.close();
+                } else {
+                  controller.open();
+                }
+              },
+            ),
           ),
-        ),
         const SizedBox(width: 8),
         // 流式开关
         _ToolbarChip(

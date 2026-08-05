@@ -7,7 +7,9 @@ import '../services/session_service.dart';
 import '../services/settings_service.dart';
 import '../services/theme_controller.dart';
 import '../theme/app_theme.dart';
+import 'about_screen.dart';
 import 'agent_list_screen.dart';
+import 'developer_options_screen.dart';
 import 'model_config_screen.dart';
 import 'preferences_screen.dart';
 import 'provider_list_screen.dart';
@@ -63,6 +65,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (result != null && mounted) {
       setState(() => _settings = _settings.copyWith(themeMode: result));
     }
+  }
+
+  Future<void> _openAbout() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    // 关于页内可切换开发者模式，返回后刷新以更新「开发者选项」入口
+    final settings = await _settingsService.load();
+    if (!mounted) return;
+    setState(() => _settings = settings);
   }
 
   Future<void> _openAgentList() async {
@@ -268,6 +280,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   danger: true,
                   onTap: _sessionCount == 0 ? null : _clearAll,
                 ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel('关于'),
+            _SettingsCard(
+              children: [
+                _SettingsTile(
+                  icon: Icons.info_outline_rounded,
+                  iconColor: Theme.of(context).colorScheme.secondary,
+                  title: '关于 Nona',
+                  subtitle: '版本 / GitHub 仓库 / 开源许可',
+                  onTap: _openAbout,
+                ),
+                // 开发者模式开启后显示高级设置入口
+                if (_settings.developerMode) ...[
+                  const _TileDivider(),
+                  _SettingsTile(
+                    icon: Icons.developer_mode_rounded,
+                    iconColor: Theme.of(context).colorScheme.primary,
+                    title: '开发者选项',
+                    subtitle: '连通性高级设置 / 模型能力映射表',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DeveloperOptionsScreen(),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 20),

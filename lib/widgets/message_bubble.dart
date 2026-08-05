@@ -19,8 +19,8 @@ class MessageBubble extends StatefulWidget {
 
   final VoidCallback? onCopy;
   final VoidCallback? onEdit;
+  final VoidCallback? onRollback;
   final VoidCallback? onRegenerate;
-  final VoidCallback? onContinue;
   final VoidCallback? onDelete;
 
   const MessageBubble({
@@ -30,8 +30,8 @@ class MessageBubble extends StatefulWidget {
     this.canRegenerate = false,
     this.onCopy,
     this.onEdit,
+    this.onRollback,
     this.onRegenerate,
-    this.onContinue,
     this.onDelete,
   });
 
@@ -149,6 +149,21 @@ class _MessageBubbleState extends State<MessageBubble> {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            // 标注本次回复的服务商与模型名（小字）
+            if (message.providerName != null && message.modelId != null) ...[
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  '（${message.providerName} · ${message.modelId}）',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.outline,
+                  ),
+                ),
+              ),
+            ],
             if (widget.isStreaming) ...[
               const SizedBox(width: 8),
               const _StreamingDots(),
@@ -238,27 +253,25 @@ class _MessageBubbleState extends State<MessageBubble> {
         tooltip: '复制',
         onTap: widget.onCopy,
       ),
-      if (_isUser && widget.onEdit != null)
+      // 用户与助手消息都支持编辑（跳转独立编辑页）
+      if (widget.onEdit != null)
         _ActionIcon(
           icon: Icons.edit_outlined,
-          tooltip: '编辑并重发',
+          tooltip: '编辑',
           onTap: widget.onEdit,
+        ),
+      // 用户消息支持回滚到此处：清空其后的消息并回填输入框
+      if (_isUser && widget.onRollback != null)
+        _ActionIcon(
+          icon: Icons.undo_rounded,
+          tooltip: '回滚到此处',
+          onTap: widget.onRollback,
         ),
       if (!_isUser && widget.canRegenerate && widget.onRegenerate != null)
         _ActionIcon(
           icon: Icons.refresh_rounded,
           tooltip: message.failed ? '重试' : '重新生成',
           onTap: widget.onRegenerate,
-        ),
-      if (!_isUser &&
-          !widget.canRegenerate &&
-          message.interrupted &&
-          !message.failed &&
-          widget.onContinue != null)
-        _ActionIcon(
-          icon: Icons.play_arrow_rounded,
-          tooltip: '继续生成',
-          onTap: widget.onContinue,
         ),
       if (widget.onDelete != null)
         _ActionIcon(
@@ -464,6 +477,15 @@ class _ReasoningSection extends StatefulWidget {
 class _ReasoningSectionState extends State<_ReasoningSection> {
   bool _expanded = false;
 
+  /// 取正文的最后 [count] 行：流式刷新时始终展示最新内容。
+  String _lastLines(String text, int count) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return '';
+    final lines = trimmed.split('\n');
+    if (lines.length <= count) return trimmed;
+    return lines.sublist(lines.length - count).join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -508,13 +530,13 @@ class _ReasoningSectionState extends State<_ReasoningSection> {
               ),
             ),
           ),
-          // 收起时显示前 5 行，展开时渲染完整 Markdown
+          // 收起时显示最后 5 行（随流式刷新滚动到最新），展开时渲染完整 Markdown
           if (!_expanded)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
               child: Text(
-                widget.reasoning.trim(),
+                _lastLines(widget.reasoning, 5),
                 maxLines: 5,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(

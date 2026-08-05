@@ -61,34 +61,24 @@ class ExportService {
 
   /// 导出为 .md 文件（桌面端弹出保存对话框）。
   static Future<String?> exportToFile(ChatSession session) async {
-    const typeGroup = XTypeGroup(
-      label: 'Markdown',
-      extensions: ['md'],
-      mimeTypes: ['text/markdown'],
-    );
-    final file = await getSaveLocation(
-      suggestedName: '${_safeFileName(session.title)}.md',
-      acceptedTypeGroups: const [typeGroup],
-    );
-    if (file == null) return null;
     final data = sessionToMarkdown(session);
-    return storage_io.writeTextToPath(file.path, data);
+    return storage_io.saveTextFile(
+      suggestedName: '${_safeFileName(session.title)}.md',
+      data: data,
+      extension: 'md',
+      mimeType: 'text/markdown',
+    );
   }
 
   /// 导出为 JSON 文件（可被 [importFromFile] 恢复）。
   static Future<String?> exportJsonToFile(ChatSession session) async {
-    const typeGroup = XTypeGroup(
-      label: 'JSON',
-      extensions: ['json'],
-      mimeTypes: ['application/json'],
-    );
-    final file = await getSaveLocation(
-      suggestedName: '${_safeFileName(session.title)}.json',
-      acceptedTypeGroups: const [typeGroup],
-    );
-    if (file == null) return null;
     final data = jsonEncode(session.toJson());
-    return storage_io.writeTextToPath(file.path, data);
+    return storage_io.saveTextFile(
+      suggestedName: '${_safeFileName(session.title)}.json',
+      data: data,
+      extension: 'json',
+      mimeType: 'application/json',
+    );
   }
 
   /// 从 JSON 文件恢复会话；解析失败返回 null。
@@ -111,22 +101,17 @@ class ExportService {
 
   /// 导出全部会话为 JSON 备份文件。
   static Future<String?> exportAllToFile(List<ChatSession> sessions) async {
-    const typeGroup = XTypeGroup(
-      label: 'JSON',
-      extensions: ['json'],
-      mimeTypes: ['application/json'],
-    );
-    final file = await getSaveLocation(
-      suggestedName: 'nona-sessions-${_dateStamp()}.json',
-      acceptedTypeGroups: const [typeGroup],
-    );
-    if (file == null) return null;
     final data = jsonEncode({
       'app': 'nona',
       'version': 1,
       'sessions': sessions.map((s) => s.toJson()).toList(),
     });
-    return storage_io.writeTextToPath(file.path, data);
+    return storage_io.saveTextFile(
+      suggestedName: 'nona-sessions-${_dateStamp()}.json',
+      data: data,
+      extension: 'json',
+      mimeType: 'application/json',
+    );
   }
 
   /// 从备份文件导入全部会话；解析失败返回 null。

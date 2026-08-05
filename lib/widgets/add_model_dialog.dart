@@ -3,14 +3,15 @@ import 'package:flutter/material.dart';
 import '../models/chat_provider.dart';
 import '../services/provider_service.dart';
 
-/// 弹出「添加模型」对话框，返回本次新增的模型 ID 列表（可能包含已有，由调用方去重；列表模式保留 API 返回顺序）。
-Future<List<String>?> showAddModelDialog(
+/// 弹出「添加模型」对话框，返回本次新增的模型 id 及能力配置
+/// （可能包含已有，由调用方去重；列表模式保留 API 返回顺序）。
+Future<List<(String, ModelConfig)>?> showAddModelDialog(
   BuildContext context, {
   required String baseUrl,
   required String apiKey,
   required Set<String> existing,
 }) {
-  return showDialog<List<String>>(
+  return showDialog<List<(String, ModelConfig)>>(
     context: context,
     builder: (_) => AddModelDialog(
       baseUrl: baseUrl,
@@ -42,9 +43,13 @@ class AddModelDialog extends StatefulWidget {
 class _AddModelDialogState extends State<AddModelDialog> {
   final _manualController = TextEditingController();
   bool _fetchMode = false;
-  List<String>? _fetched;
+  List<(String, ModelConfig)>? _fetched;
   final Set<String> _checked = {};
   bool _loading = false;
+
+  /// 手动添加时勾选的模型能力配置。
+  bool _manualMultimodal = false;
+  bool _manualReasoning = false;
 
   @override
   void dispose() {
@@ -81,7 +86,7 @@ class _AddModelDialogState extends State<AddModelDialog> {
         _fetched = models;
         _checked
           ..clear()
-          ..addAll(widget.existing.where(models.contains));
+          ..addAll(widget.existing.where((id) => models.any((m) => m.$1 == id)));
       });
       if (models.isEmpty) {
         ScaffoldMessenger.of(
@@ -104,13 +109,23 @@ class _AddModelDialogState extends State<AddModelDialog> {
   }
 
   void _submit() {
-    final List<String> result;
+    final List<(String, ModelConfig)> result;
     if (_fetchMode) {
-      result = _fetched!.where((m) => _checked.contains(m)).toList();
+      result = _fetched!
+          .where((m) => _checked.contains(m.$1))
+          .toList();
     } else {
       final model = _manualController.text.trim();
       if (model.isEmpty) return;
-      result = [model];
+      result = [
+        (
+          model,
+          ModelConfig(
+            multimodal: _manualMultimodal,
+            reasoning: _manualReasoning,
+          ),
+        ),
+      ];
     }
     if (result.isEmpty) return;
     Navigator.of(context).pop(result);
@@ -146,19 +161,54 @@ class _AddModelDialogState extends State<AddModelDialog> {
             ),
             const SizedBox(height: 16),
             if (!_fetchMode)
-              TextField(
-                controller: _manualController,
-                autocorrect: false,
-                enableSuggestions: false,
-                onSubmitted: (_) => _submit(),
-                onTapOutside: (_) =>
-                    FocusManager.instance.primaryFocus?.unfocus(),
-                onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: '例如：gpt-4o',
-                  helperText: '填写一个模型 ID',
-                  border: OutlineInputBorder(),
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _manualController,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    onSubmitted: (_) => _submit(),
+                    onTapOutside: (_) =>
+                        FocusManager.instance.primaryFocus?.unfocus(),
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: '例如：gpt-4o',
+                      helperText: '填写一个模型 ID',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text('多模态', style: TextStyle(fontSize: 13)),
+                    subtitle: Text(
+                      '支持图片、文件等非文本输入',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    value: _manualMultimodal,
+                    onChanged: (v) =>
+                        setState(() => _manualMultimodal = v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    title: const Text('推理', style: TextStyle(fontSize: 13)),
+                    subtitle: Text(
+                      '推理模型支持思考模式',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    value: _manualReasoning,
+                    onChanged: (v) => setState(() => _manualReasoning = v),
+                  ),
+                ],
               )
             else
               _buildFetchSection(theme),
@@ -218,16 +268,32 @@ class _AddModelDialogState extends State<AddModelDialog> {
           children: [
             for (final m in _fetched!)
               CheckboxListTile(
-                value: _checked.contains(m),
-                title: Text(m, style: const TextStyle(fontSize: 13)),
+                value: _checked.contains(m.$1),
+                title: Row(
+                  children: [
+                    Flexible(
+                      child: Text(m.$1, style: const TextStyle(fontSize: 13)),
+                    ),
+                    if (m.$2.multimodal)
+                      _CapabilityTag(
+                        label: '多模态',
+                        color: theme.colorScheme.tertiary,
+                      ),
+                    if (m.$2.reasoning)
+                      _CapabilityTag(
+                        label: '推理',
+                        color: theme.colorScheme.primary,
+                      ),
+                  ],
+                ),
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
                 onChanged: (v) {
                   setState(() {
                     if (v == true) {
-                      _checked.add(m);
+                      _checked.add(m.$1);
                     } else {
-                      _checked.remove(m);
+                      _checked.remove(m.$1);
                     }
                   });
                 },
@@ -251,6 +317,34 @@ class _AddModelDialogState extends State<AddModelDialog> {
           ),
         body,
       ],
+    );
+  }
+}
+
+/// 模型能力小标签（多模态 / 推理）。
+class _CapabilityTag extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _CapabilityTag({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
     );
   }
 }

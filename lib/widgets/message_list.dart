@@ -17,8 +17,8 @@ class MessageList extends StatefulWidget {
 
   final void Function(ChatMessage message) onCopy;
   final void Function(ChatMessage message) onEdit;
+  final void Function(ChatMessage message) onRollback;
   final void Function(ChatMessage message) onRegenerate;
-  final void Function(ChatMessage message) onContinue;
   final void Function(ChatMessage message) onDelete;
 
   const MessageList({
@@ -29,8 +29,8 @@ class MessageList extends StatefulWidget {
     required this.canRegenerate,
     required this.onCopy,
     required this.onEdit,
+    required this.onRollback,
     required this.onRegenerate,
-    required this.onContinue,
     required this.onDelete,
   });
 
@@ -61,7 +61,10 @@ class _MessageListState extends State<MessageList> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    // 进入会话：直接定位到底部（无动画，配合 initialScrollOffset 首帧即底）
+    _jumpToBottom();
+    // 首帧后内容高度可能因图片/样式等继续变化，延迟再校正一次
+    _delayed(_jumpToBottom);
   }
 
   @override
@@ -73,11 +76,23 @@ class _MessageListState extends State<MessageList> {
   @override
   void didUpdateWidget(covariant MessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.messages.length != oldWidget.messages.length) {
-      _scrollToBottom();
+    // 切换会话（消息列表实例变化）时直接回到最新消息底部
+    if (!identical(widget.messages, oldWidget.messages)) {
+      _jumpToBottom();
+      _delayed(_jumpToBottom);
     } else if (widget.streamingIndex != null && _follow) {
+      // 流式输出且贴底：内容持续增长，瞬时跳转保证窗口始终贴住最新数据
+      _jumpToBottom();
+    } else if (widget.messages.length != oldWidget.messages.length) {
       _scrollToBottom();
     }
+  }
+
+  /// 延迟执行（防抖动后的兜底，避免与进场动画/图片加载抢占布局）。
+  void _delayed(VoidCallback fn) {
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) fn();
+    });
   }
 
   void _scrollToBottom() {
@@ -88,6 +103,14 @@ class _MessageListState extends State<MessageList> {
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeOut,
       );
+    });
+  }
+
+  /// 立即跳到底部（用于切换会话，避免从旧位置动画滚动）。
+  void _jumpToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.controller.hasClients) return;
+      widget.controller.jumpTo(widget.controller.position.maxScrollExtent);
     });
   }
 
@@ -117,8 +140,8 @@ class _MessageListState extends State<MessageList> {
                     !message.failed,
                 onCopy: () => widget.onCopy(message),
                 onEdit: () => widget.onEdit(message),
+                onRollback: () => widget.onRollback(message),
                 onRegenerate: () => widget.onRegenerate(message),
-                onContinue: () => widget.onContinue(message),
                 onDelete: () => widget.onDelete(message),
               ),
             );

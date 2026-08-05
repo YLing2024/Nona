@@ -24,3 +24,11 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+
+# 应用图标：构建后复制到可执行文件同目录，运行时用作窗口图标（与应用内品牌一致）
+add_custom_command(TARGET ${BINARY_NAME} POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/icon/icon.png"
+          "$<TARGET_FILE_DIR:${BINARY_NAME}>/nona_icon.png"
+  COMMENT "Copying application icon"
+)

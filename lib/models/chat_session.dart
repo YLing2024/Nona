@@ -80,6 +80,8 @@ class ChatSession {
               promptTokens: m.promptTokens,
               completionTokens: m.completionTokens,
               elapsedMs: m.elapsedMs,
+              providerName: m.providerName,
+              modelId: m.modelId,
             ),
           )
           .toList(),

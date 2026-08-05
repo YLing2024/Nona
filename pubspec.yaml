@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+1
+version: 1.1.0+1
 
 environment:
   sdk: ^3.9.2
@@ -45,10 +45,12 @@ dependencies:
   url_launcher: ^6.3.0
   file_selector: ^1.0.3
   flutter_dotenv: ^5.2.1
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.3
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -71,6 +73,30 @@ flutter:
   # 调试环境变量（.env 已被 .gitignore 排除，不会提交密钥）
   assets:
     - .env
+    - assets/model_capabilities.json
+
+# 应用图标生成：dart run flutter_launcher_icons
+# 源图 assets/icon/icon.png（渐变圆角方块 + 白色闪标，与应用内品牌一致）
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#4F46E5"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  min_sdk_android: 21
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/icon/icon.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#4F46E5"
+    theme_color: "#4F46E5"
 
   # To add assets to your application, add an assets section, like this:
   # assets:

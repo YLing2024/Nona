@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/chat_provider.dart';
+import 'model_capability_service.dart';
+import 'network_log_service.dart';
 import 'settings_service.dart';
 
 /// 服务商配置持久化服务。
@@ -25,6 +27,9 @@ class ProviderService {
 
   /// 调试服务商勾选的模型（单独存储，避免污染正式配置）。
   static const _kDebugModels = 'debug_provider_models';
+
+  /// 调试服务商的模型级配置（多模态/推理等），同样单独持久化。
+  static const _kDebugModelConfigs = 'debug_provider_model_configs';
 
   static bool get _debugEnabled => !kReleaseMode;
 
@@ -79,6 +84,21 @@ class ProviderService {
     final baseUrl = envBaseUrl.isNotEmpty ? envBaseUrl : debugDefaultBaseUrl;
     final prefs = await SharedPreferences.getInstance();
     final models = prefs.getStringList(_kDebugModels) ?? const [];
+    final configsRaw = prefs.getString(_kDebugModelConfigs);
+    Map<String, ModelConfig> modelConfigs = {};
+    if (configsRaw != null && configsRaw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(configsRaw) as Map<String, dynamic>;
+        modelConfigs = decoded.map(
+          (k, v) => MapEntry(
+            k,
+            ModelConfig.fromJson(v as Map<String, dynamic>),
+          ),
+        );
+      } catch (_) {
+        modelConfigs = {};
+      }
+    }
     return [
       ...providers,
       ChatProvider(
@@ -87,6 +107,7 @@ class ProviderService {
         baseUrl: baseUrl,
         apiKey: apiKey,
         modelIds: models,
+        modelConfigs: modelConfigs,
       ),
     ];
   }
@@ -102,10 +123,16 @@ class ProviderService {
 
   Future<void> save(List<ChatProvider> providers) async {
     final prefs = await SharedPreferences.getInstance();
-    // 调试服务商不持久化，仅保存其勾选的模型列表
+    // 调试服务商不写入正式配置，仅单独保存其勾选模型与模型级配置
     final debug = providers.where((p) => p.id == debugProviderId).firstOrNull;
     if (debug != null) {
       await prefs.setStringList(_kDebugModels, debug.modelIds);
+      await prefs.setString(
+        _kDebugModelConfigs,
+        jsonEncode(
+          debug.modelConfigs.map((k, v) => MapEntry(k, v.toJson())),
+        ),
+      );
     }
     final toSave = providers.where((p) => p.id != debugProviderId).toList();
     await prefs.setString(
@@ -115,16 +142,61 @@ class ProviderService {
     await prefs.setBool(_kInitialized, true);
   }
 
-  /// 调用 OpenAI 格式的 /models 接口，获取可用模型 id 列表。
-  Future<List<String>> fetchModels(ChatProvider provider) async {
+  /// 联动清理：模型/服务商被删除后，清除指向已不存在模型的全局默认配置
+  /// （聊天默认模型、Agent 默认模型），避免默认模型悬空。
+  Future<void> clearStaleDefaultModels() async {
+    final providers = await load();
+    final valid = <String>{
+      for (final p in providers) ...p.modelIds,
+    };
+    final settings = await SettingsService().load();
+    final chatModel = settings.chatModel.isNotEmpty &&
+            !valid.contains(settings.chatModel)
+        ? ''
+        : settings.chatModel;
+    final agentModel = settings.defaultAgentModel.isNotEmpty &&
+            !valid.contains(settings.defaultAgentModel)
+        ? ''
+        : settings.defaultAgentModel;
+    if (chatModel == settings.chatModel &&
+        agentModel == settings.defaultAgentModel) {
+      return;
+    }
+    await SettingsService().save(
+      settings.copyWith(chatModel: chatModel, defaultAgentModel: agentModel),
+    );
+  }
+
+  /// 调用 OpenAI 格式的 /models 接口，获取可用模型 id 及能力配置。
+  Future<List<(String, ModelConfig)>> fetchModels(ChatProvider provider) async {
     final baseUrl = provider.baseUrl.replaceAll(RegExp(r'/+$'), '');
     final uri = Uri.parse('$baseUrl/models');
-    final response = await http.get(
-      uri,
-      headers: {
+    final log = NetworkLogService.begin(
+      method: 'GET',
+      url: uri.toString(),
+      requestHeaders: {
         'Authorization': 'Bearer ${provider.apiKey}',
         'Content-Type': 'application/json',
       },
+      type: NetworkLogType.models,
+    );
+    final http.Response response;
+    try {
+      response = await http
+          .get(uri, headers: {
+            'Authorization': 'Bearer ${provider.apiKey}',
+            'Content-Type': 'application/json',
+          })
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      log?.end(error: e.toString());
+      rethrow;
+    }
+    log?.end(
+      statusCode: response.statusCode,
+      responseHeaders: Map.of(response.headers),
+      responseBody: response.body,
+      error: response.statusCode != 200 ? _extractError(response.body) : null,
     );
     if (response.statusCode != 200) {
       throw Exception(
@@ -133,9 +205,62 @@ class ProviderService {
     }
     final data = jsonDecode(response.body) as Map<String, dynamic>;
     final list = data['data'] as List<dynamic>? ?? [];
-    return list
-        .map((e) => (e as Map<String, dynamic>)['id'] as String)
-        .toList();
+    final mapping = await ModelCapabilityService().load();
+    return [
+      for (final e in list)
+        if (e is Map<String, dynamic> && e['id'] is String)
+          (e['id'] as String, _resolveConfig(e, mapping)),
+    ];
+  }
+
+  /// 合并能力信息：接口明确声明时以接口为准，
+  /// 否则回退到内置/联网更新的模型能力映射表。
+  static ModelConfig _resolveConfig(
+    Map<String, dynamic> json,
+    Map<String, ModelConfig> mapping,
+  ) {
+    final parsed = _parseModelConfig(json);
+    if (parsed.multimodal || parsed.reasoning) return parsed;
+    return ModelCapabilityService().lookup(json['id'] as String, mapping) ??
+        parsed;
+  }
+
+  /// 从 /models 返回的模型对象中解析能力配置。
+  ///
+  /// 兼容常见字段：OpenAI 的 supported_features / modalities，
+  /// 以及部分兼容服务商的 capabilities 对象。
+  static ModelConfig _parseModelConfig(Map<String, dynamic> json) {
+    var multimodal = false;
+    var reasoning = false;
+
+    final features = json['supported_features'];
+    if (features is List) {
+      final set = features.map((f) => f.toString().toLowerCase()).toSet();
+      if (set.contains('vision') ||
+          set.contains('image') ||
+          set.contains('images')) {
+        multimodal = true;
+      }
+      if (set.contains('reasoning')) reasoning = true;
+    }
+
+    final caps = json['capabilities'];
+    if (caps is Map) {
+      if (caps['vision'] == true ||
+          caps['image'] == true ||
+          caps['images'] == true) {
+        multimodal = true;
+      }
+      if (caps['reasoning'] == true) reasoning = true;
+    }
+
+    final modalities = json['modalities'];
+    if (modalities is List &&
+        modalities.any((m) => m.toString().toLowerCase() == 'image')) {
+      multimodal = true;
+    }
+
+    return ModelConfig(multimodal: multimodal, reasoning: reasoning);
   }
 
   /// 连通性测试结果。
@@ -155,6 +280,16 @@ class ProviderService {
       'max_tokens': 1,
       'stream': false,
     });
+    final log = NetworkLogService.begin(
+      method: 'POST',
+      url: uri.toString(),
+      requestHeaders: {
+        'Authorization': 'Bearer ${provider.apiKey}',
+        'Content-Type': 'application/json',
+      },
+      requestBody: body,
+      type: NetworkLogType.test,
+    );
     try {
       final response = await http
           .post(uri, headers: {
@@ -163,6 +298,12 @@ class ProviderService {
           }, body: body)
           .timeout(const Duration(seconds: 30));
       final elapsedMs = DateTime.now().difference(started).inMilliseconds;
+      log?.end(
+        statusCode: response.statusCode,
+        responseHeaders: Map.of(response.headers),
+        responseBody: response.body,
+        error: response.statusCode != 200 ? _extractError(response.body) : null,
+      );
       if (response.statusCode == 200) {
         return ModelTestResult(success: true, elapsedMs: elapsedMs);
       }
@@ -173,6 +314,7 @@ class ProviderService {
       );
     } catch (e) {
       final elapsedMs = DateTime.now().difference(started).inMilliseconds;
+      log?.end(error: e.toString());
       return ModelTestResult(
         success: false,
         elapsedMs: elapsedMs,

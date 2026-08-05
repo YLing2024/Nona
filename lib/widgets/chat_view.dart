@@ -31,7 +31,6 @@ class ChatView extends StatelessWidget {
   final Future<void> Function() onExportJson;
   final Future<void> Function() onCopyMarkdown;
   final VoidCallback onNewSession;
-  final VoidCallback onOpenSettings;
   final void Function(String providerId, String modelId) onModelChanged;
   final void Function(String? effort) onEffortChanged;
   final void Function(bool stream) onStreamChanged;
@@ -40,8 +39,8 @@ class ChatView extends StatelessWidget {
 
   final void Function(ChatMessage message) onMessageCopy;
   final void Function(ChatMessage message) onMessageEdit;
+  final void Function(ChatMessage message) onMessageRollback;
   final void Function(ChatMessage message) onMessageRegenerate;
-  final void Function(ChatMessage message) onMessageContinue;
   final void Function(ChatMessage message) onMessageDelete;
 
   const ChatView({
@@ -65,7 +64,6 @@ class ChatView extends StatelessWidget {
     required this.onExportJson,
     required this.onCopyMarkdown,
     required this.onNewSession,
-    required this.onOpenSettings,
     required this.onModelChanged,
     required this.onEffortChanged,
     required this.onStreamChanged,
@@ -73,8 +71,8 @@ class ChatView extends StatelessWidget {
     required this.onStop,
     required this.onMessageCopy,
     required this.onMessageEdit,
+    required this.onMessageRollback,
     required this.onMessageRegenerate,
-    required this.onMessageContinue,
     required this.onMessageDelete,
   });
 
@@ -93,17 +91,18 @@ class ChatView extends StatelessWidget {
               ? _EmptyState(
                   hasSession: session != null,
                   onNewSession: onNewSession,
-                  onOpenSettings: onOpenSettings,
                 )
               : MessageList(
+                  // 以消息列表实例作 key：切换会话时重建并重新回到底部
+                  key: ValueKey(session.messages),
                   messages: session.messages,
                   streamingIndex: streamingIndex,
                   controller: scrollController,
                   canRegenerate: !isLoading,
                   onCopy: onMessageCopy,
                   onEdit: onMessageEdit,
+                  onRollback: onMessageRollback,
                   onRegenerate: onMessageRegenerate,
-                  onContinue: onMessageContinue,
                   onDelete: onMessageDelete,
                 ),
         ),
@@ -262,12 +261,10 @@ class ChatView extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final bool hasSession;
   final VoidCallback onNewSession;
-  final VoidCallback onOpenSettings;
 
   const _EmptyState({
     required this.hasSession,
     required this.onNewSession,
-    required this.onOpenSettings,
   });
 
   @override
@@ -322,12 +319,6 @@ class _EmptyState extends StatelessWidget {
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: onOpenSettings,
-              icon: const Icon(Icons.settings_outlined, size: 16),
-              label: const Text('配置服务商与模型'),
             ),
           ],
         ),

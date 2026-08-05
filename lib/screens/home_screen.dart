@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +10,7 @@ import '../models/chat_session.dart';
 import '../services/agent_service.dart';
 import '../services/chat_service.dart';
 import '../services/export_service.dart';
+import '../services/network_log_service.dart';
 import '../services/provider_service.dart';
 import '../services/session_service.dart';
 import '../services/settings_service.dart';
@@ -15,6 +18,7 @@ import '../utils/token_counter.dart';
 import '../widgets/chat_view.dart';
 import '../widgets/session_sidebar.dart';
 import 'context_settings_screen.dart';
+import 'message_edit_screen.dart';
 import 'settings_screen.dart';
 
 /// 应用主界面：自适应布局（宽屏侧边栏 / 窄屏抽屉）+ 会话状态中枢。
@@ -25,11 +29,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver {
   static const double _wideBreakpoint = 900;
 
   final _inputController = TextEditingController();
-  final _scrollController = ScrollController();
+  // 初始滚动位置设为极大值：列表首帧即钳制到底部（最新消息），无入场滚动动画
+  final _scrollController =
+      ScrollController(initialScrollOffset: double.maxFinite);
   final _chatService = ChatService();
   final _sessionService = SessionService();
   final _agentService = AgentService();
@@ -76,11 +83,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 应用挂起/退出前尽量把排队中的网络日志写入持久化存储
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.inactive) {
+      unawaited(NetworkLogService.instance.flush());
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -98,11 +117,13 @@ class _HomeScreenState extends State<HomeScreen> {
       await _sessionService.save(sessions);
     }
     final settings = await SettingsService().load();
+    final cleaned = _cleanupSessions(sessions, providers);
     if (settings.chatModel.isNotEmpty && sessions.isNotEmpty) {
       for (final s in sessions) {
         if (s.modelId == null) _applyDefaultModel(s, settings, providers);
       }
     }
+    if (cleaned) await _sessionService.save(sessions);
     if (!mounted) return;
     setState(() {
       _providers = providers;
@@ -113,6 +134,32 @@ class _HomeScreenState extends State<HomeScreen> {
       _sendOnEnter = settings.sendOnEnter;
     });
     _bumpTokenVersion();
+  }
+
+  /// 联动清理：服务商或模型被删除后，清除会话中指向它们的引用。
+  ///
+  /// 返回是否有会话被修改，便于调用方决定是否持久化。
+  bool _cleanupSessions(List<ChatSession> sessions, List<ChatProvider> providers) {
+    var changed = false;
+    for (final s in sessions) {
+      final pid = s.providerId;
+      final provider = providers.where((p) => p.id == pid).firstOrNull;
+      if (pid != null && provider == null) {
+        // 服务商已被删除
+        s.providerId = null;
+        s.modelId = null;
+        changed = true;
+        continue;
+      }
+      if (provider != null &&
+          s.modelId != null &&
+          !provider.modelIds.contains(s.modelId)) {
+        // 模型已被删除
+        s.modelId = null;
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   void _applyDefaultModel(ChatSession session, [AppSettings? settings, List<ChatProvider>? providers]) {
@@ -198,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _bumpTokenVersion();
     await _persist();
     _closeDrawer();
-    _scrollToBottom(force: true);
+    // 新会话为空，MessageList 重建后自然位于底部
   }
 
   void _switchSession(String id) {
@@ -206,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _currentSessionId = id);
     _bumpTokenVersion();
     _closeDrawer();
-    _scrollToBottom(force: true);
+    // 切换会话由 MessageList（key 变化重建）即时定位到底部，无需动画
   }
 
   Future<void> _deleteSession(ChatSession session) async {
@@ -291,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
     _bumpTokenVersion();
-    _scrollToBottom(force: true);
+    // 匿名/正常会话切换由 MessageList 即时定位到底部
   }
 
   // ---------------- 消息操作 ----------------
@@ -301,44 +348,71 @@ class _HomeScreenState extends State<HomeScreen> {
     _snack('已复制到剪贴板');
   }
 
+  /// 编辑消息：跳转独立编辑页，就地修改内容（不自动重发）。
+  /// 助手消息的思考内容与回复内容都可编辑；修改后写入消息，
+  /// 由于后续请求直接使用会话消息列表，编辑会自然进入后续上下文。
   Future<void> _editMessage(ChatMessage message) async {
-    if (_isLoading || message.role != 'user') return;
-    final controller = TextEditingController(text: message.content);
-    final text = await showDialog<String>(
+    if (_isLoading) return;
+    final session = _currentSession;
+    if (session == null) return;
+    final result = await Navigator.of(context).push<(String, String)>(
+      MaterialPageRoute(
+        builder: (_) => MessageEditScreen(message: message),
+      ),
+    );
+    if (result == null || !mounted) return;
+    final idx = session.messages.indexOf(message);
+    if (idx < 0) return;
+    setState(() {
+      message.content = result.$1;
+      if (message.role == 'assistant') {
+        message.reasoningContent = result.$2;
+        // 手动编辑后视为完整消息，清除中断/失败标记
+        message.interrupted = false;
+        message.failed = false;
+      }
+      session.updatedAt = DateTime.now();
+    });
+    _bumpTokenVersion();
+    await _persist();
+  }
+
+  /// 回滚到此处：确认后删除该条用户消息及其之后的所有消息，
+  /// 并把它的内容回填到输入框，便于修改后重新发送。
+  Future<void> _rollbackToMessage(ChatMessage message) async {
+    final session = _currentSession;
+    if (session == null || _isLoading) return;
+    final idx = session.messages.indexOf(message);
+    if (idx < 0) return;
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('编辑并重发'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          minLines: 3,
-          maxLines: 8,
-          decoration: const InputDecoration(hintText: '修改消息内容…'),
+        title: const Text('回滚到此处'),
+        content: const Text(
+          '将删除该消息及其之后的所有消息，并把内容回填到输入框，以便修改后重新发送。确定继续吗？',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(context).pop(false),
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('保存并重发'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('确定回滚'),
           ),
         ],
       ),
     );
-    if (text == null || text.isEmpty || !mounted) return;
-    final session = _currentSession;
-    if (session == null) return;
-    final idx = session.messages.indexOf(message);
-    if (idx < 0) return;
+    if (confirmed != true || !mounted) return;
+    final text = message.content;
     setState(() {
-      message.content = text;
-      session.truncateMessagesFrom(idx + 1);
+      session.messages.removeRange(idx, session.messages.length);
+      session.updatedAt = DateTime.now();
     });
     _bumpTokenVersion();
     await _persist();
-    await _sendText('');
+    _inputController.text = text;
+    _inputController.selection = TextSelection.collapsed(offset: text.length);
   }
 
   void _regenerateMessage(ChatMessage message) {
@@ -347,19 +421,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final idx = session.messages.indexOf(message);
     if (idx < 0) return;
     session.truncateMessagesFrom(idx);
-    _bumpTokenVersion();
-    _sendText('');
-  }
-
-  void _continueMessage(ChatMessage message) {
-    final session = _currentSession;
-    if (session == null || _isLoading) return;
-    session.messages.add(
-      ChatMessage(
-        role: 'user',
-        content: '继续上一条回答，从上次中断的地方接着写，不要重复已经输出的内容。',
-      ),
-    );
     _bumpTokenVersion();
     _sendText('');
   }
@@ -412,6 +473,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     if (providers.isEmpty) {
       _snack('请先在设置中配置服务商');
+      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
+      await _persist();
       await _openSettings();
       return;
     }
@@ -430,6 +493,8 @@ class _HomeScreenState extends State<HomeScreen> {
         .firstOrNull ?? providers.firstOrNull;
     if (provider == null || provider.apiKey.isEmpty) {
       _snack('请先完善服务商的 API Key');
+      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
+      await _persist();
       await _openSettings();
       return;
     }
@@ -440,6 +505,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (!provider.modelIds.contains(modelId)) {
       _snack('当前服务商不包含该模型，请到设置中检查');
+      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
+      await _persist();
       await _openSettings();
       return;
     }
@@ -454,7 +521,20 @@ class _HomeScreenState extends State<HomeScreen> {
       model: modelId,
     );
 
-    final assistantMessage = ChatMessage(role: 'assistant', content: '');
+    // 非推理模型不支持思考，发送时去掉 reasoning_effort 参数
+    var options = session.options;
+    final isReasoning = provider.modelConfigs[modelId]?.reasoning ?? false;
+    if (!isReasoning && options.reasoningEffort != null) {
+      options = options.copyWith(reasoningEffort: null);
+    }
+
+    final assistantMessage = ChatMessage(
+      role: 'assistant',
+      content: '',
+      // 标注本次回复使用的服务商与模型，用于消息头展示
+      providerName: provider.name,
+      modelId: modelId,
+    );
     setState(() {
       session.messages.add(assistantMessage);
       _streamingMessage = assistantMessage;
@@ -465,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final handle = _chatService.sendChat(
       settings: effectiveSettings,
       messages: session.messages,
-      options: session.options,
+      options: options,
       onPartial: (delta) {
         if (!mounted) return;
         setState(() {
@@ -585,12 +665,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final sessions = await _sessionService.load();
     final settings = await SettingsService().load();
     if (!mounted) return;
+    // 设置页里可能删除了服务商/模型，返回后联动清理会话引用
+    final cleaned = _cleanupSessions(sessions, providers);
+    if (settings.chatModel.isNotEmpty && sessions.isNotEmpty) {
+      for (final s in sessions) {
+        if (s.modelId == null) _applyDefaultModel(s, settings, providers);
+      }
+    }
     setState(() {
       _providers = providers;
       _agents = agents;
       if (!_isAnonymous) _sessions = sessions;
       _sendOnEnter = settings.sendOnEnter;
     });
+    if (cleaned && !_isAnonymous) await _sessionService.save(_sessions);
     _bumpTokenVersion();
   }
 
@@ -729,8 +817,23 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       session.providerId = providerId;
       session.modelId = modelId;
+      // 非推理模型不支持思考，切换时清空思考强度
+      if (!_isReasoningModel(providerId, modelId) &&
+          session.options.reasoningEffort != null) {
+        session.options = session.options.copyWith(reasoningEffort: null);
+      }
     });
     _persist();
+  }
+
+  /// 指定服务商下的模型是否为推理模型（未标记时视为非推理）。
+  bool _isReasoningModel(String providerId, String modelId) {
+    for (final p in _providers) {
+      if (p.id == providerId) {
+        return p.modelConfigs[modelId]?.reasoning ?? false;
+      }
+    }
+    return false;
   }
 
   void _onEffortChanged(String? effort) {
@@ -804,7 +907,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onExportJson: _exportJson,
       onCopyMarkdown: _copyMarkdown,
       onNewSession: _newSession,
-      onOpenSettings: _openSettings,
       onModelChanged: _onModelChanged,
       onEffortChanged: _onEffortChanged,
       onStreamChanged: _onStreamChanged,
@@ -812,8 +914,8 @@ class _HomeScreenState extends State<HomeScreen> {
       onStop: _stop,
       onMessageCopy: _copyMessage,
       onMessageEdit: _editMessage,
+      onMessageRollback: _rollbackToMessage,
       onMessageRegenerate: _regenerateMessage,
-      onMessageContinue: _continueMessage,
       onMessageDelete: _deleteMessage,
     );
 
