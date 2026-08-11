@@ -1,7 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../routes/app_routes.dart';
 import '../services/network_log_service.dart';
-import 'network_log_detail_screen.dart';
+import '../services/storage_io_io.dart'
+    if (dart.library.js_interop) '../services/storage_io_stub.dart'
+    as storage_io;
+import '../utils/format_time.dart';
+import '../widgets/confirm_dialog.dart';
+import '../utils/l10n_ext.dart';
 
 /// 网络日志列表页：按天分组展示全部请求日志，点击查看详情。
 class NetworkLogScreen extends StatefulWidget {
@@ -12,109 +22,197 @@ class NetworkLogScreen extends StatefulWidget {
 }
 
 class _NetworkLogScreenState extends State<NetworkLogScreen> {
+  /// 过滤状态：全部 / 成功 / 失败。
+  String _filter = 'all';
+
+  @override
+  void initState() {
+    super.initState();
+    // 网络日志在页面打开期间会持续产生，监听服务变更实时刷新
+    NetworkLogService.instance.addListener(_onLogsChanged);
+  }
+
+  @override
+  void dispose() {
+    NetworkLogService.instance.removeListener(_onLogsChanged);
+    super.dispose();
+  }
+
+  void _onLogsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  List<NetworkLog> get _filtered => switch (_filter) {
+    'success' =>
+        NetworkLogService.instance.logs.where((l) => l.isSuccess).toList(),
+    'failed' =>
+        NetworkLogService.instance.logs.where((l) => !l.isSuccess).toList(),
+    _ => NetworkLogService.instance.logs,
+  };
+
+  Future<void> _export() async {
+    final data = jsonEncode({
+      'app': 'nona',
+      'type': 'network_logs',
+      'exportedAt': DateTime.now().toIso8601String(),
+      'count': _filtered.length,
+      'logs': _filtered.map((l) => l.toJson()).toList(),
+    });
+    try {
+      final path = await storage_io.saveTextFile(
+        suggestedName: 'nona-network-logs.json',
+        data: data,
+        extension: 'json',
+        mimeType: 'application/json',
+      );
+      if (path != null && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.l10n.networkLogExported)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${context.l10n.homeNetworkError}: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _clearAll() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('清空网络日志'),
-        content: const Text('将删除全部已记录的网络日志，确定继续吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.networkLogClearTitle,
+      message: context.l10n.networkLogClearConfirm,
+      confirmText: context.l10n.commonClear,
+      danger: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     NetworkLogService.instance.clear();
     setState(() {});
   }
 
   /// 列表顶部统计文案：条数 + 上限（0 为无限）。
-  String _summaryText(int count) {
+  String _summaryText(AppLocalizations l10n, int count) {
     final max = NetworkLogService.instance.maxLogs;
-    return max > 0 ? '共 $count 条记录 · 最多保留 $max 条' : '共 $count 条记录 · 无限保留';
+    return max > 0
+        ? l10n.networkLogCountLimited(count, max)
+        : l10n.networkLogCountUnlimited(count);
   }
 
-  String _dayLabel(DateTime d) {
+  String _dayLabel(AppLocalizations l10n, DateTime d) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(d.year, d.month, d.day);
     final diff = today.difference(day).inDays;
-    if (diff == 0) return '今天';
-    if (diff == 1) return '昨天';
-    if (d.year == now.year) return '${d.month}月${d.day}日';
-    return '${d.year}年${d.month}月${d.day}日';
+    if (diff == 0) return l10n.networkLogToday;
+    if (diff == 1) return l10n.networkLogYesterday;
+    if (d.year == now.year) {
+      // 注意生成函数的参数顺序是 (month, day)
+      return l10n.networkLogDateToday(d.month, d.day);
+    }
+    return l10n.networkLogDateFull(d.year, d.month, d.day);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final logs = NetworkLogService.instance.logs;
+    final logs = _filtered;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('网络日志'),
+        title: Text(context.l10n.networkLogTitle),
         actions: [
           if (logs.isNotEmpty)
             IconButton(
+              icon: const Icon(Icons.download_outlined),
+              tooltip: context.l10n.networkLogExport,
+              onPressed: _export,
+            ),
+          if (NetworkLogService.instance.logs.isNotEmpty)
+            IconButton(
               icon: const Icon(Icons.delete_sweep_outlined),
-              tooltip: '清空日志',
+              tooltip: context.l10n.networkLogClear,
               onPressed: _clearAll,
             ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: logs.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.cloud_off_rounded,
-                      size: 42,
-                      color: theme.colorScheme.outlineVariant,
+        child: Column(
+          children: [
+            if (NetworkLogService.instance.logs.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: SegmentedButton<String>(
+                  segments: [
+                    ButtonSegment(
+                      value: 'all',
+                      label: Text(context.l10n.networkLogFilterAll),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '暂无网络日志',
-                      style: TextStyle(color: theme.colorScheme.outline),
+                    ButtonSegment(
+                      value: 'success',
+                      label: Text(context.l10n.networkLogFilterSuccess),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '回到开发者选项开启「启用网络日志」后自动记录',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.outline,
-                      ),
+                    ButtonSegment(
+                      value: 'failed',
+                      label: Text(context.l10n.networkLogFilterFailed),
                     ),
                   ],
-                ),
-              )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-                    child: Text(
-                      _summaryText(logs.length),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
+                  selected: {_filter},
+                  onSelectionChanged: (s) =>
+                      setState(() => _filter = s.first),
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
                   ),
-                  ..._buildGrouped(logs, theme),
-                ],
+                ),
               ),
+            Expanded(
+              child: logs.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 42,
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            context.l10n.networkLogEmpty,
+                            style: TextStyle(color: theme.colorScheme.outline),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            context.l10n.networkLogEmptyHint,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                          child: Text(
+                            _summaryText(context.l10n, logs.length),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ),
+                        ..._buildGrouped(logs, theme),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -124,7 +222,7 @@ class _NetworkLogScreenState extends State<NetworkLogScreen> {
     final widgets = <Widget>[];
     String? lastDay;
     for (final log in logs) {
-      final day = _dayLabel(log.time);
+      final day = _dayLabel(context.l10n, log.time);
       if (day != lastDay) {
         lastDay = day;
         widgets.add(
@@ -161,15 +259,12 @@ class _LogTile extends StatelessWidget {
     if (log.error != null) return scheme.error;
     final code = log.statusCode;
     if (code == null) return scheme.outline;
-    if (code < 400) return Colors.green;
-    if (code < 500) return Colors.orange;
+    if (code < 400) return AppColors.statusSuccess;
+    if (code < 500) return AppColors.statusWarn;
     return scheme.error;
   }
 
-  String _timeText(DateTime t) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
-  }
+  String _timeText(DateTime t) => formatClockTime(t);
 
   @override
   Widget build(BuildContext context) {
@@ -182,9 +277,7 @@ class _LogTile extends StatelessWidget {
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => NetworkLogDetailScreen(log: log),
-          ),
+          AppRoutes.networkLogDetail(log: log),
         ),
         leading: Container(
           width: 44,
@@ -219,11 +312,11 @@ class _LogTile extends StatelessWidget {
           padding: const EdgeInsets.only(top: 2),
           child: Text(
             [
-              log.type.label,
+              log.type.labelOf(context.l10n),
               _timeText(log.time),
               if (log.statusCode != null) '${log.statusCode}',
               '${log.durationMs}ms',
-              if (log.error != null) '失败',
+              if (log.error != null) context.l10n.commonFailed,
             ].join(' · '),
             style: TextStyle(fontSize: 11.5, color: statusColor),
           ),

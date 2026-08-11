@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 
@@ -8,6 +9,43 @@ Future<String?> writeTextToPath(String? path, String data) async {
   final file = File(path);
   await file.writeAsString(data);
   return path;
+}
+
+/// 将字节写入指定路径；[path] 为 null 时返回 null。
+Future<String?> writeBytesToPath(String? path, Uint8List data) async {
+  if (path == null || path.isEmpty) return null;
+  final file = File(path);
+  await file.writeAsBytes(data);
+  return path;
+}
+
+/// 保存字节文件并返回写入路径（行为同 [saveTextFile]：桌面弹保存对话框，
+/// 移动端回退写入临时目录）。
+Future<String?> saveBytesFile({
+  required String suggestedName,
+  required Uint8List data,
+  required String extension,
+  required String mimeType,
+}) async {
+  final typeGroup = XTypeGroup(
+    label: extension.toUpperCase(),
+    extensions: [extension],
+    mimeTypes: [mimeType],
+  );
+  if (!Platform.isAndroid && !Platform.isIOS) {
+    final file = await getSaveLocation(
+      suggestedName: suggestedName,
+      acceptedTypeGroups: [typeGroup],
+    );
+    if (file == null) return null;
+    return writeBytesToPath(file.path, data);
+  }
+  // 移动端回退：无保存对话框，写入临时目录
+  final dir = await Directory.systemTemp.createTemp('nona_export');
+  return writeBytesToPath(
+    '${dir.path}${Platform.pathSeparator}$suggestedName',
+    data,
+  );
 }
 
 /// 保存文本文件并返回写入路径。
@@ -55,7 +93,7 @@ Future<bool> openInEditor(String filename, String content) async {
             ? 'open'
             : 'xdg-open';
     final args = Platform.isWindows
-        ? ['/c', 'start', '', file.path]
+        ? ['/c', 'start', '', '"${file.path}"']
         : [file.path];
     await Process.start(exe, args);
     return true;

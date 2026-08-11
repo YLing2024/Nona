@@ -28,7 +28,7 @@ Future<List<NetworkLog>> readLogs() async {
         if (e is Map<String, dynamic>) NetworkLog.fromJson(e),
     ];
   } catch (e) {
-    debugPrint('[NetworkLog] 读取持久化日志失败: $e');
+    debugPrint('[NetworkLog] failed to read persisted logs: ');
     return [];
   }
 }
@@ -43,6 +43,6 @@ Future<void> writeLogs(List<NetworkLog> logs) async {
     );
   } catch (e) {
     // 写入失败不阻塞业务，但打印出来便于排查
-    debugPrint('[NetworkLog] 持久化失败: $e');
+    debugPrint('[NetworkLog] persistence failed: ');
   }
 }

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../services/model_capability_service.dart';
 import '../services/network_log_service.dart';
 import '../services/settings_service.dart';
-import 'network_log_screen.dart';
+import '../routes/app_routes.dart';
+import '../utils/app_snackbar.dart';
+import '../utils/focus_utils.dart';
+import '../utils/l10n_ext.dart';
+import '../widgets/settings_tiles.dart';
 
 /// 开发者选项页：仅供高级用户使用的高级设置。
 class DeveloperOptionsScreen extends StatefulWidget {
@@ -14,8 +19,8 @@ class DeveloperOptionsScreen extends StatefulWidget {
 }
 
 class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
-  final _settingsService = SettingsService();
-  final _capabilityService = ModelCapabilityService();
+  late final SettingsService _settingsService = context.read<SettingsService>();
+  late final ModelCapabilityService _capabilityService = context.read<ModelCapabilityService>();
 
   late final TextEditingController _testPromptController;
   AppSettings _settings = const AppSettings();
@@ -30,13 +35,20 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
   void initState() {
     super.initState();
     _testPromptController = TextEditingController();
+    // 网络日志数量实时刷新（本页显示日志条数入口）
+    NetworkLogService.instance.addListener(_onLogsChanged);
     _load();
   }
 
   @override
   void dispose() {
+    NetworkLogService.instance.removeListener(_onLogsChanged);
     _testPromptController.dispose();
     super.dispose();
+  }
+
+  void _onLogsChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -75,7 +87,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
   Future<void> _openNetworkLogs() async {
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => const NetworkLogScreen()));
+    ).push(AppRoutes.networkLogs());
     if (!mounted) return;
     setState(() {});
   }
@@ -87,36 +99,37 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('最大保留条数'),
+        title: Text(ctx.l10n.devMaxLogsTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.number,
-          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-          decoration: const InputDecoration(
-            labelText: '条数（留空为无限）',
-            hintText: '例如：1000',
-            border: OutlineInputBorder(),
+          onTapOutside: unfocusOnTap,
+          decoration: InputDecoration(
+            labelText: ctx.l10n.devMaxLogsLabel,
+            hintText: ctx.l10n.devMaxLogsExample,
+            border: const OutlineInputBorder(),
             isDense: true,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('取消'),
+            child: Text(ctx.l10n.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('保存'),
+            child: Text(ctx.l10n.commonSave),
           ),
         ],
       ),
     );
     controller.dispose();
     if (result == null || !mounted) return;
-    final value = int.tryParse(result) ?? 0;
-    if (value < 0) {
-      _snack('请输入非负整数');
+    // 非数字输入按非法处理并提示，而不是静默当成 0（无限）
+    final value = int.tryParse(result.trim());
+    if (value == null || value < 0) {
+      showAppSnack(context, context.l10n.devMaxLogsInvalid);
       return;
     }
     setState(() => _settings = _settings.copyWith(networkLogMaxLogs: value));
@@ -135,33 +148,28 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
         _capabilityVersion = version;
         _capabilityFromNetwork = true;
       });
-      _snack('模型能力表更新完成');
+      showAppSnack(context, context.l10n.devUpdated);
     } catch (e) {
       if (!mounted) return;
       setState(() => _updatingCapability = false);
-      _snack('更新失败：$e');
+      showAppSnack(context, context.l10n.devUpdateFailed(e));
     }
   }
 
   /// 映射表状态文案：联网缓存显示更新时间（精确到秒），内置表显示版本。
   String get _capabilityStatusText {
-    if (_capabilityVersion == null) return '无内置映射表';
-    if (_capabilityFromNetwork) return '更新时间：$_capabilityVersion';
-    return '内置映射表 · 版本 $_capabilityVersion';
+    final version = _capabilityVersion;
+    if (version == null) return context.l10n.devNoBuiltinTable;
+    if (_capabilityFromNetwork) return context.l10n.devUpdatedAt(version);
+    return context.l10n.devBuiltinVersion(version);
   }
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('开发者选项')),
+      appBar: AppBar(title: Text(context.l10n.devTitle)),
       body: SafeArea(
         top: false,
         child: ListView(
@@ -184,7 +192,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '开发者选项包含高风险设置，仅建议高级用户使用，请谨慎修改。',
+                      context.l10n.devWarning,
                       style: TextStyle(
                         fontSize: 12.5,
                         color: theme.colorScheme.onErrorContainer,
@@ -195,7 +203,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('连通性设置'),
+            SettingsSectionLabel(context.l10n.devConnectivitySection),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               decoration: BoxDecoration(
@@ -207,7 +215,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '连通性测试提示词',
+                    context.l10n.devTestPrompt,
                     style: const TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
@@ -215,7 +223,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '模型连通性测试时发送给模型的最小请求内容',
+                    context.l10n.devTestPromptHint,
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.outline,
@@ -229,9 +237,9 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                     onTapOutside: (_) =>
                         FocusManager.instance.primaryFocus?.unfocus(),
                     onChanged: _onTestPromptChanged,
-                    decoration: const InputDecoration(
-                      hintText: '例如：ping',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: context.l10n.devTestPromptExample,
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -239,7 +247,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('模型能力映射表'),
+            SettingsSectionLabel(context.l10n.devCapabilitySection),
             Container(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               decoration: BoxDecoration(
@@ -251,7 +259,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '模型能力映射表',
+                    context.l10n.devCapabilityTitle,
                     style: const TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
@@ -259,7 +267,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '内置静态表（离线兜底）+ 联网更新缓存，用于按模型 id 自动填充「多模态 / 推理」配置',
+                    context.l10n.devCapabilityDesc,
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.outline,
@@ -271,7 +279,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                       Expanded(
                         child: Text(
                           _updatingCapability
-                              ? '正在更新…'
+                              ? context.l10n.devUpdating
                               : _capabilityStatusText,
                           style: TextStyle(
                             fontSize: 10.5,
@@ -288,7 +296,11 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.cloud_download_outlined, size: 16),
-                        label: Text(_updatingCapability ? '更新中' : '从网络更新'),
+                        label: Text(
+                          _updatingCapability
+                              ? context.l10n.devUpdatingShort
+                              : context.l10n.devUpdateFromNetwork,
+                        ),
                       ),
                     ],
                   ),
@@ -296,12 +308,12 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    title: const Text(
-                      '启动时自动更新',
-                      style: TextStyle(fontSize: 14),
+                    title: Text(
+                      context.l10n.devAutoUpdate,
+                      style: const TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
-                      '应用启动时静默从网络更新映射表，失败不影响使用',
+                      context.l10n.devAutoUpdateHint,
                       style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
                     ),
                     value: _autoUpdateCapabilities,
@@ -311,7 +323,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            const _SectionLabel('网络日志'),
+            SettingsSectionLabel(context.l10n.devNetworkLogSection),
             Container(
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
@@ -339,12 +351,12 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                         color: theme.colorScheme.tertiary,
                       ),
                     ),
-                    title: const Text(
-                      '启用网络日志',
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                    title: Text(
+                      context.l10n.devNetworkLogEnable,
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      '记录应用内全部网络请求（含聊天、测速、拉取模型等）',
+                      context.l10n.devNetworkLogEnableHint,
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.outline,
@@ -353,7 +365,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                     value: _settings.networkLogEnabled,
                     onChanged: _onNetworkLogEnabledChanged,
                   ),
-                  const _TileDivider(),
+                  const TileDivider(),
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -373,14 +385,16 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                    title: const Text(
-                      '网络日志',
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                    title: Text(
+                      context.l10n.devNetworkLog,
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
                       _settings.networkLogEnabled
-                          ? '共 ${NetworkLogService.instance.logs.length} 条记录'
-                          : '未启用记录，开启后自动捕获请求',
+                          ? context.l10n.devNetworkLogCount(
+                              NetworkLogService.instance.logs.length,
+                            )
+                          : context.l10n.devNetworkLogDisabled,
                       style: const TextStyle(fontSize: 12),
                     ),
                     trailing: Icon(
@@ -390,7 +404,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                     ),
                     onTap: _openNetworkLogs,
                   ),
-                  const _TileDivider(),
+                  const TileDivider(),
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -410,14 +424,16 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                         color: theme.colorScheme.primary,
                       ),
                     ),
-                    title: const Text(
-                      '最大保留条数',
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                    title: Text(
+                      context.l10n.devMaxLogs,
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
                       _settings.networkLogMaxLogs > 0
-                          ? '超过 ${_settings.networkLogMaxLogs} 条时自动清理最旧记录'
-                          : '无限，全部记录保留',
+                          ? context.l10n.devMaxLogsSubtitle(
+                              _settings.networkLogMaxLogs,
+                            )
+                          : context.l10n.devMaxLogsUnlimited,
                       style: const TextStyle(fontSize: 12),
                     ),
                     trailing: Icon(
@@ -437,37 +453,4 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
   }
 }
 
-class _TileDivider extends StatelessWidget {
-  const _TileDivider();
 
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 70,
-      color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-
-  const _SectionLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: Theme.of(context).colorScheme.outline,
-        ),
-      ),
-    );
-  }
-}

@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/chat_provider.dart';
-import 'network_log_service.dart';
+import '../models/network_log.dart';
+import '../utils/logger.dart';
+import 'app_http_client.dart';
 
 /// 模型能力映射表服务：内置静态表（离线兜底）+ 联网更新缓存。
 ///
@@ -37,8 +38,10 @@ class ModelCapabilityService {
         _version = data['version'] as String?;
         _fromNetwork = true;
         return _cache!;
-      } catch (_) {
+      } catch (e) {
         // 缓存损坏时回退到内置表
+        Logger.warn('capability', 'capability cache corrupt, fallback to builtin');
+        Logger.error('capability', 'cache parse failed', e);
       }
     }
     try {
@@ -47,7 +50,8 @@ class ModelCapabilityService {
       _cache = _parseCompact(data['models']);
       _version = data['version'] as String?;
       _fromNetwork = false;
-    } catch (_) {
+    } catch (e) {
+      Logger.error('capability', 'builtin capability table load failed', e);
       _cache = {};
     }
     return _cache!;
@@ -66,30 +70,110 @@ class ModelCapabilityService {
     return m[modelId] ?? m[modelId.split('/').last];
   }
 
+  /// 查询模型上下文窗口大小（tokens）。
+  ///
+  /// 优先级：能力映射表（联网 LiteLLM 目录 / 内置表）→ 内置已知模型表。
+  /// 未知模型返回 null。
+  int? contextWindowFor(String modelId, [Map<String, ModelConfig>? map]) {
+    final config = lookup(modelId, map);
+    if (config?.contextWindow != null) return config!.contextWindow;
+    return knownContextWindow(modelId);
+  }
+
+  /// 内置已知模型上下文窗口表（离线兜底，按前缀匹配）。
+  ///
+  /// 注意：条目按「最长 key 优先」匹配，避免 `gpt-4o` 误匹配 `gpt-4o-mini`。
+  static const Map<String, int> _knownWindows = {
+    // OpenAI 新编码（o200k）模型
+    'gpt-5': 400000,
+    'gpt-5-mini': 400000,
+    'gpt-4.1': 1000000,
+    'gpt-4.1-mini': 1000000,
+    'gpt-4.1-nano': 1000000,
+    'gpt-4.5': 128000,
+    'gpt-4o': 128000,
+    'gpt-4o-mini': 128000,
+    'o1': 200000,
+    'o1-mini': 128000,
+    'o3': 200000,
+    'o3-mini': 200000,
+    'o4-mini': 200000,
+    // OpenAI 旧编码（cl100k）模型
+    'gpt-4-turbo': 128000,
+    'gpt-4': 8192,
+    'gpt-3.5-turbo': 16385,
+    // Anthropic
+    'claude-opus-4': 200000,
+    'claude-sonnet-4': 200000,
+    'claude-3-7-sonnet': 200000,
+    'claude-3-5-sonnet': 200000,
+    'claude-3-5-haiku': 200000,
+    'claude-3-opus': 200000,
+    'claude-3-haiku': 200000,
+    // Google
+    'gemini-3': 1000000,
+    'gemini-2.5': 1000000,
+    'gemini-2.0': 1000000,
+    'gemini-1.5': 1000000,
+    'gemini-1.0': 32768,
+    // 国内模型
+    'deepseek-chat': 64000,
+    'deepseek-reasoner': 64000,
+    'deepseek-v3': 64000,
+    'deepseek-r1': 64000,
+    'glm-4': 128000,
+    'glm-4v': 8192,
+    'glm-4.5': 128000,
+    'qwen3': 131072,
+    'qwen2.5': 131072,
+    'qwen2': 131072,
+    'qwen': 32768,
+    'kimi': 128000,
+    'moonshot': 128000,
+    'ernie': 8192,
+    'hunyuan': 32768,
+    // 开源模型
+    'llama-3.3': 128000,
+    'llama-3.1': 128000,
+    'llama-3': 8192,
+    'llama-2': 4096,
+    'mistral-large': 128000,
+    'mistral-small': 32768,
+    'mixtral': 32768,
+    'codestral': 256000,
+    'command-r': 128000,
+  };
+
+  /// 内置已知模型窗口匹配：先精确匹配，再按最长前缀（`key-`）匹配。
+  static int? knownContextWindow(String modelId) {
+    if (modelId.isEmpty) return null;
+    final exact = _knownWindows[modelId];
+    if (exact != null) return exact;
+    // 前缀匹配：按 key 长度降序，命中首个 `id.startsWith(key + '-')`
+    final keys = _knownWindows.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final key in keys) {
+      if (modelId.startsWith('$key-') || modelId.startsWith('$key/')) {
+        return _knownWindows[key];
+      }
+    }
+    return null;
+  }
+
   /// 从网络更新映射表（默认 LiteLLM 目录），解析后缓存到本地。
   /// 返回更新日期版本号；失败时抛出异常。
   Future<String> updateFromNetwork({String? url}) async {
     final uri = Uri.parse(url ?? kDefaultSourceUrl);
-    final log = NetworkLogService.begin(
+    final resp = await AppHttpClient.instance.send(
       method: 'GET',
-      url: uri.toString(),
+      uri: uri,
       type: NetworkLogType.capability,
-    );
-    final http.Response resp;
-    try {
-      resp = await http.get(uri).timeout(const Duration(seconds: 60));
-    } catch (e) {
-      log?.end(error: e.toString());
-      rethrow;
-    }
-    log?.end(
-      statusCode: resp.statusCode,
-      responseHeaders: Map.of(resp.headers),
-      responseBody: resp.body,
-      error: resp.statusCode != 200 ? 'HTTP ${resp.statusCode}' : null,
+      timeout: const Duration(seconds: 60),
     );
     if (resp.statusCode != 200) {
-      throw Exception('获取模型目录失败 (HTTP ${resp.statusCode})');
+      throw Exception(
+        'Failed to fetch model catalog (HTTP ${resp.statusCode})',
+      );
     }
     final raw = jsonDecode(resp.body) as Map<String, dynamic>;
     final models = _parseLiteLlm(raw);
@@ -113,7 +197,8 @@ class ModelCapabilityService {
   }
 
   /// 解析紧凑格式（内置表 / 本地缓存）：
-  /// {id: {multimodal, reasoning, aliases?}}，aliases 展开为同配置的键。
+  /// {id: {multimodal, reasoning, contextWindow?, aliases?}}，
+  /// aliases 展开为同配置的键。
   static Map<String, ModelConfig> _parseCompact(dynamic models) {
     final result = <String, ModelConfig>{};
     if (models is! Map) return result;
@@ -122,6 +207,7 @@ class ModelCapabilityService {
       final config = ModelConfig(
         multimodal: v['multimodal'] == true,
         reasoning: v['reasoning'] == true,
+        contextWindow: v['contextWindow'] as int?,
       );
       result[id] = config;
       final aliases = v['aliases'];
@@ -134,7 +220,8 @@ class ModelCapabilityService {
     return result;
   }
 
-  /// 解析 LiteLLM 目录：{id: {mode, supports_vision, supports_reasoning, ...}}。
+  /// 解析 LiteLLM 目录：
+  /// {id: {mode, supports_vision, supports_reasoning, max_input_tokens, ...}}。
   /// 只保留对话模型，并补充去 provider 前缀的键（如 openai/gpt-4o → gpt-4o）。
   static Map<String, ModelConfig> _parseLiteLlm(Map<String, dynamic> raw) {
     final result = <String, ModelConfig>{};
@@ -144,6 +231,7 @@ class ModelCapabilityService {
       final config = ModelConfig(
         multimodal: v['supports_vision'] == true,
         reasoning: v['supports_reasoning'] == true,
+        contextWindow: _toInt(v['max_input_tokens']),
       );
       result[id] = config;
       final slash = id.indexOf('/');
@@ -152,5 +240,16 @@ class ModelCapabilityService {
       }
     });
     return result;
+  }
+
+  /// 宽松转 int：LiteLLM 目录中可能出现 null / 字符串数字。
+  static int? _toInt(Object? v) {
+    if (v is int) return v > 0 ? v : null;
+    if (v is num) return v.toInt() > 0 ? v.toInt() : null;
+    if (v is String) {
+      final parsed = int.tryParse(v);
+      return (parsed != null && parsed > 0) ? parsed : null;
+    }
+    return null;
   }
 }

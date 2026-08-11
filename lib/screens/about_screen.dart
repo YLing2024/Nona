@@ -1,15 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_localizations.dart';
 import '../services/settings_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../version.dart' show kAppVersion;
+import '../widgets/load_failed_banner.dart';
+import '../widgets/settings_tiles.dart';
 
 /// 项目 GitHub 仓库地址（HTTPS 形式）。
 const String kProjectGithubUrl = 'https://github.com/YLing2024/nona';
-
-/// 应用版本号，需与 pubspec.yaml 中的 version 保持一致。
-const String kAppVersion = '1.1.0+1';
 
 /// 开源许可名称。
 const String kAppLicense = 'MIT License';
@@ -24,6 +28,7 @@ class AboutScreen extends StatefulWidget {
 
 class _AboutScreenState extends State<AboutScreen> {
   bool _developerMode = false;
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -32,15 +37,22 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _load() async {
-    final settings = await SettingsService().load();
+    final settings = await loadGuarded<AppSettings>(
+      context.read<SettingsService>().load,
+      label: 'about',
+    );
     if (!mounted) return;
-    setState(() => _developerMode = settings.developerMode);
+    setState(() {
+      if (settings != null) _developerMode = settings.developerMode;
+      _loadFailed = settings == null;
+    });
   }
 
   Future<void> _toggleDeveloperMode(bool value) async {
     setState(() => _developerMode = value);
-    final settings = await SettingsService().load();
-    await SettingsService().save(settings.copyWith(developerMode: value));
+    final service = context.read<SettingsService>();
+    final settings = await service.load();
+    await service.save(settings.copyWith(developerMode: value));
   }
 
   String _platformLabel() {
@@ -71,13 +83,18 @@ class _AboutScreenState extends State<AboutScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('关于')),
+      appBar: AppBar(title: Text(l10n.aboutTitle)),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+        child: Column(
           children: [
+            if (_loadFailed) LoadFailedBanner(onRetry: _load),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+                children: [
             // 应用标识
             Center(
               child: Container(
@@ -110,7 +127,7 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 6),
             Center(
               child: Text(
-                '一款简洁高效的 AI 聊天客户端，兼容 OpenAI 格式接口',
+                l10n.aboutTagline,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12.5,
@@ -131,36 +148,36 @@ class _AboutScreenState extends State<AboutScreen> {
                   _InfoTile(
                     icon: Icons.code_rounded,
                     iconColor: theme.colorScheme.primary,
-                    label: 'GitHub 仓库',
+                    label: l10n.aboutGithub,
                     value: 'YLing2024/nona',
                     onTap: _openGithub,
                   ),
-                  const _TileDivider(),
-                  const _InfoTile(
+                  const TileDivider(),
+                  _InfoTile(
                     icon: Icons.tag_rounded,
                     iconColor: AppColors.secondary,
-                    label: '版本',
+                    label: l10n.aboutVersion,
                     value: kAppVersion,
                   ),
-                  const _TileDivider(),
+                  const TileDivider(),
                   _InfoTile(
                     icon: Icons.computer_rounded,
                     iconColor: theme.colorScheme.tertiary,
-                    label: '系统',
+                    label: l10n.aboutPlatform,
                     value: _platformLabel(),
                   ),
-                  const _TileDivider(),
-                  const _InfoTile(
+                  const TileDivider(),
+                  _InfoTile(
                     icon: Icons.gavel_rounded,
                     iconColor: AppColors.success,
-                    label: '开源许可',
+                    label: l10n.aboutLicense,
                     value: kAppLicense,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            _SectionLabel('开发者'),
+            SettingsSectionLabel(l10n.aboutDeveloperSection),
             // 开发者模式开关
             Container(
               decoration: BoxDecoration(
@@ -187,13 +204,16 @@ class _AboutScreenState extends State<AboutScreen> {
                     color: AppColors.tertiary,
                   ),
                 ),
-                title: const Text(
-                  '开发者模式',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
+                title: Text(
+                  l10n.aboutDeveloperMode,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                subtitle: const Text(
-                  '启用后，设置页将显示「开发者选项」高级设置',
-                  style: TextStyle(fontSize: 12),
+                subtitle: Text(
+                  l10n.aboutDeveloperModeHint,
+                  style: const TextStyle(fontSize: 12),
                 ),
                 value: _developerMode,
                 onChanged: _toggleDeveloperMode,
@@ -202,11 +222,14 @@ class _AboutScreenState extends State<AboutScreen> {
             const SizedBox(height: 20),
             Center(
               child: Text(
-                'Copyright © 2026 Yunling Zhang · 本地优先，所有数据仅保存在本机',
+                l10n.aboutCopyright,
                 style: TextStyle(
                   fontSize: 11.5,
                   color: theme.colorScheme.outline,
                 ),
+              ),
+            ),
+          ],
               ),
             ),
           ],
@@ -216,27 +239,6 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
-
-  const _SectionLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: Theme.of(context).colorScheme.outline,
-        ),
-      ),
-    );
-  }
-}
 
 class _InfoTile extends StatelessWidget {
   final IconData icon;
@@ -281,15 +283,3 @@ class _InfoTile extends StatelessWidget {
   }
 }
 
-class _TileDivider extends StatelessWidget {
-  const _TileDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 70,
-      color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}

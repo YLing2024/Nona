@@ -3,13 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// 字节数格式化：B / KB / MB。
-String formatBytes(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-  return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
-
+import '../utils/format_bytes.dart';
+import '../utils/l10n_ext.dart';
 /// 全文查看页：虚拟化逐行渲染大段日志正文，支持跨行选择、复制与 JSON 格式化。
 class NetworkLogBodyScreen extends StatefulWidget {
   final String title;
@@ -34,14 +29,28 @@ class _NetworkLogBodyScreenState extends State<NetworkLogBodyScreen> {
   /// 格式化后的 JSON 文本；null 表示尚未格式化（或内容非 JSON）。
   String? _formattedJson;
 
+  /// 已按当前展示文本拆分的行缓存（避免每次 build 重拆超大正文）。
+  List<String>? _cachedLines;
+  String? _cachedText;
+
   String get _displayText =>
       _jsonFormatted ? (_formattedJson ?? widget.body) : widget.body;
+
+  /// 拆分展示文本为行；仅在文本变化时重算。
+  List<String> get _lines {
+    final text = _displayText;
+    if (_cachedText != text) {
+      _cachedText = text;
+      _cachedLines = text.split('\n');
+    }
+    return _cachedLines!;
+  }
 
   Future<void> _copyAll(BuildContext context) async {
     await Clipboard.setData(ClipboardData(text: _displayText));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已复制全文')),
+      SnackBar(content: Text(context.l10n.networkLogCopiedFull)),
     );
   }
 
@@ -53,7 +62,7 @@ class _NetworkLogBodyScreenState extends State<NetworkLogBodyScreen> {
         _formattedJson = const JsonEncoder.withIndent('  ').convert(decoded);
       } catch (_) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('内容不是有效的 JSON，无法格式化')),
+          SnackBar(content: Text(context.l10n.networkLogInvalidJson)),
         );
         return;
       }
@@ -65,7 +74,7 @@ class _NetworkLogBodyScreenState extends State<NetworkLogBodyScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // 预拆分为行，交给 ListView.builder 虚拟化渲染，避免一次性构建全部文本
-    final lines = _displayText.split('\n');
+    final lines = _lines;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -76,12 +85,14 @@ class _NetworkLogBodyScreenState extends State<NetworkLogBodyScreen> {
                   ? Icons.data_object_rounded
                   : Icons.format_indent_increase_rounded,
             ),
-            tooltip: _jsonFormatted ? '显示原文' : '格式化 JSON',
+            tooltip: _jsonFormatted
+                ? context.l10n.networkLogShowRaw
+                : context.l10n.networkLogFormatJson,
             onPressed: _toggleJsonFormat,
           ),
           IconButton(
             icon: const Icon(Icons.copy_all_outlined),
-            tooltip: '复制全文',
+            tooltip: context.l10n.networkLogCopyFull,
             onPressed: () => _copyAll(context),
           ),
         ],
@@ -96,8 +107,10 @@ class _NetworkLogBodyScreenState extends State<NetworkLogBodyScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               color: theme.colorScheme.surfaceContainerLow,
               child: Text(
-                '${lines.length} 行 · ${formatBytes(widget.bytes)}'
-                '${_jsonFormatted ? ' · 已格式化' : ''}',
+                context.l10n.networkLogBodyMeta(
+                  formatBytes(widget.bytes),
+                  lines.length,
+                ) + (_jsonFormatted ? context.l10n.networkLogFormatted : ''),
                 style: TextStyle(
                   fontSize: 11.5,
                   color: theme.colorScheme.outline,

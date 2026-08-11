@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 /// Nona 设计系统 —— 冷调靛蓝紫·科技感。
 ///
 /// 设计要点：
-/// - 主色靛蓝 + 辅色紫罗兰，双主题均以此为签名色
+/// - 强调色默认靛蓝，可由用户自定义（seed 驱动 M3 色板）
 /// - 浅色：冷灰白底 (#F6F7FB) + 纯白 surface，低饱和阴影
-/// - 深色：蓝黑底 (#0B0D12) 而非纯黑，surface 略亮一档
+/// - 深色：蓝黑底 (#0B0D12) 而非纯黑，surface 略亮一档；OLED 模式为纯黑
 /// - 统一圆角：卡片 20 / 输入 14 / 按钮 12 / 对话框 24
 abstract final class AppColors {
   // ---- 品牌色 ----
@@ -15,17 +15,62 @@ abstract final class AppColors {
   static const Color success = Color(0xFF10B981);
   static const Color danger = Color(0xFFEF4444);
 
+  // ---- 语义色 ----
+  /// 状态成功色（网络日志等；与 [success] 同值）。
+  static const Color statusSuccess = success;
+
+  /// 状态警告色（网络日志等）。
+  static const Color statusWarn = Color(0xFFF59E0B);
+
+  /// 头像品牌色渲染（带透明度的靛蓝）。
+  static const Color avatarTint = Color(0x334F46E5);
+
+  /// 代码块背景（浅色）。
+  static const Color codeBlockBgLight = Color(0xFFF4F5FA);
+
+  /// 代码块背景（深色）。
+  static const Color codeBlockBgDark = Color(0xFF0F1220);
+
   // ---- 浅色 ----
   static const Color lightBackground = Color(0xFFF6F7FB);
   static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceDim = Color(0xFFEEF0F7);
+  static const Color lightSurfaceDim = Color(0xFFE8EAF2);
+  static const Color lightSurfaceContainerLow = Color(0xFFF8F9FD);
+  static const Color lightSurfaceContainer = Color(0xFFF3F4FA);
+  static const Color lightSurfaceContainerHigh = Color(0xFFEDEFF6);
+  static const Color lightSurfaceContainerHighest = Color(0xFFE7E9F2);
   static const Color lightOutline = Color(0xFFE4E6EF);
+  static const Color lightOutlineStrong = Color(0xFF9BA1B0);
+  static const Color lightOnSurface = Color(0xFF17181F);
+  static const Color lightOnSurfaceVariant = Color(0xFF5A5F6E);
 
   // ---- 深色 ----
   static const Color darkBackground = Color(0xFF0B0D12);
   static const Color darkSurface = Color(0xFF14161E);
   static const Color darkSurfaceDim = Color(0xFF1A1D27);
+  static const Color darkSurfaceContainerLow = Color(0xFF12141C);
+  static const Color darkSurfaceContainer = Color(0xFF161922);
+  static const Color darkSurfaceContainerHighest = Color(0xFF20242F);
+  static const Color darkSurfaceBright = Color(0xFF1E212B);
   static const Color darkOutline = Color(0xFF262A38);
+  static const Color darkOutlineStrong = Color(0xFF4A4F61);
+  static const Color darkOnSurface = Color(0xFFE6E8F0);
+  static const Color darkOnSurfaceVariant = Color(0xFFA7ADBF);
+
+  // ---- OLED（深色纯黑变体）----
+  static const Color oledBackground = Color(0xFF000000);
+  static const Color oledSurface = Color(0xFF0A0A0E);
+  static const Color oledSurfaceDim = Color(0xFF0D0D12);
+  static const Color oledSurfaceContainerLow = Color(0xFF0F0F15);
+  static const Color oledSurfaceContainer = Color(0xFF131319);
+  static const Color oledSurfaceContainerHigh = Color(0xFF17171E);
+  static const Color oledSurfaceContainerHighest = Color(0xFF1C1C24);
+  static const Color oledSurfaceBright = Color(0xFF18181F);
+  static const Color oledOutlineVariant = Color(0xFF1E1E26);
+
+  // ---- 阴影 ----
+  static const Color shadowLight = Color(0xFF0F172A);
+  static const Color shadowDark = Colors.black;
 }
 
 /// 品牌渐变：助手头像 / 高亮点缀。
@@ -37,7 +82,7 @@ final LinearGradient kBrandGradient = LinearGradient(
 
 final List<BoxShadow> kSoftShadow = [
   BoxShadow(
-    color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+    color: AppColors.primary.withValues(alpha: 0.08),
     blurRadius: 24,
     offset: const Offset(0, 8),
   ),
@@ -45,7 +90,7 @@ final List<BoxShadow> kSoftShadow = [
 
 final List<BoxShadow> kCardShadowLight = [
   BoxShadow(
-    color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+    color: AppColors.shadowLight.withValues(alpha: 0.05),
     blurRadius: 16,
     offset: const Offset(0, 4),
   ),
@@ -53,98 +98,98 @@ final List<BoxShadow> kCardShadowLight = [
 
 final List<BoxShadow> kCardShadowDark = [
   BoxShadow(
-    color: const Color(0xFF000000).withValues(alpha: 0.35),
+    color: AppColors.shadowDark.withValues(alpha: 0.35),
     blurRadius: 20,
     offset: const Offset(0, 6),
   ),
 ];
 
-ThemeData buildLightTheme() => _buildTheme(Brightness.light);
+/// 构建浅色主题；[accent] 为强调色 seed（null 使用品牌靛蓝）。
+ThemeData buildLightTheme({Color? accent}) =>
+    _buildTheme(Brightness.light, accent);
 
-ThemeData buildDarkTheme() => _buildTheme(Brightness.dark);
+/// 构建深色主题；[accent] 为强调色 seed；[oled] 时背景使用纯黑。
+ThemeData buildDarkTheme({Color? accent, bool oled = false}) =>
+    _buildTheme(Brightness.dark, accent, oled: oled);
 
-ThemeData _buildTheme(Brightness brightness) {
+ThemeData _buildTheme(
+  Brightness brightness,
+  Color? accent, {
+  bool oled = false,
+}) {
   final isDark = brightness == Brightness.dark;
-  final scheme = isDark
-      ? ColorScheme(
-          brightness: Brightness.dark,
-          primary: const Color(0xFF818CF8),
-          onPrimary: const Color(0xFF141228),
-          primaryContainer: const Color(0xFF312E81),
-          onPrimaryContainer: const Color(0xFFC7D2FE),
-          secondary: const Color(0xFFA78BFA),
-          onSecondary: const Color(0xFF1E1B33),
-          secondaryContainer: const Color(0xFF4C1D95),
-          onSecondaryContainer: const Color(0xFFDDD6FE),
-          tertiary: const Color(0xFF38BDF8),
-          onTertiary: const Color(0xFF082F49),
-          tertiaryContainer: const Color(0xFF075985),
-          onTertiaryContainer: const Color(0xFFBAE6FD),
-          error: const Color(0xFFF87171),
-          onError: const Color(0xFF2B0A0A),
-          errorContainer: const Color(0xFF7F1D1D),
-          onErrorContainer: const Color(0xFFFECACA),
-          surface: AppColors.darkSurface,
-          onSurface: const Color(0xFFE6E8F0),
-          surfaceDim: AppColors.darkSurfaceDim,
-          surfaceBright: const Color(0xFF1E212B),
-          surfaceContainerLowest: const Color(0xFF0B0D12),
-          surfaceContainerLow: const Color(0xFF12141C),
-          surfaceContainer: const Color(0xFF161922),
-          surfaceContainerHigh: const Color(0xFF1A1D27),
-          surfaceContainerHighest: const Color(0xFF20242F),
-          onSurfaceVariant: const Color(0xFFA7ADBF),
-          outline: const Color(0xFF4A4F61),
-          outlineVariant: AppColors.darkOutline,
-          shadow: const Color(0xFF000000),
-          scrim: const Color(0xFF000000),
-          inverseSurface: const Color(0xFFE6E8F0),
-          onInverseSurface: const Color(0xFF14161E),
-          inversePrimary: const Color(0xFF4F46E5),
-        )
-      : ColorScheme(
-          brightness: Brightness.light,
-          primary: AppColors.primary,
-          onPrimary: Colors.white,
-          primaryContainer: const Color(0xFFE0E7FF),
-          onPrimaryContainer: const Color(0xFF312E81),
-          secondary: AppColors.secondary,
-          onSecondary: Colors.white,
-          secondaryContainer: const Color(0xFFEDE9FE),
-          onSecondaryContainer: const Color(0xFF4C1D95),
-          tertiary: const Color(0xFF0284C7),
-          onTertiary: Colors.white,
-          tertiaryContainer: const Color(0xFFBAE6FD),
-          onTertiaryContainer: const Color(0xFF0C4A6E),
-          error: const Color(0xFFDC2626),
-          onError: Colors.white,
-          errorContainer: const Color(0xFFFEE2E2),
-          onErrorContainer: const Color(0xFF7F1D1D),
-          surface: AppColors.lightSurface,
-          onSurface: const Color(0xFF17181F),
-          surfaceDim: const Color(0xFFE8EAF2),
-          surfaceBright: AppColors.lightSurface,
-          surfaceContainerLowest: Colors.white,
-          surfaceContainerLow: const Color(0xFFF8F9FD),
-          surfaceContainer: const Color(0xFFF3F4FA),
-          surfaceContainerHigh: const Color(0xFFEDEFF6),
-          surfaceContainerHighest: const Color(0xFFE7E9F2),
-          onSurfaceVariant: const Color(0xFF5A5F6E),
-          outline: const Color(0xFF9BA1B0),
-          outlineVariant: AppColors.lightOutline,
-          shadow: const Color(0xFF0F172A),
-          scrim: const Color(0xFF000000),
-          inverseSurface: const Color(0xFF262A38),
-          onInverseSurface: const Color(0xFFEDEFF6),
-          inversePrimary: const Color(0xFFC7D2FE),
-        );
+  final seed = accent ?? AppColors.primary;
+
+  // 基于 seed 的 M3 色板；表面/背景保留品牌冷灰色系（OLED 时深色用纯黑）
+  final seedScheme = ColorScheme.fromSeed(
+    seedColor: seed,
+    brightness: brightness,
+  );
+  final bg = isDark
+      ? (oled ? AppColors.oledBackground : AppColors.darkBackground)
+      : AppColors.lightBackground;
+  final surface = isDark
+      ? (oled ? AppColors.oledSurface : AppColors.darkSurface)
+      : AppColors.lightSurface;
+  final surfaceDim = isDark
+      ? (oled ? AppColors.oledSurfaceDim : AppColors.darkSurfaceDim)
+      : AppColors.lightSurfaceDim;
+  final surfaceContainerLowest = isDark
+      ? (oled ? AppColors.oledBackground : AppColors.darkBackground)
+      : Colors.white;
+  final surfaceContainerLow = isDark
+      ? (oled
+            ? AppColors.oledSurfaceContainerLow
+            : AppColors.darkSurfaceContainerLow)
+      : AppColors.lightSurfaceContainerLow;
+  final surfaceContainer = isDark
+      ? (oled
+            ? AppColors.oledSurfaceContainer
+            : AppColors.darkSurfaceContainer)
+      : AppColors.lightSurfaceContainer;
+  final surfaceContainerHigh = isDark
+      ? (oled
+            ? AppColors.oledSurfaceContainerHigh
+            : AppColors.darkSurfaceDim)
+      : AppColors.lightSurfaceContainerHigh;
+  final surfaceContainerHighest = isDark
+      ? (oled
+            ? AppColors.oledSurfaceContainerHighest
+            : AppColors.darkSurfaceContainerHighest)
+      : AppColors.lightSurfaceContainerHighest;
+  final outline = isDark ? AppColors.darkOutlineStrong : AppColors.lightOutlineStrong;
+  final outlineVariant = isDark
+      ? (oled ? AppColors.oledOutlineVariant : AppColors.darkOutline)
+      : AppColors.lightOutline;
+
+  final scheme = seedScheme.copyWith(
+    brightness: brightness,
+    surface: surface,
+    surfaceDim: surfaceDim,
+    surfaceBright: isDark
+        ? (oled ? AppColors.oledSurfaceBright : AppColors.darkSurfaceBright)
+        : AppColors.lightSurface,
+    surfaceContainerLowest: surfaceContainerLowest,
+    surfaceContainerLow: surfaceContainerLow,
+    surfaceContainer: surfaceContainer,
+    surfaceContainerHigh: surfaceContainerHigh,
+    surfaceContainerHighest: surfaceContainerHighest,
+    onSurface:
+        isDark ? AppColors.darkOnSurface : AppColors.lightOnSurface,
+    onSurfaceVariant: isDark
+        ? AppColors.darkOnSurfaceVariant
+        : AppColors.lightOnSurfaceVariant,
+    outline: outline,
+    outlineVariant: outlineVariant,
+    shadow: isDark ? AppColors.shadowDark : AppColors.shadowLight,
+    scrim: Colors.black,
+  );
 
   final base = ThemeData(
     useMaterial3: true,
     brightness: brightness,
     colorScheme: scheme,
-    scaffoldBackgroundColor:
-        isDark ? AppColors.darkBackground : AppColors.lightBackground,
+    scaffoldBackgroundColor: bg,
   );
 
   final inputRadius = BorderRadius.circular(14);
@@ -271,7 +316,7 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: isDark ? const Color(0xFF262A38) : const Color(0xFF23253A),
+      backgroundColor: surfaceContainerHighest,
       contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -327,7 +372,7 @@ ThemeData _buildTheme(Brightness brightness) {
     ),
     tooltipTheme: TooltipThemeData(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262A38) : const Color(0xFF23253A),
+        color: surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       textStyle: const TextStyle(color: Colors.white, fontSize: 12),

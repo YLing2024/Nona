@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/chat_provider.dart';
 import '../services/provider_service.dart';
-import 'provider_edit_screen.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/load_failed_banner.dart';
+import '../widgets/provider_share_dialog.dart';
+import '../routes/app_routes.dart';
 /// 服务商管理页：分组展示各服务商及其配置的模型。
 class ProviderListScreen extends StatefulWidget {
   const ProviderListScreen({super.key});
@@ -12,8 +18,9 @@ class ProviderListScreen extends StatefulWidget {
 }
 
 class _ProviderListScreenState extends State<ProviderListScreen> {
-  final _providerService = ProviderService();
+  late final ProviderService _providerService = context.read<ProviderService>();
   List<ChatProvider> _providers = [];
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -22,40 +29,51 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   }
 
   Future<void> _load() async {
-    final providers = await _providerService.load();
+    final providers = await loadGuarded<List<ChatProvider>>(
+      _providerService.load,
+      label: 'providers',
+    );
     if (!mounted) return;
-    setState(() => _providers = providers);
+    setState(() {
+      if (providers != null) _providers = providers;
+      _loadFailed = providers == null;
+    });
   }
 
   Future<void> _persist() => _providerService.save(_providers);
 
+  Future<void> _shareProvider(ChatProvider provider) {
+    return showProviderShareDialog(context, provider);
+  }
+
+  Future<void> _importProvider() async {
+    final imported = await showProviderImportDialog(context);
+    if (imported == null || !mounted) return;
+    setState(() => _providers = [..._providers, imported]);
+    await _persist();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.l10n.settingsImported(1))),
+    );
+  }
+
   Future<void> _openEditor([ChatProvider? provider]) async {
     // 编辑页内修改即保存，返回后重载列表即可
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ProviderEditScreen(provider: provider)),
+      AppRoutes.providerEdit(provider: provider),
     );
     await _load();
   }
 
   Future<void> _delete(ChatProvider provider) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除服务商'),
-        content: Text('确定删除「${provider.name}」吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.providerDeleteTitle,
+      message: context.l10n.providerDeleteConfirm(provider.name),
+      confirmText: context.l10n.commonDelete,
+      danger: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _providers.removeWhere((p) => p.id == provider.id));
     await _persist();
     // 联动清理：服务商被删除后，清除指向其模型的全局默认配置
@@ -66,40 +84,52 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('服务商'),
+        title: Text(context.l10n.providerTitle),
         actions: [
           IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: context.l10n.providerImportTitle,
+            onPressed: () => _importProvider(),
+          ),
+          IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '添加服务商',
+            tooltip: context.l10n.providerAdd,
             onPressed: () => _openEditor(),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: _providers.isEmpty
-            ? const Center(child: Text('暂无服务商，点右上角添加'))
-            : ReorderableListView.builder(
-                padding: const EdgeInsets.all(12),
-                buildDefaultDragHandles: false,
-                itemCount: _providers.length,
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) newIndex--;
-                    final p = _providers.removeAt(oldIndex);
-                    _providers.insert(newIndex, p);
-                  });
-                  _persist();
-                },
-                itemBuilder: (context, index) {
-                  final p = _providers[index];
-                  return ReorderableDelayedDragStartListener(
-                    key: ValueKey(p.id),
-                    index: index,
-                    child: _buildProviderGroup(p),
-                  );
-                },
-              ),
+        child: Column(
+          children: [
+            if (_loadFailed) LoadFailedBanner(onRetry: _load),
+            Expanded(
+              child: _providers.isEmpty
+                  ? Center(child: Text(context.l10n.providerEmpty))
+                  : ReorderableListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      buildDefaultDragHandles: false,
+                      itemCount: _providers.length,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex--;
+                          final p = _providers.removeAt(oldIndex);
+                          _providers.insert(newIndex, p);
+                        });
+                        _persist();
+                      },
+                      itemBuilder: (context, index) {
+                        final p = _providers[index];
+                        return ReorderableDelayedDragStartListener(
+                          key: ValueKey(p.id),
+                          index: index,
+                          child: _buildProviderGroup(p),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -113,6 +143,8 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ListTile(
+            onTap: () => _openEditor(provider),
+            onLongPress: () => _shareProvider(provider),
             leading: Container(
               width: 40,
               height: 40,
@@ -158,7 +190,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(
-                      '调试',
+                      context.l10n.providerDebug,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onTertiaryContainer,
                         fontWeight: FontWeight.w600,
@@ -168,7 +200,8 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
               ],
             ),
             subtitle: Text(
-              '${provider.baseUrl}\n${provider.modelIds.length} 个模型',
+              '${provider.baseUrl}\n'
+              '${context.l10n.providerModelsCount(provider.modelIds.length)}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -178,17 +211,16 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
                 Icon(Icons.drag_indicator, size: 20, color: theme.colorScheme.outlineVariant),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  tooltip: '编辑',
+                  tooltip: context.l10n.commonEdit,
                   onPressed: () => _openEditor(provider),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: '删除',
+                  tooltip: context.l10n.commonDelete,
                   onPressed: () => _delete(provider),
                 ),
               ],
             ),
-            onTap: () => _openEditor(provider),
           ),
           if (provider.modelIds.isNotEmpty)
             Padding(
@@ -234,7 +266,7 @@ class _ProviderListScreenState extends State<ProviderListScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
               child: Text(
-                '未配置模型',
+                context.l10n.providerUnconfiguredModel,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),

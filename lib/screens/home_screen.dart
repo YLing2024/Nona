@@ -2,26 +2,44 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../controllers/chat_controller.dart';
+import '../l10n/app_localizations.dart';
+import '../routes/app_routes.dart';
 import '../models/agent.dart';
 import '../models/chat_message.dart';
 import '../models/chat_provider.dart';
 import '../models/chat_session.dart';
+import '../screens/context_settings_screen.dart';
+import '../screens/search_screen.dart';
 import '../services/agent_service.dart';
 import '../services/chat_service.dart';
 import '../services/export_service.dart';
+import '../services/knowledge_base_service.dart';
+import '../services/mcp/approval_policy.dart';
+import '../services/mcp/mcp_service.dart';
+import '../services/model_capability_service.dart';
+import '../services/ocr_service.dart';
 import '../services/network_log_service.dart';
 import '../services/provider_service.dart';
 import '../services/session_service.dart';
 import '../services/settings_service.dart';
-import '../utils/token_counter.dart';
+import '../services/tts_service.dart';
+import '../services/web_search/web_search_service.dart';
+import '../utils/app_snackbar.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../utils/logger.dart';
 import '../widgets/chat_view.dart';
+import '../widgets/confirm_dialog.dart';
 import '../widgets/session_sidebar.dart';
-import 'context_settings_screen.dart';
-import 'message_edit_screen.dart';
-import 'settings_screen.dart';
+import '../widgets/tool_approval_dialog.dart';
 
-/// 应用主界面：自适应布局（宽屏侧边栏 / 窄屏抽屉）+ 会话状态中枢。
+/// 应用主界面：自适应布局（宽屏侧边栏 / 窄屏抽屉）+ UI 组装。
+///
+/// 会话/聊天领域逻辑位于 [ChatController]；本页负责 UI 交互
+/// （对话框、页面跳转、输入框、滚动、TTS、快捷键）并驱动控制器。
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -37,62 +55,185 @@ class _HomeScreenState extends State<HomeScreen>
   // 初始滚动位置设为极大值：列表首帧即钳制到底部（最新消息），无入场滚动动画
   final _scrollController =
       ScrollController(initialScrollOffset: double.maxFinite);
-  final _chatService = ChatService();
-  final _sessionService = SessionService();
-  final _agentService = AgentService();
-  final _providerService = ProviderService();
+  late final SessionService _sessionService = context.read<SessionService>();
+  late final AgentService _agentService = context.read<AgentService>();
+  late final ProviderService _providerService =
+      context.read<ProviderService>();
+
+  /// 领域控制器：会话/附件/发送/流式/注入逻辑。
+  /// 注：宿主持有（服务经 DI 树注入，回调与宿主生命周期绑定），
+  /// dispose 由宿主负责。
+  late final ChatController controller = ChatController(
+    chatService: context.read<ChatService>(),
+    sessionService: _sessionService,
+    agentService: _agentService,
+    providerService: _providerService,
+    capabilityService: context.read<ModelCapabilityService>(),
+    webSearchService: context.read<WebSearchService>(),
+    mcpService: context.read<McpService>(),
+    knowledgeBase: context.read<KnowledgeBaseService>(),
+    callbacks: ChatUiCallbacks(
+      onStateChanged: _onControllerChanged,
+      onSnack: (message) => showAppSnack(context, message),
+      onScrollToBottom: _scrollToBottom,
+      onRestoreInput: _restoreInput,
+      requestApproval: ({
+        required toolName,
+        required serverName,
+        required argumentsJson,
+      }) =>
+          ToolApprovalDialog.show(
+        context,
+        toolName: toolName,
+        serverName: serverName,
+        argumentsJson: argumentsJson,
+      ).then((d) => d ?? const ApprovalDecision(allowed: false)),
+      onBudgetConfirm: () async {
+        final l10n = AppLocalizations.of(context);
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(l10n.statsBudgetWarningTitle),
+            content: Text(l10n.statsBudgetWarningBody),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(l10n.commonCancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(l10n.statsBudgetOverride),
+              ),
+            ],
+          ),
+        );
+        return confirmed ?? false;
+      },
+    ),
+    onOpenSettings: _openSettings,
+  );
+
   final _sidebarKey = GlobalKey<SessionSidebarState>();
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// 全局设置缓存。
-  AppSettings _settings = const AppSettings();
+  /// TTS 朗读控制（使用系统 TTS）。
+  final _ttsController = TtsController(FlutterTtsEngine());
+
+  /// 搜索结果跳转：进入会话后滚动定位到的消息索引（一次性，用后清除）。
+  int? _pendingScrollIndex;
+
+  /// 正在朗读的消息标识（identityHashCode）。
+  int? get _speakingMessageId => _ttsController.currentId == null
+      ? null
+      : int.tryParse(_ttsController.currentId!);
 
   /// 偏好：Enter 是否发送。
   bool _sendOnEnter = false;
 
-  List<ChatSession> _sessions = [];
-  List<ChatProvider> _providers = [];
-  List<Agent> _agents = [];
-  String? _currentSessionId;
-  bool _isLoading = false;
-
-  /// 当前正在流式生成的消息（跨会话追踪）。
-  ChatMessage? _streamingMessage;
-  ChatRequestHandle? _activeHandle;
-
-  /// 匿名会话：仅存在于内存，不持久化、不出现在会话列表中。
-  ChatSession? _anonymousSession;
-  bool _isAnonymous = false;
-
-  /// token 估算缓存（版本号变化时重算，避免流式高频重算）。
-  int _tokenVersion = 0;
-  int _cachedTokenVersion = -1;
-  int _cachedTokens = 0;
-  String? _cachedSessionId;
-
-  ChatSession? get _currentSession {
-    if (_isAnonymous) return _anonymousSession;
-    for (final s in _sessions) {
-      if (s.id == _currentSessionId) return s;
-    }
-    return null;
-  }
+  ChatSession? get _currentSession => controller.currentSession;
 
   bool get _isWide => MediaQuery.sizeOf(context).width >= _wideBreakpoint;
+
+  /// 控制器状态变化 → 刷新界面。
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// 回填/清空输入框（发送后清空；回滚后恢复文本）。
+  void _restoreInput(String text) {
+    _inputController.text = text;
+    _inputController.selection = TextSelection.collapsed(offset: text.length);
+  }
+
+  /// F3-1：编辑会话摘要（写回并持久化）。
+  void _onSummaryEdited(String summary) {
+    final s = _currentSession;
+    if (s == null) return;
+    s.summary = summary.trim();
+    s.summaryTokens = null;
+    controller.persist();
+    _onControllerChanged();
+  }
+
+  /// F3-1：清空压缩记录。
+  void _onClearCompaction() {
+    final s = _currentSession;
+    if (s == null) return;
+    controller.clearCompaction(s);
+    controller.persist();
+    _onControllerChanged();
+  }
+
+  /// F1-5：图片消息「转为文字」——用当前会话的视觉模型识别，
+  /// 成功替换图片入消息，失败保留原图。
+  Future<void> _onOcr(ChatMessage message) async {
+    if (message.images.isEmpty) return;
+    final session = _currentSession;
+    if (session == null) return;
+    final l10n = AppLocalizations.of(context);
+    final provider = controller.providers
+        .where((p) => p.id == session.providerId)
+        .firstOrNull ??
+        controller.providers
+            .where((p) => p.modelIds.isNotEmpty)
+            .firstOrNull;
+    if (provider == null || provider.apiKey.isEmpty) {
+      showAppSnack(context, l10n.ocrNoVisionModel);
+      return;
+    }
+    if (!OcrService.hasVisionModel(provider)) {
+      showAppSnack(context, l10n.ocrNoVisionModel);
+      return;
+    }
+    final modelId = session.modelId ?? provider.modelIds.first;
+    showAppSnack(context, l10n.ocrProcessing);
+    try {
+      final text = await _ocrService.extract(
+        message.images.first,
+        AppSettings(
+          apiKey: provider.apiKey,
+          baseUrl: provider.baseUrl,
+          model: modelId,
+          providerKind: provider.kind.name,
+        ),
+      );
+      if (!mounted) return;
+      final l10n2 = l10n;
+      // 替换图片为文本（保留原消息位置）
+      message.content = '${message.content.trim()}\n\n[OCR]\n$text'.trim();
+      message.images = [];
+      await controller.persist();
+      if (!mounted) return;
+      _onControllerChanged();
+      showAppSnack(context, l10n2.ocrDone);
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnack(context, l10n.ocrFailed(e.toString()));
+    }
+  }
+
+  final OcrService _ocrService = OcrService();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // TTS 朗读开始/结束（含自动播完）时刷新朗读状态图标
+    _ttsController.addListener(_onTtsChanged);
     _loadData();
+  }
+
+  void _onTtsChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 应用挂起/退出前尽量把排队中的网络日志写入持久化存储
+    // 应用挂起/退出前强制落盘：排队中的会话变更与网络日志写入持久化存储
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.inactive) {
+      unawaited(controller.flushPersist());
       unawaited(NetworkLogService.instance.flush());
     }
   }
@@ -100,606 +241,315 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _ttsController.removeListener(_onTtsChanged);
+    _ttsController.dispose();
+    controller.dispose();
     _inputController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  // ---------------- 数据加载与持久化 ----------------
+  // ---------------- 数据加载 ----------------
 
   Future<void> _loadData() async {
-    final providers = await _providerService.load();
-    final agents = await _agentService.load();
-    var sessions = await _sessionService.load();
-    if (sessions.isEmpty) {
-      final session = ChatSession.create();
-      sessions = [session];
-      await _sessionService.save(sessions);
-    }
-    final settings = await SettingsService().load();
-    final cleaned = _cleanupSessions(sessions, providers);
-    if (settings.chatModel.isNotEmpty && sessions.isNotEmpty) {
-      for (final s in sessions) {
-        if (s.modelId == null) _applyDefaultModel(s, settings, providers);
-      }
-    }
-    if (cleaned) await _sessionService.save(sessions);
+    final providers = await loadGuarded<List<ChatProvider>>(
+      _providerService.load,
+      label: 'home_providers',
+    );
+    // 首个 await 之后 initState 已完成，可安全访问 context；
+    // 首次启动的默认会话标题与默认 Agent 提示词使用本地化文案
     if (!mounted) return;
-    setState(() {
-      _providers = providers;
-      _agents = agents;
-      _settings = settings;
-      _sessions = sessions;
-      _currentSessionId = sessions.first.id;
-      _sendOnEnter = settings.sendOnEnter;
-    });
-    _bumpTokenVersion();
+    final l10n = context.l10n;
+    final defaultTitle = l10n.chatSessionNewTitle;
+    final defaultAgentPrompt = l10n.agentDefaultSystemPrompt;
+    final settings = await loadGuarded<AppSettings>(
+      context.read<SettingsService>().load,
+      label: 'home_settings',
+    );
+    controller
+      ..l10n = l10n
+      ..defaultTitle = defaultTitle
+      ..providers = providers ?? []
+      ..settings = settings ?? const AppSettings()
+      ..sendOnEnter = settings?.sendOnEnter ?? false;
+    await controller.loadSessions(
+      defaultTitle: defaultTitle,
+      defaultAgentPrompt: defaultAgentPrompt,
+    );
+    if (!mounted) return;
+    setState(() => _sendOnEnter = settings?.sendOnEnter ?? false);
+    if (settings != null) _applyTtsConfig(settings);
+    controller.bumpTokenVersion();
   }
 
-  /// 联动清理：服务商或模型被删除后，清除会话中指向它们的引用。
-  ///
-  /// 返回是否有会话被修改，便于调用方决定是否持久化。
-  bool _cleanupSessions(List<ChatSession> sessions, List<ChatProvider> providers) {
-    var changed = false;
-    for (final s in sessions) {
-      final pid = s.providerId;
-      final provider = providers.where((p) => p.id == pid).firstOrNull;
-      if (pid != null && provider == null) {
-        // 服务商已被删除
-        s.providerId = null;
-        s.modelId = null;
-        changed = true;
-        continue;
-      }
-      if (provider != null &&
-          s.modelId != null &&
-          !provider.modelIds.contains(s.modelId)) {
-        // 模型已被删除
-        s.modelId = null;
-        changed = true;
-      }
-    }
-    return changed;
-  }
+  // ---------------- 会话管理（UI 交互层） ----------------
 
-  void _applyDefaultModel(ChatSession session, [AppSettings? settings, List<ChatProvider>? providers]) {
-    final s = settings ?? _settings;
-    final ps = providers ?? _providers;
-    if (s.chatModel.isEmpty) return;
-    for (final p in ps) {
-      if (p.modelIds.contains(s.chatModel)) {
-        session.providerId = p.id;
-        session.modelId = s.chatModel;
-        return;
-      }
-    }
-  }
+  Future<void> _newSession({Agent? agent}) => controller.newSession(agent: agent);
 
-  Future<void> _persist() async {
-    if (_isAnonymous) return;
-    await _sessionService.save(_sessions);
-  }
-
-  void _bumpTokenVersion() {
-    _tokenVersion++;
-  }
-
-  int _estimateTokens(ChatSession session) {
-    if (_tokenVersion == _cachedTokenVersion &&
-        session.id == _cachedSessionId) {
-      return _cachedTokens;
-    }
-    var total = TokenCounter.estimate(session.options.systemPrompt) + 4;
-    for (final m in session.messages) {
-      total += TokenCounter.estimateMessage(m.role, m.content);
-    }
-    _cachedTokenVersion = _tokenVersion;
-    _cachedTokens = total;
-    _cachedSessionId = session.id;
-    return total;
-  }
-
-  /// 会话累计上行/下行 token（由每条已完成的回复用量累加）。
-  (int prompt, int completion) _sessionUsage(ChatSession session) {
-    var prompt = 0;
-    var completion = 0;
-    for (final m in session.messages) {
-      prompt += m.promptTokens ?? 0;
-      completion += m.completionTokens ?? 0;
-    }
-    return (prompt, completion);
-  }
-
-  /// 发送前自动裁剪：超出上下文上限时移除最早的消息。
-  int _trimContext(ChatSession session) {
-    final max = session.options.maxContextTokens;
-    if (max == null || !session.options.autoTrim) return 0;
-    var total = TokenCounter.estimate(session.options.systemPrompt) + 4;
-    for (final m in session.messages) {
-      total += TokenCounter.estimateMessage(m.role, m.content);
-    }
-    var removed = 0;
-    while (total > max && session.messages.length > 1) {
-      final first = session.messages.removeAt(0);
-      total -= TokenCounter.estimateMessage(first.role, first.content);
-      removed++;
-    }
-    return removed;
-  }
-
-  // ---------------- 会话管理 ----------------
-
-  Future<void> _newSession({Agent? agent}) async {
-    if (_isLoading) return;
-    final session = ChatSession.create();
-    _applyDefaultModel(session);
-    if (agent != null) {
-      session.options = agent.options;
-      session.agentId = agent.id;
-    }
-    setState(() {
-      _sessions.insert(0, session);
-      _currentSessionId = session.id;
-      _isAnonymous = false;
-    });
-    _bumpTokenVersion();
-    await _persist();
-    _closeDrawer();
-    // 新会话为空，MessageList 重建后自然位于底部
-  }
-
-  void _switchSession(String id) {
-    if (id == _currentSessionId) return;
-    setState(() => _currentSessionId = id);
-    _bumpTokenVersion();
-    _closeDrawer();
-    // 切换会话由 MessageList（key 变化重建）即时定位到底部，无需动画
-  }
+  void _switchSession(String id) => controller.switchSession(id);
 
   Future<void> _deleteSession(ChatSession session) async {
-    if (_isLoading && session.id == _currentSessionId) {
-      await _stop();
+    if (controller.isLoading && session.id == controller.currentSessionId) {
+      await controller.stop();
     }
+    if (!mounted) return;
     final confirmed = await _confirmDialog(
-      title: '删除会话',
-      message: '确定删除「${session.title}」吗？删除后不可恢复。',
-      confirmText: '删除',
+      title: context.l10n.chatDeleteSession,
+      message: context.l10n.homeDeleteSessionConfirm(session.title),
+      confirmText: context.l10n.commonDelete,
       danger: true,
     );
     if (confirmed != true || !mounted) return;
-
-    setState(() {
-      _sessions.removeWhere((s) => s.id == session.id);
-      if (_currentSessionId == session.id) {
-        _currentSessionId = _sessions.firstOrNull?.id;
-      }
-      if (_sessions.isEmpty) {
-        final s = ChatSession.create();
-        _applyDefaultModel(s);
-        _sessions.add(s);
-        _currentSessionId = s.id;
-      }
-    });
-    _bumpTokenVersion();
-    await _persist();
+    controller.l10n = context.l10n;
+    controller.defaultTitle = context.l10n.chatSessionNewTitle;
+    await controller.deleteSession(session);
     _closeDrawer();
   }
 
   Future<void> _renameSession(ChatSession session) async {
-    final controller = TextEditingController(text: session.title);
+    final nameController = TextEditingController(text: session.title);
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('重命名会话'),
+        title: Text(context.l10n.homeRenameSession),
         content: TextField(
-          controller: controller,
+          controller: nameController,
           autofocus: true,
           maxLength: 40,
-          decoration: const InputDecoration(hintText: '会话名称'),
+          decoration: InputDecoration(hintText: context.l10n.homeSessionNameHint),
           onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            child: Text(context.l10n.commonCancel),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
-            child: const Text('保存'),
+            onPressed: () => Navigator.of(context).pop(nameController.text.trim()),
+            child: Text(context.l10n.commonSave),
           ),
         ],
       ),
     );
+    nameController.dispose();
     if (name == null || name.isEmpty || !mounted) return;
-    setState(() => session.title = name);
-    await _persist();
+    session.title = name;
+    try {
+      await controller.persist();
+    } catch (e) {
+      Logger.error('home', '重命名后保存失败', e);
+      if (mounted) showAppSnack(context, context.l10n.commonSaveFailed);
+    }
+    setState(() {});
   }
 
-  void _pinSession(ChatSession session) {
-    setState(() => session.pinned = !session.pinned);
-    _persist();
-  }
+  void _pinSession(ChatSession session) => controller.pinSession(session);
 
-  Future<void> _duplicateSession(ChatSession session) async {
-    final copy = session.duplicate();
-    setState(() => _sessions.insert(0, copy));
-    _bumpTokenVersion();
-    await _persist();
-    _snack('已复制会话');
-  }
+  Future<void> _duplicateSession(ChatSession session) =>
+      controller.duplicateSession(
+        session,
+        copySuffix: context.l10n.chatSessionCopySuffix,
+        snackText: context.l10n.homeCopiedSession,
+      );
 
-  void _toggleAnonymous() {
-    if (_isLoading) return;
-    setState(() {
-      _isAnonymous = !_isAnonymous;
-      if (_isAnonymous && _anonymousSession == null) {
-        _anonymousSession = ChatSession.create()..title = '匿名会话';
-          _applyDefaultModel(_anonymousSession!);
-      }
-    });
-    _bumpTokenVersion();
-    // 匿名/正常会话切换由 MessageList 即时定位到底部
-  }
+  void _toggleAnonymous() => controller.toggleAnonymous(
+    anonymousTitle: context.l10n.homeAnonymousSession,
+  );
 
-  // ---------------- 消息操作 ----------------
+  // ---------------- 消息操作（UI 交互层） ----------------
 
   void _copyMessage(ChatMessage message) {
     Clipboard.setData(ClipboardData(text: message.content));
-    _snack('已复制到剪贴板');
+    showAppSnack(context, context.l10n.homeCopied);
   }
 
   /// 编辑消息：跳转独立编辑页，就地修改内容（不自动重发）。
-  /// 助手消息的思考内容与回复内容都可编辑；修改后写入消息，
-  /// 由于后续请求直接使用会话消息列表，编辑会自然进入后续上下文。
   Future<void> _editMessage(ChatMessage message) async {
-    if (_isLoading) return;
+    if (controller.isLoading) return;
     final session = _currentSession;
     if (session == null) return;
     final result = await Navigator.of(context).push<(String, String)>(
-      MaterialPageRoute(
-        builder: (_) => MessageEditScreen(message: message),
-      ),
+      AppRoutes.messageEdit(message: message),
     );
     if (result == null || !mounted) return;
     final idx = session.messages.indexOf(message);
     if (idx < 0) return;
-    setState(() {
-      message.content = result.$1;
-      if (message.role == 'assistant') {
-        message.reasoningContent = result.$2;
-        // 手动编辑后视为完整消息，清除中断/失败标记
-        message.interrupted = false;
-        message.failed = false;
-      }
-      session.updatedAt = DateTime.now();
-    });
-    _bumpTokenVersion();
-    await _persist();
+    controller.editMessage(
+      message,
+      session,
+      content: result.$1,
+      reasoning: result.$2,
+    );
+  }
+
+  /// 打开超长文本（文本文档）消息详情页：全量渲染 + 该消息全部操作。
+  Future<void> _openMessageDocument(ChatMessage message) async {
+    await Navigator.of(context).push<bool>(
+      AppRoutes.messageDocument(
+        message: message,
+        speaking: _speakingMessageId == identityHashCode(message),
+        onCopy: () async => _copyMessage(message),
+        onSpeak: () async => _onMessageSpeak(message),
+        onEdit: () => _editMessage(message),
+        onRollback: () => _rollbackToMessage(message),
+        onRegenerate: () async {
+          _regenerateMessage(message);
+        },
+        onDelete: () => _deleteMessage(message),
+      ),
+    );
   }
 
   /// 回滚到此处：确认后删除该条用户消息及其之后的所有消息，
   /// 并把它的内容回填到输入框，便于修改后重新发送。
   Future<void> _rollbackToMessage(ChatMessage message) async {
     final session = _currentSession;
-    if (session == null || _isLoading) return;
+    if (session == null || controller.isLoading) return;
     final idx = session.messages.indexOf(message);
     if (idx < 0) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('回滚到此处'),
-        content: const Text(
-          '将删除该消息及其之后的所有消息，并把内容回填到输入框，以便修改后重新发送。确定继续吗？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('确定回滚'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.homeRollbackTitle,
+      message: context.l10n.homeRollbackContent,
+      confirmText: context.l10n.homeRollbackConfirm,
     );
-    if (confirmed != true || !mounted) return;
-    final text = message.content;
-    setState(() {
-      session.messages.removeRange(idx, session.messages.length);
-      session.updatedAt = DateTime.now();
-    });
-    _bumpTokenVersion();
-    await _persist();
-    _inputController.text = text;
-    _inputController.selection = TextSelection.collapsed(offset: text.length);
+    if (!confirmed || !mounted) return;
+    await controller.rollbackToMessage(message);
   }
 
   void _regenerateMessage(ChatMessage message) {
-    final session = _currentSession;
-    if (session == null || _isLoading) return;
-    final idx = session.messages.indexOf(message);
-    if (idx < 0) return;
-    session.truncateMessagesFrom(idx);
-    _bumpTokenVersion();
-    _sendText('');
+    controller
+      ..l10n = context.l10n
+      ..defaultTitle = context.l10n.chatSessionNewTitle;
+    controller.regenerateMessage(message);
   }
 
-  Future<void> _deleteMessage(ChatMessage message) async {
-    final session = _currentSession;
-    if (session == null) return;
-    final idx = session.messages.indexOf(message);
-    if (idx < 0) return;
-    if (_isLoading && identical(message, _streamingMessage)) {
-      await _stop();
-    }
-    setState(() {
-      session.truncateMessagesFrom(idx);
-    });
-    _bumpTokenVersion();
-    await _persist();
-  }
+  void _rollbackVersion(ChatMessage message) => controller.rollbackVersion(message);
 
-  // ---------------- 发送 / 停止 / 流式 ----------------
+  Future<void> _deleteMessage(ChatMessage message) => controller.deleteMessage(message);
+
+  // ---------------- 发送 ----------------
 
   Future<void> _send() async {
-    final text = _inputController.text.trim();
-    if (text.isEmpty || _isLoading) return;
-    await _sendText(text);
+    controller
+      ..l10n = context.l10n
+      ..defaultTitle = context.l10n.chatSessionNewTitle
+      ..sendOnEnter = _sendOnEnter;
+    await controller.send(inputText: _inputController.text);
   }
 
-  /// 核心发送流程；[text] 为空表示沿用已有消息（重新生成/继续/编辑场景）。
-  Future<void> _sendText(String text) async {
-    final session = _currentSession;
-    if (_isLoading || session == null) return;
-    if (text.trim().isNotEmpty) {
-      session.messages.add(ChatMessage(role: 'user', content: text.trim()));
-      if (!_isAnonymous) session.updateTitleFromFirstMessage();
-      session.updatedAt = DateTime.now();
-      _inputController.clear();
-    } else if (session.messages.isEmpty) {
-      return;
-    }
+  Future<void> _stop() => controller.stop();
 
-    // 上下文窗口管理：超限时自动裁剪
-    final trimmed = _trimContext(session);
-    if (trimmed > 0) {
-      _snack('上下文超出上限，已自动裁剪最早 $trimmed 条消息');
-    }
-    session.updatedAt = DateTime.now();
-    _bumpTokenVersion();
+  // ---------------- 附件 ----------------
 
-    final providers = await _providerService.load();
-    if (!mounted) return;
-    if (providers.isEmpty) {
-      _snack('请先在设置中配置服务商');
-      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
-      await _persist();
-      await _openSettings();
-      return;
-    }
-
-    // 解析服务商与模型
-    ChatProvider? provider;
-    for (final p in providers) {
-      if (p.id == session.providerId) {
-        provider = p;
-        break;
-      }
-    }
-    // 默认选择第一个已配置模型的服务商（跳过空的 OpenAI 占位）
-    provider ??= providers
-        .where((p) => p.modelIds.isNotEmpty)
-        .firstOrNull ?? providers.firstOrNull;
-    if (provider == null || provider.apiKey.isEmpty) {
-      _snack('请先完善服务商的 API Key');
-      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
-      await _persist();
-      await _openSettings();
-      return;
-    }
-    var modelId = session.modelId;
-    if (modelId == null) {
-      _snack('请先选择模型');
-      return;
-    }
-    if (!provider.modelIds.contains(modelId)) {
-      _snack('当前服务商不包含该模型，请到设置中检查');
-      // 先落盘含用户消息的会话，避免进入设置页返回后被存储数据覆盖丢失
-      await _persist();
-      await _openSettings();
-      return;
-    }
-    setState(() {
-      _providers = providers;
-      _isLoading = true;
-    });
-
-    final effectiveSettings = AppSettings(
-      apiKey: provider.apiKey,
-      baseUrl: provider.baseUrl,
-      model: modelId,
-    );
-
-    // 非推理模型不支持思考，发送时去掉 reasoning_effort 参数
-    var options = session.options;
-    final isReasoning = provider.modelConfigs[modelId]?.reasoning ?? false;
-    if (!isReasoning && options.reasoningEffort != null) {
-      options = options.copyWith(reasoningEffort: null);
-    }
-
-    final assistantMessage = ChatMessage(
-      role: 'assistant',
-      content: '',
-      // 标注本次回复使用的服务商与模型，用于消息头展示
-      providerName: provider.name,
-      modelId: modelId,
-    );
-    setState(() {
-      session.messages.add(assistantMessage);
-      _streamingMessage = assistantMessage;
-    });
-    await _persist();
-    _scrollToBottom(force: true);
-
-    final handle = _chatService.sendChat(
-      settings: effectiveSettings,
-      messages: session.messages,
-      options: options,
-      onPartial: (delta) {
-        if (!mounted) return;
-        setState(() {
-          assistantMessage.content += delta;
-          session.updatedAt = DateTime.now();
-          _tokenVersion++;
-        });
-        _scrollToBottom();
-      },
-      onReasoning: (delta) {
-        if (!mounted) return;
-        setState(() {
-          assistantMessage.reasoningContent += delta;
-          session.updatedAt = DateTime.now();
-          _tokenVersion++;
-        });
-        _scrollToBottom();
-      },
-    );
-    _activeHandle = handle;
-
-    try {
-      final result = await handle.result;
-      if (!mounted) return;
-      setState(() {
-        assistantMessage.content = result.content;
-        assistantMessage.promptTokens = result.usage?.promptTokens;
-        assistantMessage.completionTokens = result.usage?.completionTokens;
-        assistantMessage.elapsedMs = result.elapsedMs;
-        session.updatedAt = DateTime.now();
-        _isLoading = false;
-        _streamingMessage = null;
-        _activeHandle = null;
-        _tokenVersion++;
-      });
-      await _persist();
-    } on ChatCancelledException {
-      if (!mounted) return;
-      setState(() {
-        assistantMessage.interrupted = true;
-        session.updatedAt = DateTime.now();
-        _isLoading = false;
-        _streamingMessage = null;
-        _activeHandle = null;
-        _tokenVersion++;
-      });
-      await _persist();
-    } on ChatException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        session.updatedAt = DateTime.now();
-        _isLoading = false;
-        _streamingMessage = null;
-        _activeHandle = null;
-        _tokenVersion++;
-        if (assistantMessage.content.isEmpty &&
-            assistantMessage.reasoningContent.isEmpty) {
-          session.messages.remove(assistantMessage);
-        } else {
-          assistantMessage.failed = true;
-        }
-      });
-      await _persist();
-      _snack(e.message);
-    } on ChatTimeoutException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        session.updatedAt = DateTime.now();
-        _isLoading = false;
-        _streamingMessage = null;
-        _activeHandle = null;
-        _tokenVersion++;
-        if (assistantMessage.content.isEmpty &&
-            assistantMessage.reasoningContent.isEmpty) {
-          session.messages.remove(assistantMessage);
-        } else {
-          assistantMessage.failed = true;
-        }
-      });
-      await _persist();
-      _snack(e.message);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        session.updatedAt = DateTime.now();
-        _isLoading = false;
-        _streamingMessage = null;
-        _activeHandle = null;
-        _tokenVersion++;
-        if (assistantMessage.content.isEmpty &&
-            assistantMessage.reasoningContent.isEmpty) {
-          session.messages.remove(assistantMessage);
-        } else {
-          assistantMessage.failed = true;
-        }
-      });
-      await _persist();
-      _snack('网络请求失败，请检查网络或配置');
-    }
-    _scrollToBottom();
+  Future<void> _pickImages() async {
+    controller.l10n = context.l10n;
+    await controller.pickImages();
   }
 
-  Future<void> _stop() async {
-    final handle = _activeHandle;
-    _activeHandle = null;
-    await handle?.cancel();
+  Future<void> _pickDocuments() async {
+    controller.l10n = context.l10n;
+    await controller.pickDocuments();
+  }
+
+  void _removePendingDocument(int index) => controller.removePendingDocument(index);
+
+  void _addImageUrl(ChatImage image) => controller.addImageUrl(image);
+
+  void _removePendingImage(int index) => controller.removePendingImage(index);
+
+  // ---------------- TTS 朗读 ----------------
+
+  void _onMessageSpeak(ChatMessage message) {
+    unawaited(
+      _ttsController.toggle(
+        '${identityHashCode(message)}',
+        message.content.trim(),
+      ),
+    );
+  }
+
+  /// 将 TTS 语速/语言设置同步到朗读引擎。
+  void _applyTtsConfig(AppSettings settings) {
+    unawaited(
+      _ttsController.updateConfig(
+        speechRate: settings.ttsRate,
+        language: settings.ttsLanguage,
+      ),
+    );
   }
 
   // ---------------- 页面跳转 ----------------
 
+  /// 打开全屏搜索页；点击结果后切换会话并定位到对应消息。
+  Future<void> _openSearch() async {
+    if (controller.sessions.isEmpty) return;
+    final target = await Navigator.of(context).push<SearchTarget>(
+      AppRoutes.search(
+        sessions: controller.sessions,
+        indexedSearch: _sessionService.search,
+      ),
+    );
+    if (target == null || !mounted) return;
+    if (controller.isAnonymous) controller.toggleAnonymous();
+    controller.switchSession(target.sessionId);
+    setState(() => _pendingScrollIndex = target.messageIndex);
+    _closeDrawer();
+  }
+
+  /// 定位完成后清除一次性跳转状态。
+  void _onScrollTargetHandled() {
+    if (_pendingScrollIndex == null) return;
+    setState(() => _pendingScrollIndex = null);
+  }
+
   Future<void> _openSettings() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    final settingsService = context.read<SettingsService>();
+    await Navigator.of(context).push(AppRoutes.settings());
     final providers = await _providerService.load();
     final agents = await _agentService.load();
     final sessions = await _sessionService.load();
-    final settings = await SettingsService().load();
+    final settings = await settingsService.load();
     if (!mounted) return;
     // 设置页里可能删除了服务商/模型，返回后联动清理会话引用
-    final cleaned = _cleanupSessions(sessions, providers);
+    controller
+      ..providers = providers
+      ..agents = agents
+      ..settings = settings;
+    final cleaned = controller.cleanupSessions(sessions, providers);
     if (settings.chatModel.isNotEmpty && sessions.isNotEmpty) {
       for (final s in sessions) {
-        if (s.modelId == null) _applyDefaultModel(s, settings, providers);
+        if (s.modelId == null) controller.applyDefaultModel(s, settings, providers);
       }
     }
+    if (!controller.isAnonymous) {
+      controller.sessions = sessions;
+    }
+    controller.bumpTokenVersion();
     setState(() {
-      _providers = providers;
-      _agents = agents;
-      if (!_isAnonymous) _sessions = sessions;
       _sendOnEnter = settings.sendOnEnter;
     });
-    if (cleaned && !_isAnonymous) await _sessionService.save(_sessions);
-    _bumpTokenVersion();
+    _applyTtsConfig(settings);
+    if (cleaned && !controller.isAnonymous) {
+      await _sessionService.saveAll(controller.sessions);
+    }
   }
 
   Future<void> _openContextSettings() async {
     final session = _currentSession;
     if (session == null) return;
     final result = await Navigator.of(context).push<ContextSettingsResult>(
-      MaterialPageRoute(
-        builder: (_) => ContextSettingsScreen(
-          initial: session.options,
-          initialAgentId: session.agentId,
-        ),
+      AppRoutes.contextSettings(
+        initial: session.options,
+        initialAgentId: session.agentId,
       ),
     );
     if (result != null && mounted) {
-      setState(() {
-        session.options = result.options;
-        session.agentId = result.agentId;
-      });
-      _bumpTokenVersion();
-      await _persist();
+      session.options = result.options;
+      session.agentId = result.agentId;
+      controller.bumpTokenVersion();
+      await controller.persist();
+      setState(() {});
     }
   }
 
@@ -710,9 +560,12 @@ class _HomeScreenState extends State<HomeScreen>
     if (session == null) return;
     try {
       final path = await ExportService.exportToFile(session);
-      if (path != null && mounted) _snack('已导出到 $path');
+      if (path == null) return;
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.homeExportedTo(path));
     } catch (e) {
-      _snack('导出失败：$e');
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.settingsExportFailed(e));
     }
   }
 
@@ -721,9 +574,40 @@ class _HomeScreenState extends State<HomeScreen>
     if (session == null) return;
     try {
       final path = await ExportService.exportJsonToFile(session);
-      if (path != null && mounted) _snack('已导出到 $path');
+      if (path == null) return;
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.homeExportedTo(path));
     } catch (e) {
-      _snack('导出失败：$e');
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.settingsExportFailed(e));
+    }
+  }
+
+  Future<void> _exportHtml() async {
+    final session = _currentSession;
+    if (session == null) return;
+    try {
+      final path = await ExportService.exportHtmlToFile(session);
+      if (path == null) return;
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.homeExportedTo(path));
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.settingsExportFailed(e));
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    final session = _currentSession;
+    if (session == null) return;
+    try {
+      final path = await ExportService.exportPdfToFile(session);
+      if (path == null) return;
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.homeExportedTo(path));
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.settingsExportFailed(e));
     }
   }
 
@@ -731,46 +615,26 @@ class _HomeScreenState extends State<HomeScreen>
     final session = _currentSession;
     if (session == null) return;
     await ExportService.copyAsMarkdown(session);
-    _snack('已复制为 Markdown');
+    if (!mounted) return;
+    showAppSnack(context, context.l10n.homeCopiedMarkdown);
   }
 
   // ---------------- 工具 ----------------
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
-  }
 
-  Future<bool?> _confirmDialog({
+  /// 确认对话框（统一实现见 [confirmAction]）。
+  Future<bool> _confirmDialog({
     required String title,
     required String message,
-    String confirmText = '确定',
+    String? confirmText,
     bool danger = false,
   }) {
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final scheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              style: danger
-                  ? FilledButton.styleFrom(backgroundColor: scheme.error)
-                  : null,
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(confirmText),
-            ),
-          ],
-        );
-      },
+    return confirmAction(
+      context,
+      title: title,
+      message: message,
+      confirmText: confirmText,
+      danger: danger,
     );
   }
 
@@ -793,81 +657,43 @@ class _HomeScreenState extends State<HomeScreen>
   bool get _isNearBottom {
     if (!_scrollController.hasClients) return true;
     final position = _scrollController.position;
-    return position.pixels >= position.maxScrollExtent - 100;
+    return position.pixels >= position.maxScrollExtent - 24;
   }
 
   // ---------------- 快捷键 ----------------
 
   void _onShortcutNewSession() {
-    if (_isLoading) return;
+    if (controller.isLoading) return;
     _newSession();
   }
 
   void _onShortcutSearch() {
-    _sidebarKey.currentState?.focusSearch();
+    _openSearch();
   }
 
   void _onShortcutStop() {
-    if (_isLoading) _stop();
-  }
-
-  void _onModelChanged(String providerId, String modelId) {
-    final session = _currentSession;
-    if (session == null) return;
-    setState(() {
-      session.providerId = providerId;
-      session.modelId = modelId;
-      // 非推理模型不支持思考，切换时清空思考强度
-      if (!_isReasoningModel(providerId, modelId) &&
-          session.options.reasoningEffort != null) {
-        session.options = session.options.copyWith(reasoningEffort: null);
-      }
-    });
-    _persist();
-  }
-
-  /// 指定服务商下的模型是否为推理模型（未标记时视为非推理）。
-  bool _isReasoningModel(String providerId, String modelId) {
-    for (final p in _providers) {
-      if (p.id == providerId) {
-        return p.modelConfigs[modelId]?.reasoning ?? false;
-      }
-    }
-    return false;
-  }
-
-  void _onEffortChanged(String? effort) {
-    final session = _currentSession;
-    if (session == null) return;
-    setState(() {
-      session.options = session.options.copyWith(reasoningEffort: effort);
-    });
-    _persist();
-  }
-
-  void _onStreamChanged(bool stream) {
-    final session = _currentSession;
-    if (session == null) return;
-    setState(() {
-      session.options = session.options.copyWith(stream: stream);
-    });
-    _persist();
+    if (controller.isLoading) _stop();
   }
 
   // ---------------- 构建 ----------------
 
   @override
   Widget build(BuildContext context) {
+    // 每次构建刷新本地化依赖（发送/自动标题等使用）
+    controller
+      ..l10n = context.l10n
+      ..defaultTitle = context.l10n.chatSessionNewTitle
+      ..sendOnEnter = _sendOnEnter;
     final session = _currentSession;
     final streamingIndex = session?.messages
-        .indexWhere((m) => identical(m, _streamingMessage));
+        .indexWhere((m) => identical(m, controller.streamingMessage));
 
     final sidebar = SessionSidebar(
       key: _sidebarKey,
-      sessions: _sessions,
-      currentSessionId: _currentSessionId,
-      isAnonymous: _isAnonymous,
-      agents: _agents,
+      sessions: controller.sessions,
+      currentSessionId: controller.currentSessionId,
+      isAnonymous: controller.isAnonymous,
+      agents: controller.agents,
       onNewSession: _newSession,
       onNewSessionWithAgent: (agent) => _newSession(agent: agent),
       onSwitchSession: _switchSession,
@@ -881,15 +707,14 @@ class _HomeScreenState extends State<HomeScreen>
 
     final chatView = ChatView(
       session: session,
-      providers: _providers,
-      isLoading: _isLoading,
+      providers: controller.providers,
+      isLoading: controller.isLoading,
       streamingIndex: streamingIndex,
-      estimatedTokens:
-          session == null ? 0 : _estimateTokens(session),
-      sessionUsage:
-          session == null ? (0, 0) : _sessionUsage(session),
+      estimatedTokens: session == null ? 0 : controller.estimateTokens(session),
+      contextLimit: session == null ? null : controller.contextLimitFor(session),
+      sessionUsage: session == null ? (0, 0) : controller.sessionUsage(session),
       sendOnEnter: _sendOnEnter,
-      autoSelectModel: _settings.chatModel.isNotEmpty,
+      autoSelectModel: controller.settings.chatModel.isNotEmpty,
       scrollController: _scrollController,
       inputController: _inputController,
       showSidebarToggle: !_isWide,
@@ -905,18 +730,38 @@ class _HomeScreenState extends State<HomeScreen>
       },
       onExportMarkdown: _exportMarkdown,
       onExportJson: _exportJson,
+      onExportHtml: _exportHtml,
+      onExportPdf: _exportPdf,
       onCopyMarkdown: _copyMarkdown,
       onNewSession: _newSession,
-      onModelChanged: _onModelChanged,
-      onEffortChanged: _onEffortChanged,
-      onStreamChanged: _onStreamChanged,
+      onModelChanged: controller.onModelChanged,
+      onEffortChanged: controller.onEffortChanged,
+      onStreamChanged: controller.onStreamChanged,
       onSend: _send,
       onStop: _stop,
+      pendingImages: controller.pendingImages,
+      onPickImages: _pickImages,
+      pendingDocuments: controller.pendingDocuments,
+      onPickDocuments: _pickDocuments,
+      onRemoveDocument: _removePendingDocument,
+      onAddImageUrl: _addImageUrl,
+      onRemoveImage: _removePendingImage,
+      speakingMessageId: _speakingMessageId,
+      onMessageSpeak: _onMessageSpeak,
+      initialScrollIndex: _pendingScrollIndex,
+      onScrollTargetHandled: _onScrollTargetHandled,
       onMessageCopy: _copyMessage,
       onMessageEdit: _editMessage,
       onMessageRollback: _rollbackToMessage,
+      onMessageRollbackVersion: _rollbackVersion,
       onMessageRegenerate: _regenerateMessage,
       onMessageDelete: _deleteMessage,
+      onOpenDocument: (message) => _openMessageDocument(message),
+      streamMarkdown: controller.settings.streamMarkdownRender,
+      documentThreshold: controller.settings.documentThreshold,
+      onSummaryEdited: _onSummaryEdited,
+      onClearCompaction: _onClearCompaction,
+      onOcr: (message) => _onOcr(message),
     );
 
     return CallbackShortcuts(
@@ -926,7 +771,7 @@ class _HomeScreenState extends State<HomeScreen>
               _onShortcutNewSession,
         const SingleActivator(LogicalKeyboardKey.keyF, control: true):
             _onShortcutSearch,
-        if (_isLoading)
+        if (controller.isLoading)
           const SingleActivator(LogicalKeyboardKey.escape): _onShortcutStop,
       },
       child: Scaffold(

@@ -1,6 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/network_log.dart';
+import '../utils/logger.dart';
 import 'network_log_store_io.dart'
     if (dart.library.js_interop) 'network_log_store_stub.dart' as store;
 
@@ -12,8 +15,9 @@ export '../models/network_log.dart';
 /// - 最大保留条数可配置，0 表示不限制；
 /// - 正文超长自动截断，避免内存占用失控；
 /// - 请求头中 Authorization 等密钥字段自动脱敏，不落日志；
+/// - 请求体/URL 中的密钥字段（api_key 等）同样脱敏；
 /// - 日志持久化：桌面/移动端写入本地文件，Web 端写入浏览器 localStorage。
-class NetworkLogService {
+class NetworkLogService extends ChangeNotifier {
   NetworkLogService._();
 
   static final NetworkLogService instance = NetworkLogService._();
@@ -37,9 +41,16 @@ class NetworkLogService {
   /// 全部日志，最新在前。
   List<NetworkLog> get logs => List.unmodifiable(_logs);
 
-  void setEnabled(bool value) => _enabled = value;
+  void setEnabled(bool value) {
+    if (_enabled == value) return;
+    _enabled = value;
+    notifyListeners();
+  }
 
-  void setMaxLogs(int value) => _maxLogs = value > 0 ? value : 0;
+  void setMaxLogs(int value) {
+    _maxLogs = value > 0 ? value : 0;
+    notifyListeners();
+  }
 
   /// 初始化：从持久化存储恢复日志（与记录开关无关，日志始终可查看）。
   Future<void> init() async {
@@ -52,11 +63,13 @@ class NetworkLogService {
     if (_maxLogs > 0 && _logs.length > _maxLogs) {
       _logs.removeRange(_maxLogs, _logs.length);
     }
+    notifyListeners();
   }
 
   void clear() {
     _logs.clear();
     _schedulePersist();
+    notifyListeners();
   }
 
   void record(NetworkLog log) {
@@ -66,12 +79,20 @@ class NetworkLogService {
       _logs.removeRange(_maxLogs, _logs.length);
     }
     _schedulePersist();
+    notifyListeners();
   }
 
   /// 串行持久化当前日志（写文件，失败静默）。
+  ///
+  /// 单次写入失败不污染持久化链：错误被记录后链继续可用，
+  /// 避免一次写入错误导致后续所有日志丢失（Web 端超配额常见）。
   void _schedulePersist() {
     _persistChain = (_persistChain ?? Future.value()).then((_) async {
-      await store.writeLogs(_logs);
+      try {
+        await store.writeLogs(_logs);
+      } catch (e) {
+        Logger.error('netlog', 'network log persistence failed', e);
+      }
     });
   }
 
@@ -84,7 +105,7 @@ class NetworkLogService {
   static String truncate(String body, {int? max}) {
     final limit = max ?? _maxBodyChars;
     if (body.length <= limit) return body;
-    return '${body.substring(0, limit)}\n\n…（已截断，原文共 ${body.length} 字符）';
+    return '${body.substring(0, limit)}\n\n...(truncated, original ${body.length} chars)';
   }
 
   /// 开始记录一次请求；日志关闭时返回 null（调用方无需额外判断）。
@@ -100,9 +121,9 @@ class NetworkLogService {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       time: DateTime.now(),
       method: method,
-      url: url,
+      url: sanitizeUrl(url),
       requestHeaders: _sanitizeHeaders(requestHeaders),
-      requestBody: requestBody,
+      requestBody: sanitizeBody(requestBody),
       type: type,
     );
   }
@@ -117,7 +138,69 @@ class NetworkLogService {
 
   static bool _isSecretHeader(String name) {
     final n = name.toLowerCase();
-    return n == 'authorization' || n == 'x-api-key' || n == 'api-key';
+    return n == 'authorization' ||
+        n == 'x-api-key' ||
+        n == 'api-key' ||
+        n == 'anthropic-api-key' ||
+        n == 'x-goog-api-key' ||
+        n == 'x-auth-token' ||
+        n == 'proxy-authorization' ||
+        n == 'cookie' ||
+        n == 'mcp-session-id';
+  }
+
+  /// URL 脱敏：移除 userinfo 凭据，并对查询参数中的密钥字段打码。
+  static String sanitizeUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return url;
+    final hasCredentials = uri.userInfo.isNotEmpty;
+    final hasSecretQuery = uri.queryParameters.entries.any(
+      (e) => _isSecretParam(e.key),
+    );
+    if (!hasCredentials && !hasSecretQuery) return url;
+    final newQuery = uri.queryParametersAll.map((k, v) {
+      if (_isSecretParam(k)) {
+        // 用 REDACTED 打码，避免掩码字符再次被 URL 编码
+        return MapEntry(k, v.map((_) => 'REDACTED').toList());
+      }
+      return MapEntry(k, v);
+    });
+    return uri.replace(
+      userInfo: hasCredentials ? 'REDACTED' : null,
+      queryParameters: newQuery,
+    ).toString();
+  }
+
+  static bool _isSecretParam(String name) {
+    final n = name.toLowerCase();
+    return n == 'api_key' ||
+        n == 'apikey' ||
+        n == 'key' ||
+        n == 'token' ||
+        n == 'access_token' ||
+        n == 'auth' ||
+        n == 'signature' ||
+        n == 'secret';
+  }
+
+  /// 请求体脱敏：JSON 中的密钥字段值打码。
+  ///
+  /// 超大正文跳过正则替换（日志记录路径另有 8000 字符截断策略，
+  /// 此处只处理密钥泄露，不做全文改写）。
+  static final RegExp _secretFieldRe = RegExp(
+    r'("(?:api[_-]?key|apikey|secret|client[_-]?secret|private[_-]?key|'
+    r'access[_-]?token|refresh[_-]?token|id[_-]?token|token|password|'
+    r'passwd|authorization|auth|cookie|credential|signature|session[_-]?id|'
+    r'bearer)"\s*:\s*)("[^"]*"|[^,}\s]+)',
+    caseSensitive: false,
+  );
+
+  static String sanitizeBody(String body) {
+    if (body.isEmpty || body.length > _maxBodyChars * 8) return body;
+    return body.replaceAllMapped(
+      _secretFieldRe,
+      (m) => '${m.group(1)}"******"',
+    );
   }
 }
 

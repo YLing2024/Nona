@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/chat_provider.dart';
 import '../services/provider_service.dart';
 import '../services/settings_service.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/load_failed_banner.dart';
 
 /// 模型配置页：全局模型默认值（聊天模型、Agent 模型等）。
 class ModelConfigScreen extends StatefulWidget {
@@ -13,10 +19,13 @@ class ModelConfigScreen extends StatefulWidget {
 }
 
 class _ModelConfigScreenState extends State<ModelConfigScreen> {
-  final _settingsService = SettingsService();
-  final _providerService = ProviderService();
+  late final SettingsService _settingsService =
+      context.read<SettingsService>();
+  late final ProviderService _providerService =
+      context.read<ProviderService>();
   AppSettings _settings = const AppSettings();
   List<ChatProvider> _providers = [];
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -25,52 +34,66 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      _settingsService.load(),
-      _providerService.load(),
-    ]);
+    final results = await loadGuarded(
+      () => Future.wait([
+        _settingsService.load(),
+        _providerService.load(),
+      ]),
+      label: 'model_config',
+    );
     if (!mounted) return;
     setState(() {
-      _settings = results[0] as AppSettings;
-      _providers = results[1] as List<ChatProvider>;
+      if (results != null) {
+        _settings = results[0] as AppSettings;
+        _providers = results[1] as List<ChatProvider>;
+      }
+      _loadFailed = results == null;
     });
   }
 
-  Future<void> _save(String? chatModel) async {
-    await _settingsService.save(
-      _settings.copyWith(chatModel: chatModel ?? ''),
+  Future<void> _save({String? chatModel, String? titleModel, String? translatorModel}) async {
+    final next = _settings.copyWith(
+      chatModel: chatModel ?? _settings.chatModel,
+      titleModel: titleModel ?? _settings.titleModel,
+      translatorModel: translatorModel ?? _settings.translatorModel,
     );
+    await _settingsService.save(next);
     if (!mounted) return;
-    setState(() => _settings = _settings.copyWith(chatModel: chatModel ?? ''));
+    setState(() => _settings = next);
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已保存')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.modelConfigSaved)));
     }
   }
 
-  Future<void> _reset() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重置聊天默认模型'),
-        content: const Text(
-          '重置后，新建会话将不再自动选择模型，每次需手动选择。确定继续吗？',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('重置'),
-          ),
-        ],
-      ),
+  Future<void> _reset(String field) async {
+    final isChat = field == 'chat';
+    final isTitle = field == 'title';
+    final title = isChat
+        ? context.l10n.modelConfigResetChatTitle
+        : isTitle
+            ? context.l10n.modelConfigResetTitleTitle
+            : context.l10n.modelConfigResetTranslatorTitle;
+    final content = isChat
+        ? context.l10n.modelConfigResetChatContent
+        : isTitle
+            ? context.l10n.modelConfigResetTitleContent
+            : context.l10n.modelConfigResetTranslatorContent;
+    final confirmed = await confirmAction(
+      context,
+      title: title,
+      message: content,
+      confirmText: context.l10n.commonReset,
     );
-    if (confirmed != true) return;
-    await _save(null);
+    if (!confirmed) return;
+    if (isChat) {
+      await _save(chatModel: '');
+    } else if (isTitle) {
+      await _save(titleModel: '');
+    } else {
+      await _save(translatorModel: '');
+    }
   }
 
   String? _findProviderName(String modelId) {
@@ -80,57 +103,104 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
     return null;
   }
 
-  void _showModelPicker() async {
+  void _showModelPicker({bool forTitle = false, bool forTranslator = false}) async {
     final filtered = _providers.where((p) => p.modelIds.isNotEmpty).toList();
     if (filtered.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('暂无已配置的模型，请先在服务商中添加')),
+          SnackBar(content: Text(context.l10n.modelConfigNoModels)),
         );
       }
       return;
     }
 
+    final current = forTitle
+        ? _settings.titleModel
+        : forTranslator
+            ? _settings.translatorModel
+            : _settings.chatModel;
     final selected = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => _ModelPickerSheet(
         providers: _providers,
-        current: _settings.chatModel,
+        current: current,
+        title: forTitle
+            ? context.l10n.modelConfigPickTitle
+            : forTranslator
+                ? context.l10n.modelConfigPickTranslator
+                : context.l10n.modelConfigPickChat,
       ),
     );
-    if (selected != null) _save(selected);
+    if (selected == null) return;
+    if (forTitle) {
+      await _save(titleModel: selected);
+    } else if (forTranslator) {
+      await _save(translatorModel: selected);
+    } else {
+      await _save(chatModel: selected);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final AppLocalizations l10n = context.l10n;
     final hasModel = _settings.chatModel.isNotEmpty;
+    final hasTitleModel = _settings.titleModel.isNotEmpty;
+    final hasTranslatorModel = _settings.translatorModel.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('模型配置')),
+      appBar: AppBar(title: Text(l10n.modelConfigTitle)),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        child: Column(
           children: [
-            _ConfigCard(
+            if (_loadFailed) LoadFailedBanner(onRetry: _load),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                children: [
+                  _ConfigCard(
               icon: Icons.chat_outlined,
               iconColor: scheme.primary,
-              title: '聊天模型',
+              title: l10n.modelConfigChatModel,
               hasValue: hasModel,
               value: hasModel ? _settings.chatModel : null,
               subtitle: hasModel ? _findProviderName(_settings.chatModel) : null,
-              onSelect: _showModelPicker,
-              onReset: hasModel ? _reset : null,
-              description: '每次新建会话时默认使用此模型。重置后新建会话需手动选择。',
+              onSelect: () => _showModelPicker(forTitle: false),
+              onReset: hasModel ? () => _reset('chat') : null,
+              description: l10n.modelConfigChatModelDesc,
             ),
-            const SizedBox(height: 24),
-            Center(
-              child: Text(
-                '模型配置将在后续版本中扩展到 Agent 默认模型、绘画默认模型等',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: scheme.outline, height: 1.5),
+            const SizedBox(height: 16),
+            _ConfigCard(
+              icon: Icons.title_outlined,
+              iconColor: scheme.secondary,
+              title: l10n.modelConfigTitleModel,
+              hasValue: hasTitleModel,
+              value: hasTitleModel ? _settings.titleModel : null,
+              subtitle: hasTitleModel
+                  ? _findProviderName(_settings.titleModel)
+                  : null,
+              onSelect: () => _showModelPicker(forTitle: true),
+              onReset: hasTitleModel ? () => _reset('title') : null,
+              description: l10n.modelConfigTitleModelDesc,
+            ),
+            const SizedBox(height: 16),
+            _ConfigCard(
+              icon: Icons.translate_rounded,
+              iconColor: scheme.tertiary,
+              title: l10n.modelConfigTranslatorModel,
+              hasValue: hasTranslatorModel,
+              value: hasTranslatorModel ? _settings.translatorModel : null,
+              subtitle: hasTranslatorModel
+                  ? _findProviderName(_settings.translatorModel)
+                  : null,
+              onSelect: () => _showModelPicker(forTranslator: true),
+              onReset: hasTranslatorModel ? () => _reset('translator') : null,
+              description: l10n.modelConfigTranslatorModelDesc,
+            ),
+                ],
               ),
             ),
           ],
@@ -144,10 +214,12 @@ class _ModelConfigScreenState extends State<ModelConfigScreen> {
 class _ModelPickerSheet extends StatelessWidget {
   final List<ChatProvider> providers;
   final String current;
+  final String title;
 
   const _ModelPickerSheet({
     required this.providers,
     required this.current,
+    required this.title,
   });
 
   @override
@@ -164,7 +236,7 @@ class _ModelPickerSheet extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Text(
-              '选择聊天模型',
+              title,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -278,7 +350,10 @@ class _ConfigCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('重置', style: TextStyle(fontSize: 12.5)),
+                    child: Text(
+                      context.l10n.commonReset,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
                   ),
               ],
             ),
@@ -299,7 +374,9 @@ class _ConfigCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            hasValue && value != null ? value! : '未设置',
+                            hasValue && value != null
+                                ? value!
+                                : context.l10n.modelConfigUnset,
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,

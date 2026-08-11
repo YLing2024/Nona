@@ -1,13 +1,14 @@
 {
-    "name": "Nona",
+    "name": "Nona AI Chat",
     "short_name": "Nona",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#4F46E5",
     "theme_color": "#4F46E5",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "description": "Nona AI Chat — 多协议本地优先 AI 聊天客户端：ChatGPT / Claude / Gemini 一站式对话、知识库、记忆与世界书。",
+    "orientation": "any",
     "prefer_related_applications": false,
+    "categories": ["productivity", "utilities"],
     "icons": [
         {
             "src": "icons/Icon-192.png",

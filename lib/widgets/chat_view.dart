@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../utils/l10n_ext.dart';
 import '../models/chat_message.dart';
+import '../services/document_extractor.dart' show ChatDocument;
 import '../models/chat_provider.dart';
 import '../models/chat_session.dart';
+import '../services/model_resolver.dart';
 import '../theme/app_theme.dart';
 import 'chat_composer.dart';
 import 'message_list.dart';
+import 'summary_card.dart';
 
 /// 聊天主视图：页头 + 消息流 + 输入区。
 class ChatView extends StatelessWidget {
@@ -14,6 +19,9 @@ class ChatView extends StatelessWidget {
   final bool isLoading;
   final int? streamingIndex;
   final int estimatedTokens;
+
+  /// 有效上下文上限（显式配置或按模型推断），用于用量展示与超限提示。
+  final int? contextLimit;
 
   /// 会话累计上行/下行 token。
   final (int, int) sessionUsage;
@@ -29,6 +37,8 @@ class ChatView extends StatelessWidget {
   final VoidCallback onDelete;
   final Future<void> Function() onExportMarkdown;
   final Future<void> Function() onExportJson;
+  final Future<void> Function() onExportHtml;
+  final Future<void> Function() onExportPdf;
   final Future<void> Function() onCopyMarkdown;
   final VoidCallback onNewSession;
   final void Function(String providerId, String modelId) onModelChanged;
@@ -37,11 +47,45 @@ class ChatView extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
 
+  /// 待发送图片附件与相关操作。
+  final List<ChatImage> pendingImages;
+  final VoidCallback onPickImages;
+  final List<ChatDocument> pendingDocuments;
+  final VoidCallback onPickDocuments;
+  final void Function(int index) onRemoveDocument;
+  final void Function(ChatImage image) onAddImageUrl;
+  final void Function(int index) onRemoveImage;
+
+  /// 正在朗读的消息标识与朗读切换。
+  final int? speakingMessageId;
+  final void Function(ChatMessage message) onMessageSpeak;
+
+  /// 进入后定位到的消息索引（搜索结果跳转）与完成回调。
+  final int? initialScrollIndex;
+  final VoidCallback? onScrollTargetHandled;
+
   final void Function(ChatMessage message) onMessageCopy;
   final void Function(ChatMessage message) onMessageEdit;
   final void Function(ChatMessage message) onMessageRollback;
+  final void Function(ChatMessage message) onMessageRollbackVersion;
   final void Function(ChatMessage message) onMessageRegenerate;
   final void Function(ChatMessage message) onMessageDelete;
+
+  /// 打开超长文本消息的文档详情页。
+  final void Function(ChatMessage message)? onOpenDocument;
+
+  /// 流式生成期间是否实时渲染 Markdown（设置项，默认开）。
+  final bool streamMarkdown;
+
+  /// 超过该字符数的消息折叠为「文本文档」入口；0 表示不折叠。
+  final int documentThreshold;
+
+  /// 摘要压缩条（F3-1）：编辑摘要 / 清空压缩记录。
+  final void Function(String summary)? onSummaryEdited;
+  final VoidCallback? onClearCompaction;
+
+  /// F1-5：图片消息「转为文字」。
+  final void Function(ChatMessage message)? onOcr;
 
   const ChatView({
     super.key,
@@ -50,6 +94,7 @@ class ChatView extends StatelessWidget {
     required this.isLoading,
     required this.streamingIndex,
     required this.estimatedTokens,
+    this.contextLimit,
     required this.sessionUsage,
     required this.sendOnEnter,
     this.autoSelectModel = true,
@@ -62,6 +107,8 @@ class ChatView extends StatelessWidget {
     required this.onDelete,
     required this.onExportMarkdown,
     required this.onExportJson,
+    required this.onExportHtml,
+    required this.onExportPdf,
     required this.onCopyMarkdown,
     required this.onNewSession,
     required this.onModelChanged,
@@ -69,11 +116,29 @@ class ChatView extends StatelessWidget {
     required this.onStreamChanged,
     required this.onSend,
     required this.onStop,
+    required this.pendingImages,
+    required this.onPickImages,
+    this.pendingDocuments = const [],
+    this.onPickDocuments = _noopDoc,
+    this.onRemoveDocument = _noopDocIndex,
+    required this.onAddImageUrl,
+    required this.onRemoveImage,
+    required this.speakingMessageId,
+    required this.onMessageSpeak,
+    this.initialScrollIndex,
+    this.onScrollTargetHandled,
     required this.onMessageCopy,
     required this.onMessageEdit,
     required this.onMessageRollback,
+    required this.onMessageRollbackVersion,
     required this.onMessageRegenerate,
     required this.onMessageDelete,
+    this.onOpenDocument,
+    this.streamMarkdown = true,
+    this.documentThreshold = 40000,
+    this.onSummaryEdited,
+    this.onClearCompaction,
+    this.onOcr,
   });
 
   @override
@@ -92,18 +157,39 @@ class ChatView extends StatelessWidget {
                   hasSession: session != null,
                   onNewSession: onNewSession,
                 )
-              : MessageList(
-                  // 以消息列表实例作 key：切换会话时重建并重新回到底部
-                  key: ValueKey(session.messages),
-                  messages: session.messages,
-                  streamingIndex: streamingIndex,
-                  controller: scrollController,
-                  canRegenerate: !isLoading,
-                  onCopy: onMessageCopy,
-                  onEdit: onMessageEdit,
-                  onRollback: onMessageRollback,
-                  onRegenerate: onMessageRegenerate,
-                  onDelete: onMessageDelete,
+              : Column(
+                  children: [
+                    if (session.summary.trim().isNotEmpty)
+                      SummaryCard(
+                        session: session,
+                        onSummaryEdited: onSummaryEdited,
+                        onClear: onClearCompaction,
+                      ),
+                    Expanded(
+                      child: MessageList(
+                        // 以消息列表实例作 key：切换会话时重建并重新回到底部
+                        key: ValueKey(session.messages),
+                        messages: session.messages,
+                        streamingIndex: streamingIndex,
+                        controller: scrollController,
+                        canRegenerate: !isLoading,
+                        speakingMessageId: speakingMessageId,
+                        initialScrollIndex: initialScrollIndex,
+                        onScrollTargetHandled: onScrollTargetHandled,
+                        onSpeak: onMessageSpeak,
+                        onCopy: onMessageCopy,
+                        onEdit: onMessageEdit,
+                        onRollback: onMessageRollback,
+                        onRollbackVersion: onMessageRollbackVersion,
+                        onRegenerate: onMessageRegenerate,
+                        onDelete: onMessageDelete,
+                        onOpenDocument: onOpenDocument,
+                        streamMarkdown: streamMarkdown,
+                        documentThreshold: documentThreshold,
+                        onOcr: onOcr,
+                      ),
+                    ),
+                  ],
                 ),
         ),
         if (session != null)
@@ -115,10 +201,18 @@ class ChatView extends StatelessWidget {
             options: session.options,
             isLoading: isLoading,
             estimatedTokens: estimatedTokens,
+            contextLimit: contextLimit,
             usagePrompt: sessionUsage.$1,
             usageCompletion: sessionUsage.$2,
             autoSelectModel: autoSelectModel,
             sendOnEnter: sendOnEnter,
+            pendingImages: pendingImages,
+            onPickImages: onPickImages,
+            pendingDocuments: pendingDocuments,
+            onPickDocuments: onPickDocuments,
+            onRemoveDocument: onRemoveDocument,
+            onAddImageUrl: onAddImageUrl,
+            onRemoveImage: onRemoveImage,
             onModelChanged: onModelChanged,
             onEffortChanged: onEffortChanged,
             onStreamChanged: onStreamChanged,
@@ -134,6 +228,7 @@ class ChatView extends StatelessWidget {
     ThemeData theme,
     ColorScheme scheme,
   ) {
+    final AppLocalizations l10n = context.l10n;
     final session = this.session;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -142,7 +237,7 @@ class ChatView extends StatelessWidget {
           if (showSidebarToggle)
             IconButton(
               icon: const Icon(Icons.menu_rounded),
-              tooltip: '会话列表',
+              tooltip: l10n.chatSessionList,
               onPressed: onToggleSidebar,
             ),
           Expanded(
@@ -159,7 +254,7 @@ class ChatView extends StatelessWidget {
                       children: [
                         Flexible(
                           child: Text(
-                            session?.title ?? 'Nona',
+                            session?.title ?? l10n.appTitle,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.titleMedium?.copyWith(
@@ -192,7 +287,7 @@ class ChatView extends StatelessWidget {
           if (session != null) ...[
             IconButton(
               icon: const Icon(Icons.tune_rounded),
-              tooltip: '会话上下文',
+              tooltip: l10n.chatSessionContext,
               onPressed: onOpenContextSettings,
             ),
             MenuAnchor(
@@ -201,22 +296,37 @@ class ChatView extends StatelessWidget {
                 MenuItemButton(
                   leadingIcon: const Icon(Icons.description_outlined, size: 17),
                   onPressed: onExportMarkdown,
-                  child: const Text('导出为 Markdown', style: TextStyle(fontSize: 13)),
+                  child: Text(l10n.chatExportMarkdown,
+                      style: const TextStyle(fontSize: 13)),
+                ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.html_rounded, size: 17),
+                  onPressed: onExportHtml,
+                  child: Text(l10n.chatExportHtml,
+                      style: const TextStyle(fontSize: 13)),
+                ),
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
+                  onPressed: onExportPdf,
+                  child: Text(l10n.chatExportPdf,
+                      style: const TextStyle(fontSize: 13)),
                 ),
                 MenuItemButton(
                   leadingIcon: const Icon(Icons.data_object_rounded, size: 17),
                   onPressed: onExportJson,
-                  child: const Text('导出为 JSON', style: TextStyle(fontSize: 13)),
+                  child: Text(l10n.chatExportJson,
+                      style: const TextStyle(fontSize: 13)),
                 ),
                 MenuItemButton(
                   leadingIcon: const Icon(Icons.copy_all_outlined, size: 17),
                   onPressed: onCopyMarkdown,
-                  child: const Text('复制为 Markdown', style: TextStyle(fontSize: 13)),
+                  child: Text(l10n.chatCopyMarkdown,
+                      style: const TextStyle(fontSize: 13)),
                 ),
               ],
               builder: (context, controller, child) => IconButton(
                 icon: const Icon(Icons.download_rounded),
-                tooltip: '导出',
+                tooltip: l10n.chatExport,
                 onPressed: () {
                   if (controller.isOpen) {
                     controller.close();
@@ -228,7 +338,7 @@ class ChatView extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded),
-              tooltip: '删除会话',
+              tooltip: l10n.chatDeleteSession,
               onPressed: onDelete,
             ),
           ],
@@ -238,22 +348,16 @@ class ChatView extends StatelessWidget {
   }
 
   String _modelLabel(BuildContext context, ChatSession session) {
-    for (final p in providers) {
-      if (p.id == session.providerId && p.modelIds.isNotEmpty) {
-        final model = session.modelId ?? p.modelIds.first;
-        return providers.length > 1 ? '${p.name} · $model' : model;
-      }
-    }
-    // 默认选择第一个已配置模型的服务商（跳过空的 OpenAI 占位）
-    for (final p in providers) {
-      if (p.modelIds.isNotEmpty) {
-        final model = session.modelId ?? p.modelIds.first;
-        return providers.length > 1 ? '${p.name} · $model' : model;
-      }
-    }
-    final first = providers.firstOrNull;
-    if (first == null) return '未配置服务商';
-    return first.modelIds.isEmpty ? '${first.name} · 未配置模型' : first.modelIds.first;
+    final resolution = resolveFirstAvailable(
+      providers,
+      providerId: session.providerId,
+      modelId: session.modelId,
+    );
+    final p = resolution.provider;
+    if (p == null) return context.l10n.chatNoProvider;
+    final model = resolution.modelId;
+    if (model == null) return '${p.name} · ${context.l10n.chatNoModel}';
+    return providers.length > 1 ? '${p.name} · $model' : model;
   }
 }
 
@@ -300,14 +404,14 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              '你好，我是 Nona',
+              context.l10n.chatHelloTitle,
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              '支持多服务商、多模型，开启一段新的对话吧',
+              context.l10n.chatHelloSubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13.5, color: scheme.outline),
             ),
@@ -315,7 +419,7 @@ class _EmptyState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onNewSession,
               icon: const Icon(Icons.add_comment_outlined, size: 18),
-              label: const Text('新建会话'),
+              label: Text(context.l10n.chatNewSession),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
@@ -326,3 +430,6 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+void _noopDoc() {}
+void _noopDocIndex(int index) {}

@@ -1,171 +1,109 @@
-import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
 
+import '../models/agent.dart';
+import '../models/chat_provider.dart';
 import '../models/chat_session.dart';
-import 'storage_io_io.dart'
-    if (dart.library.js_interop) 'storage_io_stub.dart'
-    as storage_io;
 
-/// 会话导出 / 导入服务。
+export 'export/backup_archive.dart' show BackupImportResult;
+
+import 'export/backup_archive.dart';
+import 'export/import_service.dart';
+import 'export/pdf_exporter.dart';
+import 'export/session_exporter.dart';
+
+/// 会话导出 / 导入服务门面。
+///
+/// 实现按域拆分并委托：
+/// - [SessionExporter]：单会话 Markdown / HTML / JSON 导出与剪贴板
+/// - [PdfExporter]：单会话 PDF 导出
+/// - [BackupArchive]：全量 ZIP 备份打包 / 解包
+/// - [ImportService]：导入嗅探分发（Nona / Chatbox / Cherry Studio）
 class ExportService {
   /// 将会话渲染为 Markdown 文本（含系统提示词与思考内容说明）。
-  static String sessionToMarkdown(ChatSession session) {
-    final sb = StringBuffer();
-    sb.writeln('# ${session.title}');
-    sb.writeln();
-    sb.writeln('> 导出时间：${_formatDateTime(DateTime.now())}');
-    sb.writeln();
-    if (session.options.systemPrompt.trim().isNotEmpty) {
-      sb.writeln('## 系统提示词');
-      sb.writeln();
-      sb.writeln('```');
-      sb.writeln(session.options.systemPrompt.trim());
-      sb.writeln('```');
-      sb.writeln();
-    }
-    sb.writeln('---');
-    sb.writeln();
-    for (final m in session.messages) {
-      if (m.content.trim().isEmpty) continue;
-      switch (m.role) {
-        case 'user':
-          sb.writeln('## 🧑 用户');
-          break;
-        case 'system':
-          sb.writeln('## ⚙️ 系统');
-          break;
-        default:
-          sb.writeln('## 🤖 Nona');
-      }
-      sb.writeln();
-      if (m.reasoningContent.isNotEmpty) {
-        sb.writeln('<details>');
-        sb.writeln('<summary>思考过程</summary>');
-        sb.writeln();
-        sb.writeln(m.reasoningContent.trim());
-        sb.writeln();
-        sb.writeln('</details>');
-        sb.writeln();
-      }
-      sb.writeln(m.content.trim());
-      if (m.interrupted) {
-        sb.writeln();
-        sb.writeln('_（已停止生成）_');
-      }
-      sb.writeln();
-    }
-    return sb.toString();
-  }
+  static String sessionToMarkdown(ChatSession session) =>
+      SessionExporter.sessionToMarkdown(session);
 
   /// 导出为 .md 文件（桌面端弹出保存对话框）。
-  static Future<String?> exportToFile(ChatSession session) async {
-    final data = sessionToMarkdown(session);
-    return storage_io.saveTextFile(
-      suggestedName: '${_safeFileName(session.title)}.md',
-      data: data,
-      extension: 'md',
-      mimeType: 'text/markdown',
-    );
-  }
+  static Future<String?> exportToFile(ChatSession session) =>
+      SessionExporter.exportToFile(session);
+
+  /// 渲染为自包含 HTML 文件内容（内嵌样式；代码块 pre 保留格式；思考内容折叠）。
+  static String sessionToHtml(ChatSession session) =>
+      SessionExporter.sessionToHtml(session);
+
+  /// 导出为 HTML 文件（桌面端弹出保存对话框）。
+  static Future<String?> exportHtmlToFile(ChatSession session) =>
+      SessionExporter.exportHtmlToFile(session);
+
+  /// 导出为 PDF 文件（桌面端弹出保存对话框 / 移动端回退写入目录）。
+  static Future<String?> exportPdfToFile(ChatSession session) =>
+      PdfExporter.exportPdfToFile(session);
+
+  /// 构建会话 PDF 字节（内置 Noto Sans SC 子集字体，中文可正确渲染）。
+  static Future<Uint8List> buildSessionPdf(ChatSession session) =>
+      PdfExporter.buildSessionPdf(session);
 
   /// 导出为 JSON 文件（可被 [importFromFile] 恢复）。
-  static Future<String?> exportJsonToFile(ChatSession session) async {
-    final data = jsonEncode(session.toJson());
-    return storage_io.saveTextFile(
-      suggestedName: '${_safeFileName(session.title)}.json',
-      data: data,
-      extension: 'json',
-      mimeType: 'application/json',
-    );
-  }
+  static Future<String?> exportJsonToFile(ChatSession session) =>
+      SessionExporter.exportJsonToFile(session);
 
   /// 从 JSON 文件恢复会话；解析失败返回 null。
-  static Future<ChatSession?> importFromFile() async {
-    const typeGroup = XTypeGroup(
-      label: 'JSON',
-      extensions: ['json'],
-      mimeTypes: ['application/json'],
-    );
-    final file = await openFile(acceptedTypeGroups: const [typeGroup]);
-    if (file == null) return null;
-    final raw = await file.readAsString();
-    try {
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      return ChatSession.fromJson(json);
-    } catch (_) {
-      return null;
-    }
-  }
+  static Future<ChatSession?> importFromFile() =>
+      ImportService.importFromFile();
 
-  /// 导出全部会话为 JSON 备份文件。
-  static Future<String?> exportAllToFile(List<ChatSession> sessions) async {
-    final data = jsonEncode({
-      'app': 'nona',
-      'version': 1,
-      'sessions': sessions.map((s) => s.toJson()).toList(),
-    });
-    return storage_io.saveTextFile(
-      suggestedName: 'nona-sessions-${_dateStamp()}.json',
-      data: data,
-      extension: 'json',
-      mimeType: 'application/json',
-    );
-  }
+  /// 生成全部数据的 ZIP 备份字节（不落盘）。
+  static Uint8List buildAllZipBytes({
+    required List<ChatSession> sessions,
+    List<ChatProvider> providers = const [],
+    List<Agent> agents = const [],
+  }) =>
+      BackupArchive.buildAllZipBytes(
+        sessions: sessions,
+        providers: providers,
+        agents: agents,
+      );
 
-  /// 从备份文件导入全部会话；解析失败返回 null。
-  static Future<List<ChatSession>?> importAllFromFile() async {
-    const typeGroup = XTypeGroup(
-      label: 'JSON',
-      extensions: ['json'],
-      mimeTypes: ['application/json'],
-    );
-    final file = await openFile(acceptedTypeGroups: const [typeGroup]);
-    if (file == null) return null;
-    final raw = await file.readAsString();
-    try {
-      final data = jsonDecode(raw);
-      if (data is List) {
-        return data
-            .map((e) => ChatSession.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      if (data is Map<String, dynamic>) {
-        final list = data['sessions'] as List<dynamic>?;
-        if (list != null) {
-          return list
-              .map((e) => ChatSession.fromJson(e as Map<String, dynamic>))
-              .toList();
-        }
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
+  /// 导出全部数据为 ZIP 备份（manifest + 会话 + 服务商 + Agent）。
+  ///
+  /// 结构：
+  /// ```
+  /// manifest.json        # {app, format: "nona-backup", version, exportedAt, 数量}
+  /// providers.json       # 服务商配置（可选）
+  /// agents.json          # Agent 配置（可选）
+  /// sessions/<id>.json   # 每个会话独立文件
+  /// ```
+  static Future<String?> exportAllZipToFile({
+    required List<ChatSession> sessions,
+    List<ChatProvider> providers = const [],
+    List<Agent> agents = const [],
+  }) =>
+      BackupArchive.exportAllZipToFile(
+        sessions: sessions,
+        providers: providers,
+        agents: agents,
+      );
 
-  static String _dateStamp() {
-    final now = DateTime.now();
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${now.year}${two(now.month)}${two(now.day)}';
-  }
+  /// 兼容旧版：导出全部会话为 JSON 备份文件。
+  static Future<String?> exportAllToFile(List<ChatSession> sessions) =>
+      BackupArchive.exportAllToFile(sessions);
+
+  /// 从文件导入：自动识别 ZIP 备份 / Nona JSON / Chatbox / Cherry Studio 格式。
+  ///
+  /// 返回 [BackupImportResult]；无法解析时返回 null。
+  static Future<BackupImportResult?> importAllFromFile() =>
+      ImportService.importAllFromFile();
+
+  /// 解析 ZIP 备份字节。
+  static BackupImportResult? importFromZipBytes(List<int> bytes) =>
+      BackupArchive.importFromZipBytes(bytes);
+
+  /// 解析 JSON 备份/导出：Nona（新版/旧版）→ Chatbox → Cherry Studio。
+  static BackupImportResult? importFromJsonData(Object? data) =>
+      ImportService.importFromJsonData(data);
 
   /// 将会话复制为 Markdown 到剪贴板。
-  static Future<void> copyAsMarkdown(ChatSession session) async {
-    await Clipboard.setData(ClipboardData(text: sessionToMarkdown(session)));
-  }
-
-  static String _safeFileName(String title) {
-    final cleaned = title
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .trim();
-    return cleaned.isEmpty ? '会话' : cleaned;
-  }
-
-  static String _formatDateTime(DateTime t) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${t.year}-${two(t.month)}-${two(t.day)} '
-        '${two(t.hour)}:${two(t.minute)}';
-  }
+  static Future<void> copyAsMarkdown(ChatSession session) =>
+      SessionExporter.copyAsMarkdown(session);
 }

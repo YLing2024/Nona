@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
+import '../models/agent.dart';
+import '../models/chat_provider.dart';
+import '../models/chat_session.dart';
+import '../utils/app_snackbar.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/load_failed_banner.dart';
+import '../widgets/settings_tiles.dart';
 import '../services/agent_service.dart';
 import '../services/export_service.dart';
 import '../services/provider_service.dart';
 import '../services/session_service.dart';
 import '../services/settings_service.dart';
 import '../services/theme_controller.dart';
+import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
-import 'about_screen.dart';
-import 'agent_list_screen.dart';
-import 'developer_options_screen.dart';
-import 'model_config_screen.dart';
-import 'preferences_screen.dart';
-import 'provider_list_screen.dart';
-import 'theme_settings_screen.dart';
 
 /// 设置主页：分组卡片式入口 + 数据管理。
 class SettingsScreen extends StatefulWidget {
@@ -24,15 +29,18 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _settingsService = SettingsService();
-  final _agentService = AgentService();
-  final _providerService = ProviderService();
-  final _sessionService = SessionService();
+  late final SettingsService _settingsService =
+      context.read<SettingsService>();
+  late final AgentService _agentService = context.read<AgentService>();
+  late final ProviderService _providerService =
+      context.read<ProviderService>();
+  late final SessionService _sessionService = context.read<SessionService>();
   AppSettings _settings = const AppSettings();
   int _agentCount = 0;
   int _providerCount = 0;
   int _modelCount = 0;
   int _sessionCount = 0;
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -41,26 +49,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final settings = await _settingsService.load();
-    final agents = await _agentService.load();
-    final providers = await _providerService.load();
-    final sessions = await _sessionService.load();
+    final results = await loadGuarded(
+      () => Future.wait([
+        _settingsService.load(),
+        _agentService.load(),
+        _providerService.load(),
+        _sessionService.load(),
+      ]),
+      label: 'settings',
+    );
     if (!mounted) return;
     setState(() {
-      _settings = settings;
-      _agentCount = agents.length;
-      _providerCount = providers.length;
-      _modelCount = providers.fold<int>(0, (sum, p) => sum + p.modelIds.length);
-      _sessionCount = sessions.length;
+      if (results != null) {
+        _settings = results[0] as AppSettings;
+        final agents = results[1] as List<Agent>;
+        final providers = results[2] as List<ChatProvider>;
+        final sessions = results[3] as List<ChatSession>;
+        _agentCount = agents.length;
+        _providerCount = providers.length;
+        _modelCount = providers
+            .fold<int>(0, (sum, p) => sum + p.modelIds.length);
+        _sessionCount = sessions.length;
+      }
+      _loadFailed = results == null;
     });
   }
 
   Future<void> _openThemeSettings() async {
     final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) =>
-            ThemeSettingsScreen(initialThemeMode: _settings.themeMode),
-      ),
+      AppRoutes.themeSettings(initialThemeMode: _settings.themeMode),
     );
     if (result != null && mounted) {
       setState(() => _settings = _settings.copyWith(themeMode: result));
@@ -68,9 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openAbout() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+    await Navigator.of(context).push(AppRoutes.about());
     // 关于页内可切换开发者模式，返回后刷新以更新「开发者选项」入口
     final settings = await _settingsService.load();
     if (!mounted) return;
@@ -78,18 +93,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _openAgentList() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const AgentListScreen()));
+    await Navigator.of(context).push(AppRoutes.agentList());
     final agents = await _agentService.load();
     if (!mounted) return;
     setState(() => _agentCount = agents.length);
   }
 
   Future<void> _openProviderList() async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const ProviderListScreen()));
+    await Navigator.of(context).push(AppRoutes.providerList());
     final providers = await _providerService.load();
     if (!mounted) return;
     setState(() {
@@ -100,149 +111,278 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportAll() async {
     final sessions = await _sessionService.load();
+    final providers = await _providerService.load();
+    final agents = await _agentService.load();
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     if (sessions.isEmpty) {
-      _snack('还没有可导出的会话');
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsNoExportable)),
+      );
       return;
     }
     try {
-      final path = await ExportService.exportAllToFile(sessions);
-      if (path != null && mounted) _snack('已导出全部会话到 $path');
+      final path = await ExportService.exportAllZipToFile(
+        sessions: sessions,
+        providers: providers,
+        agents: agents,
+      );
+      if (path != null && mounted) {
+        showAppSnack(context, l10n.settingsExportedAll(path));
+      }
     } catch (e) {
-      _snack('导出失败：$e');
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.settingsExportFailed(e.toString()))),
+      );
     }
   }
 
   Future<void> _importAll() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     final imported = await ExportService.importAllFromFile();
-    if (imported == null || imported.isEmpty) {
-      if (mounted) _snack('导入失败：文件格式不正确');
+    if (imported == null ||
+        (imported.sessions.isEmpty &&
+            (imported.providers == null || imported.providers!.isEmpty) &&
+            (imported.agents == null || imported.agents!.isEmpty))) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.settingsImportFailed)));
+      }
       return;
     }
-    final sessions = await _sessionService.load();
+    var sessions = await _sessionService.load();
     final existingIds = sessions.map((s) => s.id).toSet();
     var added = 0;
-    for (final s in imported) {
+    for (final s in imported.sessions) {
       if (existingIds.contains(s.id)) continue;
       sessions.add(s);
       existingIds.add(s.id);
       added++;
     }
+
+    // ZIP 备份含服务商 / Agent：按 id 合并去重
+    if (imported.providers != null) {
+      final existing = await _providerService.load();
+      final existingIds = existing.map((p) => p.id).toSet();
+      for (final p in imported.providers!) {
+        if (existingIds.contains(p.id)) continue;
+        existing.add(p);
+      }
+      await _providerService.save(existing);
+    }
+    if (imported.agents != null) {
+      final existing = await _agentService.load();
+      final existingIds = existing.map((a) => a.id).toSet();
+      for (final a in imported.agents!) {
+        if (existingIds.contains(a.id)) continue;
+        existing.add(a);
+      }
+      await _agentService.save(existing);
+    }
+
     if (added == 0) {
-      if (mounted) _snack('所有会话已存在，无新增');
+      if (mounted) showAppSnack(context, context.l10n.settingsAllExist);
       return;
     }
-    await _sessionService.save(sessions);
+    await _sessionService.saveAll(sessions);
     if (!mounted) return;
     setState(() => _sessionCount = sessions.length);
-    _snack('成功导入 $added 个会话');
+    showAppSnack(context, context.l10n.settingsImported(added));
   }
 
   Future<void> _clearAll() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('清空全部会话'),
-        content: Text('将删除本地保存的全部 $_sessionCount 个会话，此操作不可恢复。确定继续吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('清空'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.settingsClearConfirmTitle,
+      message: context.l10n.settingsClearConfirmContent(_sessionCount),
+      confirmText: context.l10n.commonClear,
+      danger: true,
     );
-    if (confirmed != true || !mounted) return;
-    await _sessionService.save([]);
+    if (!confirmed || !mounted) return;
+    await _sessionService.saveAll([]);
     if (!mounted) return;
     setState(() => _sessionCount = 0);
-    _snack('已清空全部会话');
+    showAppSnack(context, context.l10n.settingsCleared);
   }
 
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(l10n.settingsTitle)),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        child: Column(
           children: [
-            _SectionLabel('服务与内容'),
-            _SettingsCard(
+            if (_loadFailed) LoadFailedBanner(onRetry: _load),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                children: [
+                  SettingsSectionLabel(l10n.settingsSectionServices),
+            SettingsCard(
               children: [
-                _SettingsTile(
+                SettingsTile(
                   icon: Icons.dns_outlined,
                   iconColor: Theme.of(context).colorScheme.primary,
-                  title: '服务商',
+                  title: l10n.settingsProviders,
                   subtitle: _providerCount == 0
-                      ? '未配置，添加服务商并获取模型'
-                      : '$_providerCount 个服务商 · $_modelCount 个模型',
+                      ? l10n.settingsProvidersSubtitleEmpty
+                      // 生成函数的参数顺序是 (providers, models)
+                      : l10n.settingsProvidersSubtitle(
+                          _providerCount, _modelCount),
                   onTap: _openProviderList,
                 ),
-                const _TileDivider(),
-                _SettingsTile(
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.smart_toy_outlined,
                   iconColor: Theme.of(context).colorScheme.secondary,
-                  title: 'Agent 配置',
-                  subtitle: '$_agentCount 个预设，新建会话时一键套用',
+                  title: l10n.settingsAgents,
+                  subtitle: l10n.settingsAgentsSubtitle(_agentCount),
                   onTap: _openAgentList,
                 ),
-                const _TileDivider(),
-                _SettingsTile(
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.extension_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.mcpTitle,
+                  subtitle: l10n.settingsMcpSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.mcpServers(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.cloud_sync_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.syncTitle,
+                  subtitle: l10n.settingsSyncSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.sync()
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.input_rounded,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.importTitle,
+                  subtitle: l10n.settingsImportSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.importWizard(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.image_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.imgGenTitle,
+                  subtitle: l10n.settingsImgGenSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.imgGen(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.compare_rounded,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.compareTitle,
+                  subtitle: l10n.settingsCompareSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.compare()
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.menu_book_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.kbTitle,
+                  subtitle: l10n.settingsKbSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.knowledgeBase(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.bar_chart_rounded,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.statsTitle,
+                  subtitle: l10n.settingsStatsSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.stats(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.psychology_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.memoryTitle,
+                  subtitle: l10n.settingsMemorySubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.memory(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.auto_stories_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.wbTitle,
+                  subtitle: l10n.settingsWbSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.worldBook(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.translate_rounded,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.translatorTitle,
+                  subtitle: l10n.settingsTranslatorSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.translator(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.model_training_outlined,
                   iconColor: Theme.of(context).colorScheme.primary,
-                  title: '模型配置',
-                  subtitle: '新建 Agent 的默认模型等',
+                  title: l10n.settingsModelConfig,
+                  subtitle: l10n.settingsModelConfigSubtitle,
                   onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const ModelConfigScreen(),
-                    ),
+                    AppRoutes.modelConfig(),
                   ),
                 ),
               ],
             ),
           const SizedBox(height: 20),
-          _SectionLabel('外观'),
-          _SettingsCard(
+          SettingsSectionLabel(l10n.settingsSectionAppearance),
+          SettingsCard(
             children: [
-              _SettingsTile(
+              SettingsTile(
                 icon: Icons.palette_outlined,
                 iconColor: AppColors.secondary,
-                title: '主题',
-                subtitle: themeModeLabel(_settings.themeMode),
+                title: l10n.settingsTheme,
+                subtitle: themeModeLabel(_settings.themeMode, l10n),
                 onTap: _openThemeSettings,
               ),
             ],
           ),
           const SizedBox(height: 20),
-          _SectionLabel('偏好'),
-          _SettingsCard(
+          SettingsSectionLabel(l10n.settingsSectionPreferences),
+          SettingsCard(
             children: [
-              _SettingsTile(
-                icon: Icons.tune_rounded,
-                iconColor: Theme.of(context).colorScheme.primary,
-                title: '偏好设置',
-                subtitle: _settings.sendOnEnter
-                    ? 'Enter 发送 · 浅色主题等'
-                    : 'Enter 换行 · 发送键行为',
-                onTap: () async {
+                SettingsTile(
+                  icon: Icons.tune_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                  title: l10n.settingsPreferences,
+                  subtitle: _settings.sendOnEnter
+                      ? l10n.settingsPreferencesEnterSend
+                      : l10n.settingsPreferencesEnterNewline,
+                  onTap: () async {
                   await Navigator.of(
                     context,
-                  ).push(MaterialPageRoute(builder: (_) => const PreferencesScreen()));
+                  ).push(AppRoutes.preferences());
                   final settings = await _settingsService.load();
                   if (!mounted) return;
                   setState(() => _settings = settings);
@@ -251,60 +391,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
           const SizedBox(height: 20),
-          _SectionLabel('数据'),
-            _SettingsCard(
+          SettingsSectionLabel(l10n.settingsSectionData),
+            SettingsCard(
               children: [
-                _SettingsTile(
+                SettingsTile(
                   icon: Icons.save_alt_rounded,
                   iconColor: Theme.of(context).colorScheme.primary,
-                  title: '导出全部会话',
-                  subtitle: '备份为 JSON 文件，可随时恢复',
+                  title: l10n.settingsExportAll,
+                  subtitle: l10n.settingsExportAllSubtitle,
                   onTap: _exportAll,
                 ),
-                const _TileDivider(),
-                _SettingsTile(
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.file_upload_outlined,
                   iconColor: Theme.of(context).colorScheme.primary,
-                  title: '导入会话',
-                  subtitle: '从备份文件恢复会话记录',
+                  title: l10n.settingsImport,
+                  subtitle: l10n.settingsImportSubtitle,
                   onTap: _importAll,
                 ),
-                const _TileDivider(),
-                _SettingsTile(
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.delete_forever_outlined,
                   iconColor: Theme.of(context).colorScheme.error,
-                  title: '清空全部会话',
+                  title: l10n.settingsClearAll,
                   subtitle: _sessionCount == 0
-                      ? '当前没有保存的会话'
-                      : '共 $_sessionCount 个会话，操作不可恢复',
+                      ? l10n.settingsClearAllSubtitleEmpty
+                      : l10n.settingsClearAllSubtitle(_sessionCount),
                   danger: true,
                   onTap: _sessionCount == 0 ? null : _clearAll,
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            _SectionLabel('关于'),
-            _SettingsCard(
+            SettingsSectionLabel(l10n.settingsSectionAbout),
+            SettingsCard(
               children: [
-                _SettingsTile(
+                SettingsTile(
                   icon: Icons.info_outline_rounded,
                   iconColor: Theme.of(context).colorScheme.secondary,
-                  title: '关于 Nona',
-                  subtitle: '版本 / GitHub 仓库 / 开源许可',
+                  title: l10n.settingsAbout,
+                  subtitle: l10n.settingsAboutSubtitle,
                   onTap: _openAbout,
                 ),
                 // 开发者模式开启后显示高级设置入口
                 if (_settings.developerMode) ...[
-                  const _TileDivider(),
-                  _SettingsTile(
+                  const TileDivider(),
+                  SettingsTile(
                     icon: Icons.developer_mode_rounded,
                     iconColor: Theme.of(context).colorScheme.primary,
-                    title: '开发者选项',
-                    subtitle: '连通性高级设置 / 模型能力映射表',
+                    title: l10n.settingsDevOptions,
+                    subtitle: l10n.settingsDevOptionsSubtitle,
                     onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const DeveloperOptionsScreen(),
-                      ),
+                      AppRoutes.developerOptions(),
                     ),
                   ),
                 ],
@@ -313,11 +451,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 20),
             Center(
               child: Text(
-                'Nona · 本地优先，所有数据仅保存在本机',
+                l10n.settingsFooter,
                 style: TextStyle(
                   fontSize: 11.5,
                   color: Theme.of(context).colorScheme.outline,
                 ),
+              ),
+            ),
+          ],
               ),
             ),
           ],
@@ -327,103 +468,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
 
-  const _SectionLabel(this.label);
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: Theme.of(context).colorScheme.outline,
-        ),
-      ),
-    );
-  }
-}
 
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-
-  const _SettingsCard({required this.children});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final bool danger;
-
-  const _SettingsTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = danger ? scheme.error : null;
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: iconColor.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, size: 19, color: iconColor),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-            fontSize: 14.5, fontWeight: FontWeight.w600, color: color),
-      ),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: onTap == null
-          ? null
-          : Icon(Icons.chevron_right_rounded, size: 20, color: scheme.outline),
-    );
-  }
-}
-
-class _TileDivider extends StatelessWidget {
-  const _TileDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 70,
-      color: Theme.of(context).colorScheme.outlineVariant,
-    );
-  }
-}

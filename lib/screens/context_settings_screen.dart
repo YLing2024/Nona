@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/agent.dart';
 import '../models/chat_options.dart';
 import '../services/agent_service.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
 import '../widgets/chat_options_form.dart';
+import '../widgets/load_failed_banner.dart';
 
 /// 会话上下文保存结果：参数 + 来源 Agent（null 为自定义）。
 class ContextSettingsResult {
@@ -32,11 +37,12 @@ class ContextSettingsScreen extends StatefulWidget {
 }
 
 class _ContextSettingsScreenState extends State<ContextSettingsScreen> {
-  final _agentService = AgentService();
+  late final AgentService _agentService = context.read<AgentService>();
   final _formKey = GlobalKey<ChatOptionsFormState>();
 
   List<Agent> _agents = [];
   late String _selected; // 'custom' 或 agent id
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -46,13 +52,17 @@ class _ContextSettingsScreenState extends State<ContextSettingsScreen> {
   }
 
   Future<void> _loadAgents() async {
-    final agents = await _agentService.load();
+    final agents = await loadGuarded<List<Agent>>(
+      _agentService.load,
+      label: 'context_agents',
+    );
     if (!mounted) return;
     setState(() {
-      _agents = agents;
+      if (agents != null) _agents = agents;
+      _loadFailed = agents == null;
       // 还原会话上次使用的 Agent
       if (widget.initialAgentId != null &&
-          agents.any((a) => a.id == widget.initialAgentId)) {
+          _agents.any((a) => a.id == widget.initialAgentId)) {
         _selected = widget.initialAgentId!;
       }
     });
@@ -96,60 +106,71 @@ class _ContextSettingsScreenState extends State<ContextSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('会话上下文'),
-        actions: [TextButton(onPressed: _save, child: const Text('保存'))],
+        title: Text(l10n.contextTitle),
+        actions: [TextButton(onPressed: _save, child: Text(l10n.commonSave))],
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+        child: Column(
           children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(child: Text('参数随会话保存，仅对当前会话生效。')),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            initialValue: _selected,
-            decoration: const InputDecoration(
-              labelText: '快捷配置',
-              prefixIcon: Icon(Icons.smart_toy_outlined),
-              border: OutlineInputBorder(),
-            ),
-            items: [
-              for (final a in _agents)
-                DropdownMenuItem(value: a.id, child: Text(a.name)),
-              const DropdownMenuItem(value: 'custom', child: Text('自定义（手动配置）')),
-            ],
-            onChanged: _onAgentSelected,
-          ),
-          if (_agents.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                '还没有 Agent，可到「设置 → Agent 配置」中创建预设，方便快速套用。',
-                style: TextStyle(fontSize: 12),
+            if (_loadFailed) LoadFailedBanner(onRetry: _loadAgents),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(l10n.contextSavedNote)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selected,
+                    decoration: InputDecoration(
+                      labelText: l10n.contextQuickConfig,
+                      prefixIcon: const Icon(Icons.smart_toy_outlined),
+                      border: const OutlineInputBorder(),
+                    ),
+                    items: [
+                      for (final a in _agents)
+                        DropdownMenuItem(value: a.id, child: Text(a.name)),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text(l10n.contextCustom),
+                      ),
+                    ],
+                    onChanged: _onAgentSelected,
+                  ),
+                  if (_agents.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        l10n.contextNoAgent,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  ChatOptionsForm(key: _formKey, initial: widget.initial),
+                ],
               ),
             ),
-          const SizedBox(height: 16),
-          ChatOptionsForm(key: _formKey, initial: widget.initial),
-        ],
+          ],
         ),
       ),
     );

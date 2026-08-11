@@ -43,6 +43,12 @@ class ChatOptions {
   /// 是否允许自动裁剪超限的早期消息。
   final bool autoTrim;
 
+  /// 摘要压缩预算比例：压缩时摘要最多占用上下文窗口的比例（0.05~0.5）。
+  final double summaryRatio;
+
+  /// 摘要压缩时保留最近多少条消息全文。
+  final int keepRecentMessages;
+
   const ChatOptions({
     this.systemPrompt = '',
     this.temperature = 1.0,
@@ -58,6 +64,8 @@ class ChatOptions {
     this.stream = true,
     this.maxContextTokens,
     this.autoTrim = true,
+    this.summaryRatio = 0.2,
+    this.keepRecentMessages = 40,
   });
 
   static const _unset = Object();
@@ -77,6 +85,8 @@ class ChatOptions {
     bool? stream,
     Object? maxContextTokens = _unset,
     bool? autoTrim,
+    double? summaryRatio,
+    int? keepRecentMessages,
   }) {
     return ChatOptions(
       systemPrompt: systemPrompt ?? this.systemPrompt,
@@ -99,6 +109,8 @@ class ChatOptions {
           ? this.maxContextTokens
           : maxContextTokens as int?,
       autoTrim: autoTrim ?? this.autoTrim,
+      summaryRatio: summaryRatio ?? this.summaryRatio,
+      keepRecentMessages: keepRecentMessages ?? this.keepRecentMessages,
     );
   }
 
@@ -119,6 +131,8 @@ class ChatOptions {
       stream: json['stream'] as bool? ?? true,
       maxContextTokens: json['maxContextTokens'] as int?,
       autoTrim: json['autoTrim'] as bool? ?? true,
+      summaryRatio: (json['summaryRatio'] as num?)?.toDouble() ?? 0.2,
+      keepRecentMessages: json['keepRecentMessages'] as int? ?? 40,
     );
   }
 
@@ -137,5 +151,7 @@ class ChatOptions {
     'stream': stream,
     'maxContextTokens': maxContextTokens,
     'autoTrim': autoTrim,
+    'summaryRatio': summaryRatio,
+    'keepRecentMessages': keepRecentMessages,
   };
 }

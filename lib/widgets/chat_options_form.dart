@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/chat_options.dart';
+import '../utils/focus_utils.dart';
+import '../utils/l10n_ext.dart';
 
 /// 可复用的会话上下文参数表单（含全部 OpenAI 生成参数 + 上下文窗口管理）。
 class ChatOptionsForm extends StatefulWidget {
@@ -119,28 +122,27 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
       children: [
         _ConfigCard(
           icon: Icons.assignment_outlined,
-          title: '系统提示词',
-          tipsTitle: '系统提示词',
-          tips: '设定助手的角色、风格与行为准则，会作为 system 消息放在对话最前面，影响整个会话的回复基调。',
+          title: context.l10n.contextSystemPrompt,
+          tipsTitle: context.l10n.contextSystemPrompt,
+          tips: context.l10n.contextSystemPromptTip,
           child: TextField(
             controller: _systemPromptController,
             maxLines: 4,
             minLines: 3,
             readOnly: _readOnly,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              hintText: '可选，设定助手的角色与行为…',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              hintText: context.l10n.contextSystemPromptHint,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         _ConfigCard(
           icon: Icons.thermostat_outlined,
-          title: 'Temperature',
+          title: context.l10n.contextTemperature,
           valueText: _temperature.toStringAsFixed(2),
-          tipsTitle: 'Temperature 采样温度',
-          tips:
-              '控制输出的随机程度，取值范围 0~2。\n\n值越高，输出越发散、更有创造力；值越低，输出越稳定、保守、可预测。需要稳定的回答建议调低。',
+          tipsTitle: context.l10n.contextTemperature,
+          tips: context.l10n.contextTemperatureTip,
           child: Slider(
             value: _temperature,
             min: 0,
@@ -154,11 +156,10 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
         ),
         _ConfigCard(
           icon: Icons.layers_outlined,
-          title: 'Top P',
+          title: context.l10n.contextTopP,
           valueText: _topP.toStringAsFixed(2),
-          tipsTitle: 'Top P 核采样',
-          tips:
-              '只从累计概率达到该值的 token 集合中采样，取值范围 0~1。\n\n与 Temperature 二选一调整即可，一般不建议同时大幅调整两者。',
+          tipsTitle: context.l10n.contextTopP,
+          tips: context.l10n.contextTopPTip,
           child: Slider(
             value: _topP,
             min: 0,
@@ -170,27 +171,27 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
         ),
         _ConfigCard(
           icon: Icons.data_usage,
-          title: 'Max Tokens',
-          tipsTitle: 'Max Tokens 最大输出长度',
-          tips: '单次回复最多生成的 token 数，超出部分会被截断。\n\n留空表示由服务端按模型上限决定。',
+          title: context.l10n.contextMaxTokens,
+          tipsTitle: context.l10n.contextMaxTokens,
+          tips: context.l10n.contextMaxTokensTip,
           child: TextField(
             controller: _maxTokensController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             readOnly: _readOnly,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              hintText: '留空由服务端决定',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              hintText: context.l10n.contextMaxTokensHint,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         _ConfigCard(
           icon: Icons.explore_outlined,
-          title: 'Presence Penalty',
+          title: context.l10n.contextPresencePenalty,
           valueText: _presencePenalty.toStringAsFixed(2),
-          tipsTitle: 'Presence Penalty 话题新鲜度惩罚',
-          tips: '对已出现过的 token 施加惩罚，取值范围 -2~2。\n\n值越大，越鼓励模型讨论新话题、避免简单重复已有内容。',
+          tipsTitle: context.l10n.contextPresencePenalty,
+          tips: context.l10n.contextPresencePenaltyTip,
           child: Slider(
             value: _presencePenalty,
             min: -2,
@@ -204,10 +205,10 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
         ),
         _ConfigCard(
           icon: Icons.repeat,
-          title: 'Frequency Penalty',
+          title: context.l10n.contextFrequencyPenalty,
           valueText: _frequencyPenalty.toStringAsFixed(2),
-          tipsTitle: 'Frequency Penalty 频率惩罚',
-          tips: '按 token 在文本中出现频率施加惩罚，取值范围 -2~2。\n\n值越大，越能抑制整段重复与套话。',
+          tipsTitle: context.l10n.contextFrequencyPenalty,
+          tips: context.l10n.contextFrequencyPenaltyTip,
           child: Slider(
             value: _frequencyPenalty,
             min: -2,
@@ -221,69 +222,74 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
         ),
         _ConfigCard(
           icon: Icons.copy_all_outlined,
-          title: 'N',
-          tipsTitle: 'N 候选数量',
-          tips: '一次请求生成几条候选回复，默认 1。\n\n大于 1 时接口会返回多条，由你自行选择使用哪一条，会增加 token 消耗。',
+          title: context.l10n.contextN,
+          tipsTitle: context.l10n.contextN,
+          tips: context.l10n.contextNTip,
           child: TextField(
             controller: _nController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             readOnly: _readOnly,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              hintText: '留空使用默认值 1',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              hintText: context.l10n.contextNHint,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         _ConfigCard(
           icon: Icons.stop_circle_outlined,
-          title: 'Stop',
-          tipsTitle: 'Stop 停止序列',
-          tips: '模型生成到该字符串时会立即停止输出。\n\n多个序列用英文逗号分隔，例如：\n\n,。！？\n\n留空表示不使用停止序列。',
+          title: context.l10n.contextStop,
+          tipsTitle: context.l10n.contextStop,
+          tips: context.l10n.contextStopTip,
           child: TextField(
             controller: _stopController,
             readOnly: _readOnly,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              hintText: '多个用英文逗号分隔',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              hintText: context.l10n.contextCommaSeparated,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         _ConfigCard(
           icon: Icons.eco_outlined,
-          title: 'Seed',
-          tipsTitle: 'Seed 随机种子',
-          tips: '设置随机种子后，相同种子与相同输入在多数服务端可复现出相似的结果，方便调试与对比。\n\n留空表示随机。',
+          title: context.l10n.contextSeed,
+          tipsTitle: context.l10n.contextSeed,
+          tips: context.l10n.contextSeedTip,
           child: TextField(
             controller: _seedController,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             readOnly: _readOnly,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              hintText: '留空表示随机',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              hintText: context.l10n.contextSeedHint,
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         _ConfigCard(
           icon: Icons.code_outlined,
-          title: 'Response Format',
-          valueText: _responseFormatLabel(_responseFormat),
-          tipsTitle: 'Response Format 响应格式',
-          tips:
-              '期望模型输出的格式：\n\n• 不指定：默认文本\n• 文本 (text)：普通文本\n• JSON (json_object)：模型只输出合法 JSON，方便程序解析\n\n部分模型不支持 JSON 模式，请以服务商文档为准。',
+          title: context.l10n.contextResponseFormat,
+          valueText: _responseFormatLabel(context.l10n, _responseFormat),
+          tipsTitle: context.l10n.contextResponseFormat,
+          tips: context.l10n.contextResponseFormatTip,
           child: DropdownButtonFormField<String>(
             initialValue: _responseFormat,
             decoration: const InputDecoration(border: OutlineInputBorder()),
-            items: const [
-              DropdownMenuItem(value: 'auto', child: Text('不指定')),
-              DropdownMenuItem(value: 'text', child: Text('文本 (text)')),
+            items: [
+              DropdownMenuItem(
+                value: 'auto',
+                child: Text(context.l10n.commonNotSpecified),
+              ),
+              DropdownMenuItem(
+                value: 'text',
+                child: Text(context.l10n.contextResponseFormatText),
+              ),
               DropdownMenuItem(
                 value: 'json_object',
-                child: Text('JSON (json_object)'),
+                child: Text(context.l10n.contextResponseFormatJson),
               ),
             ],
             onChanged: _readOnly
@@ -293,13 +299,12 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
         ),
         _ConfigCard(
           icon: Icons.view_agenda_outlined,
-          title: '上下文窗口管理',
+          title: context.l10n.contextMaxContext,
           valueText: _maxContextTokensController.text.isEmpty
-              ? '不限制'
+              ? context.l10n.commonUnlimited
               : '${_maxContextTokensController.text} tokens',
-          tipsTitle: '上下文窗口管理',
-          tips:
-              '控制发送给模型的对话历史长度：\n\n• 最大上下文：超出该 token 数时按策略处理，留空表示不限制\n• 自动裁剪：发送前估算对话长度，超限时自动移除最早的消息\n\n可避免长对话超出发送方的上下文窗口上限，节省费用并防止报错。',
+          tipsTitle: context.l10n.contextMaxContext,
+          tips: context.l10n.contextMaxContextTip,
           child: Column(
             children: [
               TextField(
@@ -309,17 +314,17 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
                 readOnly: _readOnly,
                 onTapOutside: (_) =>
                     FocusManager.instance.primaryFocus?.unfocus(),
-                decoration: const InputDecoration(
-                  hintText: '如 32000，留空表示不限制',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  hintText: context.l10n.contextMaxContextHint,
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 10),
               SwitchListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                title: const Text('自动裁剪早期消息'),
-                subtitle: const Text('超出上限时自动移除最早的对话记录'),
+                title: Text(context.l10n.contextAutoTrim),
+                subtitle: Text(context.l10n.contextAutoTrimHint),
                 value: _autoTrim,
                 onChanged: _readOnly
                     ? null
@@ -332,11 +337,12 @@ class ChatOptionsFormState extends State<ChatOptionsForm> {
     );
   }
 
-  String _responseFormatLabel(String value) => switch (value) {
-    'text' => '文本',
-    'json_object' => 'JSON',
-    _ => '不指定',
-  };
+  String _responseFormatLabel(AppLocalizations l10n, String value) =>
+      switch (value) {
+        'text' => l10n.contextResponseFormatTextShort,
+        'json_object' => l10n.contextResponseFormatJsonShort,
+        _ => l10n.commonNotSpecified,
+      };
 }
 
 /// 单个配置项的卡片，右侧带 tips 感叹号按钮。
@@ -366,7 +372,7 @@ class _ConfigCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('知道了'),
+            child: Text(context.l10n.contextInfoGotIt),
           ),
         ],
       ),
@@ -420,7 +426,7 @@ class _ConfigCard extends StatelessWidget {
                 ),
               IconButton(
                 icon: const Icon(Icons.help_outline, size: 18),
-                tooltip: '说明',
+                tooltip: context.l10n.contextInfoTitle,
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _showTips(context),
               ),

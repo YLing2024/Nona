@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../utils/focus_utils.dart';
+import '../utils/l10n_ext.dart';
 import '../models/agent.dart';
 import '../models/chat_session.dart';
 import '../theme/app_theme.dart';
+import 'session_grouper.dart';
+import 'session_list_item.dart';
 
 /// 会话侧边栏：品牌区、新建会话（含 Agent 选择）、搜索、分组会话列表。
 class SessionSidebar extends StatefulWidget {
@@ -48,16 +53,6 @@ class SessionSidebarState extends State<SessionSidebar> {
 
   String get _query => _searchController.text.trim().toLowerCase();
 
-  List<ChatSession> get _filtered {
-    if (_query.isEmpty) return widget.sessions;
-    return widget.sessions.where((s) {
-      if (s.title.toLowerCase().contains(_query)) return true;
-      return s.messages.any(
-        (m) => m.content.toLowerCase().contains(_query),
-      );
-    }).toList();
-  }
-
   /// 供全局快捷键聚焦搜索框。
   void focusSearch() {
     _searchFocus.requestFocus();
@@ -97,6 +92,7 @@ class SessionSidebarState extends State<SessionSidebar> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
@@ -129,14 +125,14 @@ class SessionSidebarState extends State<SessionSidebar> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Nona',
+                  l10n.appTitle,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.3,
                   ),
                 ),
                 Text(
-                  'AI 聊天助手',
+                  l10n.sidebarBrandSubtitle,
                   style: TextStyle(fontSize: 10.5, color: theme.colorScheme.outline),
                 ),
               ],
@@ -150,7 +146,7 @@ class SessionSidebarState extends State<SessionSidebar> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                   child: Text(
-                    '用 Agent 新建会话',
+                    l10n.sidebarNewWithAgent,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -175,7 +171,7 @@ class SessionSidebarState extends State<SessionSidebar> {
                         Padding(
                           padding: const EdgeInsets.only(left: 8),
                           child: Text(
-                            '默认',
+                            l10n.agentDefault,
                             style: TextStyle(
                               fontSize: 10,
                               color: theme.colorScheme.primary,
@@ -195,13 +191,15 @@ class SessionSidebarState extends State<SessionSidebar> {
                 ),
                 onPressed: widget.onToggleAnonymous,
                 child: Text(
-                  widget.isAnonymous ? '退出匿名会话' : '匿名会话（不保存）',
+                  widget.isAnonymous
+                      ? l10n.sidebarExitAnonymousConfirm
+                      : l10n.sidebarAnonymous,
                   style: const TextStyle(fontSize: 13),
                 ),
               ),
             ],
             builder: (context, controller, child) => IconButton(
-              tooltip: '新建会话 / 选择 Agent',
+              tooltip: l10n.sidebarNewSessionAgent,
               onPressed: () {
                 if (controller.isOpen) {
                   controller.close();
@@ -230,10 +228,10 @@ class SessionSidebarState extends State<SessionSidebar> {
         controller: _searchController,
         focusNode: _searchFocus,
         onChanged: (_) => setState(() {}),
-        onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+        onTapOutside: unfocusOnTap,
         style: const TextStyle(fontSize: 13),
         decoration: InputDecoration(
-          hintText: '搜索会话与消息…',
+          hintText: context.l10n.sidebarSearchHint,
           hintStyle: TextStyle(color: scheme.outline, fontSize: 13),
           prefixIcon: const Icon(Icons.search_rounded, size: 18),
           isDense: true,
@@ -267,9 +265,9 @@ class SessionSidebarState extends State<SessionSidebar> {
   }
 
   Widget _buildSessionList(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final filtered = _filtered;
+    final scheme = Theme.of(context).colorScheme;
+    final l10n = context.l10n;
+    final filtered = SessionGrouper.search(widget.sessions, _query);
     if (filtered.isEmpty) {
       return Center(
         child: Column(
@@ -284,7 +282,9 @@ class SessionSidebarState extends State<SessionSidebar> {
             ),
             const SizedBox(height: 8),
             Text(
-              _query.isEmpty ? '暂无会话' : '没有匹配的会话',
+              _query.isEmpty
+                  ? l10n.sidebarNoSessions
+                  : l10n.sidebarNoMatch,
               style: TextStyle(fontSize: 12.5, color: scheme.outline),
             ),
           ],
@@ -292,149 +292,37 @@ class SessionSidebarState extends State<SessionSidebar> {
       );
     }
 
-    final pinned = filtered.where((s) => s.pinned).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final others = filtered.where((s) => !s.pinned).toList();
-
+    final grouped = SessionGrouper.group(filtered, DateTime.now());
     return ListView(
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       children: [
-        if (pinned.isNotEmpty) ...[
-          _sectionLabel(context, '置顶'),
-          for (final s in pinned) _sessionItem(context, s),
-        ],
-        for (final group in _groupOthers(others))
-          ...[
-            _sectionLabel(context, group.$1),
-            for (final s in group.$2) _sessionItem(context, s),
-          ],
-      ],
-    );
-  }
-
-  List<(String, List<ChatSession>)> _groupOthers(List<ChatSession> list) {
-    final now = DateTime.now();
-    bool isToday(DateTime t) =>
-        t.year == now.year && t.month == now.month && t.day == now.day;
-    final yesterday = now.subtract(const Duration(days: 1));
-    bool isYesterday(DateTime t) =>
-        t.year == yesterday.year &&
-        t.month == yesterday.month &&
-        t.day == yesterday.day;
-
-    final today = list.where((s) => isToday(s.updatedAt)).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final yest = list.where((s) => isYesterday(s.updatedAt)).toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-    final older = list
-        .where((s) => !isToday(s.updatedAt) && !isYesterday(s.updatedAt))
-        .toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-
-    return [
-      if (today.isNotEmpty) ('今天', today),
-      if (yest.isNotEmpty) ('昨天', yest),
-      if (older.isNotEmpty) ('更早', older),
-    ];
-  }
-
-  Widget _sectionLabel(BuildContext context, String label) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 12, 10, 4),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: Theme.of(context).colorScheme.outline,
-        ),
-      ),
-    );
-  }
-
-  String _formatTime(DateTime t) {
-    final now = DateTime.now();
-    final sameDay =
-        t.year == now.year && t.month == now.month && t.day == now.day;
-    if (sameDay) {
-      final hh = t.hour.toString().padLeft(2, '0');
-      final mm = t.minute.toString().padLeft(2, '0');
-      return '$hh:$mm';
-    }
-    return '${t.month}-${t.day}';
-  }
-
-  Widget _sessionItem(BuildContext context, ChatSession session) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final selected = session.id == widget.currentSessionId;
-
-    return MouseRegion(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 1),
-        decoration: BoxDecoration(
-          color: selected ? scheme.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: () => widget.onSwitchSession(session.id),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.forum_outlined,
-                  size: 15,
-                  color: selected ? scheme.primary : scheme.outline,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: selected
-                              ? scheme.onPrimaryContainer
-                              : scheme.onSurface,
-                        ),
-                      ),
-                      Text(
-                        _formatTime(session.updatedAt),
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: selected
-                              ? scheme.onPrimaryContainer.withValues(alpha: 0.6)
-                              : scheme.outline,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (session.pinned)
-                  Icon(Icons.push_pin_rounded, size: 13, color: scheme.outline),
-                _SessionMenuButton(
-                  session: session,
-                  selected: selected,
-                  onRename: () => widget.onRenameSession(session),
-                  onPin: () => widget.onPinSession(session),
-                  onDuplicate: () => widget.onDuplicateSession(session),
-                  onDelete: () => widget.onDeleteSession(session),
-                ),
-              ],
-            ),
+        if (grouped.pinned.isNotEmpty)
+          SessionGroupSection(
+            label: l10n.sidebarPin,
+            sessions: grouped.pinned,
+            currentSessionId: widget.currentSessionId,
+            onSwitchSession: widget.onSwitchSession,
+            onDeleteSession: widget.onDeleteSession,
+            onRenameSession: widget.onRenameSession,
+            onPinSession: widget.onPinSession,
+            onDuplicateSession: widget.onDuplicateSession,
           ),
-        ),
-      ),
+        for (final group in grouped.groups)
+          SessionGroupSection(
+            label: switch (group.kind) {
+              SessionGroupKind.today => l10n.sidebarToday,
+              SessionGroupKind.yesterday => l10n.sidebarYesterday,
+              SessionGroupKind.earlier => l10n.sidebarEarlier,
+            },
+            sessions: group.sessions,
+            currentSessionId: widget.currentSessionId,
+            onSwitchSession: widget.onSwitchSession,
+            onDeleteSession: widget.onDeleteSession,
+            onRenameSession: widget.onRenameSession,
+            onPinSession: widget.onPinSession,
+            onDuplicateSession: widget.onDuplicateSession,
+          ),
+      ],
     );
   }
 
@@ -457,10 +345,11 @@ class SessionSidebarState extends State<SessionSidebar> {
               child: Icon(Icons.person_off_outlined, size: 26, color: scheme.outline),
             ),
             const SizedBox(height: 14),
-            Text('匿名会话进行中', style: theme.textTheme.titleSmall),
+            Text(context.l10n.sidebarAnonymousActive,
+                style: theme.textTheme.titleSmall),
             const SizedBox(height: 6),
             Text(
-              '对话内容仅保存在内存中，\n关闭应用后不会留下记录',
+              context.l10n.sidebarAnonymousHint,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: scheme.outline, height: 1.5),
             ),
@@ -468,7 +357,7 @@ class SessionSidebarState extends State<SessionSidebar> {
             FilledButton.tonalIcon(
               onPressed: widget.onToggleAnonymous,
               icon: const Icon(Icons.logout_rounded, size: 16),
-              label: const Text('退出匿名'),
+              label: Text(context.l10n.sidebarExitAnonymous),
             ),
           ],
         ),
@@ -485,87 +374,11 @@ class SessionSidebarState extends State<SessionSidebar> {
       child: ListTile(
         dense: true,
         leading: const Icon(Icons.settings_outlined, size: 19),
-        title: const Text('设置', style: TextStyle(fontSize: 13.5)),
+        title: Text(context.l10n.settingsTitle,
+            style: const TextStyle(fontSize: 13.5)),
         trailing: const Icon(Icons.chevron_right_rounded, size: 18),
         onTap: widget.onOpenSettings,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-}
-
-/// 会话项操作菜单（置顶/重命名/复制/导出/删除）。
-class _SessionMenuButton extends StatelessWidget {
-  final ChatSession session;
-  final bool selected;
-  final VoidCallback onRename;
-  final VoidCallback onPin;
-  final VoidCallback onDuplicate;
-  final VoidCallback onDelete;
-
-  const _SessionMenuButton({
-    required this.session,
-    required this.selected,
-    required this.onRename,
-    required this.onPin,
-    required this.onDuplicate,
-    required this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return MenuAnchor(
-      alignmentOffset: const Offset(0, 6),
-      menuChildren: [
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.drive_file_rename_outline, size: 17),
-          onPressed: onRename,
-          child: const Text('重命名', style: TextStyle(fontSize: 13)),
-        ),
-        MenuItemButton(
-          leadingIcon: Icon(
-            session.pinned ? Icons.push_pin_outlined : Icons.push_pin_outlined,
-            size: 17,
-            color: session.pinned ? scheme.primary : null,
-          ),
-          onPressed: onPin,
-          child: Text(
-            session.pinned ? '取消置顶' : '置顶',
-            style: const TextStyle(fontSize: 13),
-          ),
-        ),
-        MenuItemButton(
-          leadingIcon: const Icon(Icons.copy_all_outlined, size: 17),
-          onPressed: onDuplicate,
-          child: const Text('复制会话', style: TextStyle(fontSize: 13)),
-        ),
-        const PopupMenuDivider(),
-        MenuItemButton(
-          leadingIcon: Icon(Icons.delete_outline_rounded,
-              size: 17, color: scheme.error),
-          onPressed: onDelete,
-          child: Text(
-            '删除',
-            style: TextStyle(fontSize: 13, color: scheme.error),
-          ),
-        ),
-      ],
-      builder: (context, controller, child) => IconButton(
-        onPressed: () {
-          if (controller.isOpen) {
-            controller.close();
-          } else {
-            controller.open();
-          }
-        },
-        icon: Icon(
-          Icons.more_vert_rounded,
-          size: 16,
-          color: selected ? scheme.onPrimaryContainer : scheme.outline,
-        ),
-        visualDensity: VisualDensity.compact,
-        tooltip: '会话操作',
       ),
     );
   }

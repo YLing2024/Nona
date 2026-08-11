@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/chat_message.dart';
+import '../utils/focus_utils.dart';
+import '../utils/l10n_ext.dart';
 
 /// 消息编辑页。
 ///
@@ -47,14 +50,15 @@ class _MessageEditScreenState extends State<MessageEditScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isUser ? '编辑消息' : '编辑助手回复'),
+        title: Text(_isUser ? l10n.messageEditTitle : l10n.messageEditAssistantTitle),
         actions: [
           FilledButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('保存'),
+            label: Text(l10n.commonSave),
           ),
           const SizedBox(width: 12),
         ],
@@ -65,24 +69,22 @@ class _MessageEditScreenState extends State<MessageEditScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(
-              _isUser
-                  ? '修改后将在后续对话中生效'
-                  : '思考内容与回复内容均可修改，修改后将用于后续对话上下文',
+              _isUser ? l10n.messageEditNote : l10n.messageEditReasoningNote,
               style: TextStyle(fontSize: 12.5, color: scheme.outline),
             ),
             const SizedBox(height: 14),
             if (!_isUser) ...[
               _buildField(
-                title: '思考内容',
+                title: l10n.messageEditReasoningLabel,
                 controller: _reasoningController,
-                hint: '修改模型生成时的思考过程…',
+                hint: l10n.messageEditReasoningHint,
               ),
               const SizedBox(height: 18),
             ],
             _buildField(
-              title: _isUser ? '消息内容' : '回复内容',
+              title: _isUser ? l10n.messageEditUserLabel : l10n.messageEditAssistantLabel,
               controller: _contentController,
-              hint: _isUser ? '修改消息内容…' : '修改回复内容…',
+              hint: _isUser ? l10n.messageEditUserHint : l10n.messageEditAssistantHint,
               autofocus: _isUser,
               minLines: _isUser ? 5 : 4,
             ),
@@ -117,7 +119,7 @@ class _MessageEditScreenState extends State<MessageEditScreen> {
           autofocus: autofocus,
           minLines: minLines,
           maxLines: 18,
-          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+          onTapOutside: unfocusOnTap,
           decoration: InputDecoration(
             hintText: hint,
             border: const OutlineInputBorder(),

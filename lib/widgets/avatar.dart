@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/l10n_ext.dart';
 
 /// 消息头像：助手为品牌渐变圆形 + Nona 图标，用户为首字母。
 class MessageAvatar extends StatelessWidget {
@@ -11,7 +12,7 @@ class MessageAvatar extends StatelessWidget {
   const MessageAvatar({
     super.key,
     required this.isUser,
-    this.userName = '我',
+    this.userName = '',
     this.size = 32,
   });
 
@@ -29,7 +30,7 @@ class MessageAvatar extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Text(
-          userName.isEmpty ? '我' : userName.characters.first,
+          userName.isEmpty ? context.l10n.commonMe : userName.characters.first,
           style: TextStyle(
             fontSize: size * 0.42,
             fontWeight: FontWeight.w600,
@@ -46,7 +47,7 @@ class MessageAvatar extends StatelessWidget {
         gradient: kBrandGradient,
         boxShadow: const [
           BoxShadow(
-            color: Color(0x334F46E5),
+            color: AppColors.avatarTint,
             blurRadius: 8,
             offset: Offset(0, 2),
           ),

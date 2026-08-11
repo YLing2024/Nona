@@ -1,0 +1,19 @@
+You are an expert conversation summarizer. Summarize the conversation below
+into a JSON object with EXACTLY these four keys:
+
+{
+  "目标": "the user's goals and current task(s), 1-3 short bullet lines",
+  "事实": "key established facts, decisions and data mentioned, concise bullets",
+  "偏好": "user's preferences, tone, style and constraints, concise bullets",
+  "待办": "open questions, pending items and next steps the user wants to continue"
+}
+
+Rules:
+- Output ONLY the JSON object, no markdown fences, no extra text.
+- Keep the entire output under 300 tokens. Use Chinese when the conversation
+  is in Chinese, otherwise match the conversation language.
+- Drop trivial chitchat and redundant details.
+- Preserve names, numbers, ids and URLs exactly.
+
+Conversation to summarize:
+

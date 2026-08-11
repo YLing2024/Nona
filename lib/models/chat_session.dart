@@ -1,6 +1,46 @@
 import 'chat_message.dart';
 import 'chat_options.dart';
 
+/// 一次摘要压缩的记录：被压缩消息区间 + 摘要 + 原始消息（展开/还原用）。
+class CompressedBlock {
+  final String id;
+  final int startIndex;
+  final int endIndex;
+  final String summary;
+  final List<ChatMessage> messages;
+  final DateTime createdAt;
+
+  const CompressedBlock({
+    required this.id,
+    required this.startIndex,
+    required this.endIndex,
+    required this.summary,
+    required this.messages,
+    required this.createdAt,
+  });
+
+  factory CompressedBlock.fromJson(Map<String, dynamic> json) =>
+      CompressedBlock(
+        id: json['id'] as String,
+        startIndex: json['startIndex'] as int? ?? 0,
+        endIndex: json['endIndex'] as int? ?? 0,
+        summary: json['summary'] as String? ?? '',
+        messages: (json['messages'] as List<dynamic>? ?? [])
+            .map((m) => ChatMessage.fromJson(m as Map<String, dynamic>))
+            .toList(),
+        createdAt: DateTime.parse(json['createdAt'] as String),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'startIndex': startIndex,
+    'endIndex': endIndex,
+    'summary': summary,
+    'messages': messages.map((m) => m.toJson()).toList(),
+    'createdAt': createdAt.toIso8601String(),
+  };
+}
+
 /// 一个会话，包含标题、上下文参数与消息列表。
 class ChatSession {
   final String id;
@@ -21,6 +61,18 @@ class ChatSession {
   /// 是否置顶（置顶会话显示在会话列表最上方）。
   bool pinned;
 
+  /// 摘要压缩（F3-1）：最早消息被压缩成的会话摘要，随请求注入。
+  String summary;
+
+  /// 摘要估算 token 数（供预算管理）。
+  int? summaryTokens;
+
+  /// 压缩记录（被压缩消息区间 + 原始消息）。
+  List<CompressedBlock> compressedBlocks;
+
+  /// 会话级记忆（F4-3，sessions.memory 列）。
+  String memory;
+
   ChatSession({
     required this.id,
     required this.title,
@@ -32,19 +84,28 @@ class ChatSession {
     required this.createdAt,
     required this.updatedAt,
     this.pinned = false,
+    this.summary = '',
+    this.summaryTokens,
+    this.compressedBlocks = const [],
+    this.memory = '',
   });
 
-  /// 创建一个新的空会话。
-  factory ChatSession.create() {
+  /// 创建一个新的空会话；[defaultTitle] 为本地化默认标题，
+  /// 未提供时使用内置中文默认值（旧数据兼容）。
+  factory ChatSession.create({String? defaultTitle}) {
     final now = DateTime.now();
     return ChatSession(
       id: now.microsecondsSinceEpoch.toString(),
-      title: '新对话',
+      title: defaultTitle ?? 'New chat',
       messages: [],
       createdAt: now,
       updatedAt: now,
     );
   }
+
+  /// 压缩的原始消息总数（跨全部压缩块）。
+  int get compressedMessageCount =>
+      compressedBlocks.fold(0, (sum, b) => sum + b.messages.length);
 
   /// 根据第一条用户消息生成会话标题。
   void updateTitleFromFirstMessage() {
@@ -59,12 +120,13 @@ class ChatSession {
     }
   }
 
-  /// 复制会话（新 id，标题带副本后缀，保留全部消息与参数）。
-  ChatSession duplicate() {
+  /// 复制会话（新 id，标题带副本后缀，保留全部消息与参数）；
+  /// [copySuffix] 为本地化副本后缀。
+  ChatSession duplicate({String copySuffix = ' (copy)'}) {
     final now = DateTime.now();
     return ChatSession(
       id: now.microsecondsSinceEpoch.toString(),
-      title: '$title（副本）',
+      title: '$title$copySuffix',
       options: options,
       agentId: agentId,
       providerId: providerId,
@@ -74,6 +136,9 @@ class ChatSession {
             (m) => ChatMessage(
               role: m.role,
               content: m.content,
+              images: m.images,
+              documents: m.documents,
+              alternatives: m.alternatives,
               reasoningContent: m.reasoningContent,
               interrupted: m.interrupted,
               failed: m.failed,
@@ -82,6 +147,8 @@ class ChatSession {
               elapsedMs: m.elapsedMs,
               providerName: m.providerName,
               modelId: m.modelId,
+              toolCallId: m.toolCallId,
+              toolCallsJson: m.toolCallsJson,
             ),
           )
           .toList(),
@@ -100,7 +167,7 @@ class ChatSession {
   factory ChatSession.fromJson(Map<String, dynamic> json) {
     return ChatSession(
       id: json['id'] as String,
-      title: json['title'] as String? ?? '新对话',
+      title: json['title'] as String? ?? 'New chat',
       options: ChatOptions.fromJson(json['options'] as Map<String, dynamic>?),
       agentId: json['agentId'] as String?,
       providerId: json['providerId'] as String?,
@@ -111,6 +178,12 @@ class ChatSession {
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       pinned: json['pinned'] as bool? ?? false,
+      summary: json['summary'] as String? ?? '',
+      summaryTokens: json['summaryTokens'] as int?,
+      memory: json['memory'] as String? ?? '',
+      compressedBlocks: (json['compressedBlocks'] as List<dynamic>? ?? [])
+          .map((b) => CompressedBlock.fromJson(b as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -125,5 +198,9 @@ class ChatSession {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'pinned': pinned,
+    'summary': summary,
+    if (summaryTokens != null) 'summaryTokens': summaryTokens,
+    'memory': memory,
+    'compressedBlocks': compressedBlocks.map((b) => b.toJson()).toList(),
   };
 }

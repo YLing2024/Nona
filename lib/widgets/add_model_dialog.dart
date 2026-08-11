@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/chat_provider.dart';
 import '../services/provider_service.dart';
+import '../utils/l10n_ext.dart';
 
 /// 弹出「添加模型」对话框，返回本次新增的模型 id 及能力配置
 /// （可能包含已有，由调用方去重；列表模式保留 API 返回顺序）。
@@ -68,12 +70,12 @@ class _AddModelDialogState extends State<AddModelDialog> {
     if (widget.apiKey.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请先填写 API Key')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.addModelApiKeyRequired)));
       return;
     }
     setState(() => _loading = true);
     try {
-      final models = await ProviderService().fetchModels(
+      final models = await context.read<ProviderService>().fetchModels(
         ChatProvider(
           id: 'temp',
           name: '',
@@ -91,13 +93,13 @@ class _AddModelDialogState extends State<AddModelDialog> {
       if (models.isEmpty) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('该接口未返回任何模型')));
+        ).showSnackBar(SnackBar(content: Text(context.l10n.addModelNoModels)));
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.addModelFetchFailed(e.toString()))));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -135,7 +137,7 @@ class _AddModelDialogState extends State<AddModelDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
-      title: const Text('添加模型'),
+      title: Text(context.l10n.addModelTitle),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -143,16 +145,16 @@ class _AddModelDialogState extends State<AddModelDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SegmentedButton<bool>(
-              segments: const [
+              segments: [
                 ButtonSegment(
                   value: false,
-                  label: Text('手动输入'),
-                  icon: Icon(Icons.edit_outlined, size: 16),
+                  label: Text(context.l10n.addModelManual),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
                 ),
                 ButtonSegment(
                   value: true,
-                  label: Text('从列表获取'),
-                  icon: Icon(Icons.cloud_download_outlined, size: 16),
+                  label: Text(context.l10n.addModelFetchFromList),
+                  icon: const Icon(Icons.cloud_download_outlined, size: 16),
                 ),
               ],
               selected: {_fetchMode},
@@ -172,19 +174,19 @@ class _AddModelDialogState extends State<AddModelDialog> {
                     onTapOutside: (_) =>
                         FocusManager.instance.primaryFocus?.unfocus(),
                     onChanged: (_) => setState(() {}),
-                    decoration: const InputDecoration(
-                      hintText: '例如：gpt-4o',
-                      helperText: '填写一个模型 ID',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      hintText: context.l10n.addModelExample,
+                      helperText: context.l10n.addModelManualHint,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 4),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    title: const Text('多模态', style: TextStyle(fontSize: 13)),
+                    title: Text(context.l10n.providerMultimodal, style: const TextStyle(fontSize: 13)),
                     subtitle: Text(
-                      '支持图片、文件等非文本输入',
+                      context.l10n.providerMultimodalHint,
                       style: TextStyle(
                         fontSize: 11,
                         color: theme.colorScheme.outline,
@@ -197,9 +199,9 @@ class _AddModelDialogState extends State<AddModelDialog> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     dense: true,
-                    title: const Text('推理', style: TextStyle(fontSize: 13)),
+                    title: Text(context.l10n.providerReasoning, style: const TextStyle(fontSize: 13)),
                     subtitle: Text(
-                      '推理模型支持思考模式',
+                      context.l10n.addModelReasoningHint,
                       style: TextStyle(
                         fontSize: 11,
                         color: theme.colorScheme.outline,
@@ -218,11 +220,11 @@ class _AddModelDialogState extends State<AddModelDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+          child: Text(context.l10n.commonCancel),
         ),
         FilledButton(
           onPressed: _canAdd ? _submit : null,
-          child: const Text('添加'),
+          child: Text(context.l10n.commonAdd),
         ),
       ],
     );
@@ -243,7 +245,7 @@ class _AddModelDialogState extends State<AddModelDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '调用 /models 接口获取可用模型\n获取前请先填写 API Key',
+                context.l10n.addModelFetchHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: theme.colorScheme.outline,
@@ -254,7 +256,7 @@ class _AddModelDialogState extends State<AddModelDialog> {
               const SizedBox(height: 8),
               FilledButton.tonal(
                 onPressed: _fetch,
-                child: const Text('获取模型列表'),
+                child: Text(context.l10n.addModelFetch),
               ),
             ],
           ),
@@ -276,12 +278,12 @@ class _AddModelDialogState extends State<AddModelDialog> {
                     ),
                     if (m.$2.multimodal)
                       _CapabilityTag(
-                        label: '多模态',
+                        label: context.l10n.providerMultimodal,
                         color: theme.colorScheme.tertiary,
                       ),
                     if (m.$2.reasoning)
                       _CapabilityTag(
-                        label: '推理',
+                        label: context.l10n.providerReasoning,
                         color: theme.colorScheme.primary,
                       ),
                   ],
@@ -312,7 +314,7 @@ class _AddModelDialogState extends State<AddModelDialog> {
             child: TextButton.icon(
               onPressed: _loading ? null : _fetch,
               icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('刷新'),
+              label: Text(context.l10n.commonRefresh),
             ),
           ),
         body,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/agent.dart';
 import '../models/chat_options.dart';
+import '../utils/focus_utils.dart';
+import '../utils/l10n_ext.dart';
 import '../widgets/chat_options_form.dart';
 
 /// 新建 / 编辑 Agent：名称 + 会话上下文预设。
@@ -17,6 +20,7 @@ class AgentEditScreen extends StatefulWidget {
 
 class _AgentEditScreenState extends State<AgentEditScreen> {
   late final TextEditingController _nameController;
+  late final TextEditingController _memoriesController;
   late bool _isDefault;
   final _formKey = GlobalKey<ChatOptionsFormState>();
 
@@ -24,12 +28,16 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.agent?.name ?? '');
+    _memoriesController = TextEditingController(
+      text: (widget.agent?.memories ?? const []).join('\n'),
+    );
     _isDefault = widget.agent?.isDefault ?? false;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _memoriesController.dispose();
     super.dispose();
   }
 
@@ -38,7 +46,7 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请填写 Agent 名称')));
+      ).showSnackBar(SnackBar(content: Text(context.l10n.agentNameRequired)));
       return;
     }
     final form = _formKey.currentState;
@@ -48,16 +56,22 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
       name: name,
       options: form.value,
       isDefault: _isDefault,
+      memories: _memoriesController.text
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(),
     );
     Navigator.of(context).pop(agent);
   }
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.agent == null ? '新建 Agent' : '编辑 Agent'),
-        actions: [TextButton(onPressed: _save, child: const Text('保存'))],
+        title: Text(widget.agent == null ? l10n.agentNew : l10n.agentEdit),
+        actions: [TextButton(onPressed: _save, child: Text(l10n.commonSave))],
       ),
       body: SafeArea(
         top: false,
@@ -66,20 +80,31 @@ class _AgentEditScreenState extends State<AgentEditScreen> {
           children: [
           TextField(
             controller: _nameController,
-            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-            decoration: const InputDecoration(
-              labelText: '名称',
-              hintText: '例如：代码助手、翻译官…',
-              border: OutlineInputBorder(),
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              labelText: l10n.agentName,
+              hintText: l10n.agentNameHint,
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 16),
           SwitchListTile(
-            title: const Text('设为默认 Agent'),
-            subtitle: const Text('单击「新建会话」时自动套用该配置'),
+            title: Text(l10n.agentSetDefault),
+            subtitle: Text(l10n.agentDefaultHint),
             value: _isDefault,
             contentPadding: EdgeInsets.zero,
             onChanged: (v) => setState(() => _isDefault = v),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _memoriesController,
+            maxLines: 4,
+            onTapOutside: unfocusOnTap,
+            decoration: InputDecoration(
+              labelText: l10n.agentMemories,
+              hintText: l10n.agentMemoriesHint,
+              border: const OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 8),
           ChatOptionsForm(

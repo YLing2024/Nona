@@ -1,10 +1,10 @@
 /// 网络日志类型，用于列表分组与展示。
 enum NetworkLogType {
-  chat('聊天'),
-  test('测速'),
-  models('模型列表'),
-  capability('能力表'),
-  other('其他');
+  chat('chat'),
+  test('test'),
+  models('models'),
+  capability('capability'),
+  other('other');
 
   const NetworkLogType(this.label);
 

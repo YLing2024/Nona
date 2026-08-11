@@ -4,108 +4,124 @@
     "gpt-4o": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 128000,
       "aliases": ["gpt-4o-2024-05-13", "gpt-4o-2024-08-06"]
     },
     "gpt-4o-mini": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 128000,
       "aliases": ["gpt-4o-mini-2024-07-18"]
     },
     "gpt-4-turbo": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 128000,
       "aliases": ["gpt-4-turbo-2024-04-09", "gpt-4-turbo-preview"]
     },
-    "gpt-4.1": { "multimodal": true, "reasoning": false },
-    "gpt-4.1-mini": { "multimodal": true, "reasoning": false },
-    "gpt-4.1-nano": { "multimodal": true, "reasoning": false },
+    "gpt-4.1": { "multimodal": true, "reasoning": false, "contextWindow": 1000000 },
+    "gpt-4.1-mini": { "multimodal": true, "reasoning": false, "contextWindow": 1000000 },
+    "gpt-4.1-nano": { "multimodal": true, "reasoning": false, "contextWindow": 1000000 },
     "o1": {
       "multimodal": false,
       "reasoning": true,
+      "contextWindow": 200000,
       "aliases": ["o1-2024-12-17"]
     },
     "o1-mini": {
       "multimodal": false,
       "reasoning": true,
+      "contextWindow": 128000,
       "aliases": ["o1-mini-2024-09-12"]
     },
-    "o3": { "multimodal": false, "reasoning": true },
+    "o3": { "multimodal": false, "reasoning": true, "contextWindow": 200000 },
     "o3-mini": {
       "multimodal": false,
       "reasoning": true,
+      "contextWindow": 200000,
       "aliases": ["o3-mini-2025-01-31"]
     },
     "o4-mini": {
       "multimodal": false,
       "reasoning": true,
+      "contextWindow": 200000,
       "aliases": ["o4-mini-2025-04-16"]
     },
     "gpt-5": {
       "multimodal": true,
       "reasoning": true,
+      "contextWindow": 400000,
       "aliases": ["gpt-5-2025-07-25"]
     },
-    "gpt-5-mini": { "multimodal": true, "reasoning": true },
-    "gpt-5-nano": { "multimodal": true, "reasoning": true },
-    "gpt-5.1": { "multimodal": true, "reasoning": true },
+    "gpt-5-mini": { "multimodal": true, "reasoning": true, "contextWindow": 400000 },
+    "gpt-5-nano": { "multimodal": true, "reasoning": true, "contextWindow": 400000 },
+    "gpt-5.1": { "multimodal": true, "reasoning": true, "contextWindow": 400000 },
     "claude-3-5-sonnet-20241022": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 200000,
       "aliases": ["claude-3-5-sonnet"]
     },
     "claude-3-5-haiku-20241022": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 200000,
       "aliases": ["claude-3-5-haiku"]
     },
     "claude-3-7-sonnet-20250219": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 200000,
       "aliases": ["claude-3-7-sonnet"]
     },
     "claude-3-opus-20240229": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 200000,
       "aliases": ["claude-3-opus"]
     },
-    "gemini-1.5-pro": { "multimodal": true, "reasoning": false },
-    "gemini-1.5-flash": { "multimodal": true, "reasoning": false },
+    "gemini-1.5-pro": { "multimodal": true, "reasoning": false, "contextWindow": 1000000 },
+    "gemini-1.5-flash": { "multimodal": true, "reasoning": false, "contextWindow": 1000000 },
     "gemini-2.0-flash": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 1000000,
       "aliases": ["gemini-2.0-flash-001"]
     },
     "gemini-2.5-pro": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 1000000,
       "aliases": ["gemini-2.5-pro-preview-05-06"]
     },
     "gemini-2.5-flash": {
       "multimodal": true,
       "reasoning": false,
+      "contextWindow": 1000000,
       "aliases": ["gemini-2.5-flash-preview-05-20"]
     },
-    "deepseek-chat": { "multimodal": false, "reasoning": false },
+    "deepseek-chat": { "multimodal": false, "reasoning": false, "contextWindow": 64000 },
     "deepseek-reasoner": {
       "multimodal": false,
       "reasoning": true,
+      "contextWindow": 64000,
       "aliases": ["deepseek-r1"]
     },
-    "deepseek-r1": { "multimodal": false, "reasoning": true },
-    "glm-4": { "multimodal": false, "reasoning": false },
-    "glm-4-plus": { "multimodal": false, "reasoning": false },
-    "glm-4.6": { "multimodal": false, "reasoning": true },
-    "glm-4v-plus": { "multimodal": true, "reasoning": false },
-    "qwen-max": { "multimodal": false, "reasoning": false },
-    "qwen-plus": { "multimodal": false, "reasoning": false },
-    "qwen3": { "multimodal": false, "reasoning": true },
-    "qwen-vl-max": { "multimodal": true, "reasoning": false },
-    "kimi-k2": { "multimodal": false, "reasoning": false },
-    "kimi-k2-thinking": { "multimodal": false, "reasoning": true },
-    "moonshot-v1-8k": { "multimodal": false, "reasoning": false },
-    "moonshot-v1-32k": { "multimodal": false, "reasoning": false },
-    "moonshot-v1-128k": { "multimodal": false, "reasoning": false },
-    "doubao-1-5-pro-32k": { "multimodal": false, "reasoning": false },
-    "doubao-1-5-vision-pro-32k": { "multimodal": true, "reasoning": false }
+    "deepseek-r1": { "multimodal": false, "reasoning": true, "contextWindow": 64000 },
+    "glm-4": { "multimodal": false, "reasoning": false, "contextWindow": 128000 },
+    "glm-4-plus": { "multimodal": false, "reasoning": false, "contextWindow": 128000 },
+    "glm-4.6": { "multimodal": false, "reasoning": true, "contextWindow": 128000 },
+    "glm-4v-plus": { "multimodal": true, "reasoning": false, "contextWindow": 8192 },
+    "qwen-max": { "multimodal": false, "reasoning": false, "contextWindow": 32768 },
+    "qwen-plus": { "multimodal": false, "reasoning": false, "contextWindow": 131072 },
+    "qwen3": { "multimodal": false, "reasoning": true, "contextWindow": 131072 },
+    "qwen-vl-max": { "multimodal": true, "reasoning": false, "contextWindow": 32768 },
+    "kimi-k2": { "multimodal": false, "reasoning": false, "contextWindow": 128000 },
+    "kimi-k2-thinking": { "multimodal": false, "reasoning": true, "contextWindow": 128000 },
+    "moonshot-v1-8k": { "multimodal": false, "reasoning": false, "contextWindow": 8192 },
+    "moonshot-v1-32k": { "multimodal": false, "reasoning": false, "contextWindow": 32768 },
+    "moonshot-v1-128k": { "multimodal": false, "reasoning": false, "contextWindow": 128000 },
+    "doubao-1-5-pro-32k": { "multimodal": false, "reasoning": false, "contextWindow": 32768 },
+    "doubao-1-5-vision-pro-32k": { "multimodal": true, "reasoning": false, "contextWindow": 32768 }
   }
 }

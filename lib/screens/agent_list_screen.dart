@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../l10n/app_localizations.dart';
 import '../models/agent.dart';
 import '../services/agent_service.dart';
-import 'agent_edit_screen.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/load_guarded.dart';
+import '../widgets/confirm_dialog.dart';
+import '../widgets/load_failed_banner.dart';
+import '../routes/app_routes.dart';
+
 
 /// Agent 管理页：查看、添加、编辑、删除 Agent 预设。
 class AgentListScreen extends StatefulWidget {
@@ -13,8 +20,9 @@ class AgentListScreen extends StatefulWidget {
 }
 
 class _AgentListScreenState extends State<AgentListScreen> {
-  final _agentService = AgentService();
+  late final AgentService _agentService = context.read<AgentService>();
   List<Agent> _agents = [];
+  bool _loadFailed = false;
 
   @override
   void initState() {
@@ -23,58 +31,50 @@ class _AgentListScreenState extends State<AgentListScreen> {
   }
 
   Future<void> _load() async {
-    final agents = await _agentService.load();
+    final agents = await loadGuarded<List<Agent>>(
+      _agentService.load,
+      label: 'agents',
+    );
     if (!mounted) return;
-    setState(() => _agents = agents);
+    setState(() {
+      if (agents != null) _agents = agents;
+      _loadFailed = agents == null;
+    });
   }
 
   Future<void> _persist() => _agentService.save(_agents);
 
   Future<void> _openEditor([Agent? agent]) async {
     final result = await Navigator.of(context).push<Agent>(
-      MaterialPageRoute(builder: (_) => AgentEditScreen(agent: agent)),
+      AppRoutes.agentEdit(agent: agent),
     );
-    if (result != null) {
-      setState(() {
-        final index = _agents.indexWhere((a) => a.id == result.id);
-        if (index >= 0) {
-          _agents[index] = result;
-        } else {
-          _agents.insert(0, result);
+    if (result == null || !mounted) return;
+    setState(() {
+      final index = _agents.indexWhere((a) => a.id == result.id);
+      if (index >= 0) {
+        _agents[index] = result;
+      } else {
+        _agents.insert(0, result);
+      }
+      // 默认 Agent 全局唯一
+      if (result.isDefault) {
+        for (final a in _agents) {
+          if (a.id != result.id) a.isDefault = false;
         }
-        // 默认 Agent 全局唯一
-        if (result.isDefault) {
-          for (final a in _agents) {
-            if (a.id != result.id) a.isDefault = false;
-          }
-        }
-      });
-      await _persist();
-    }
+      }
+    });
+    await _persist();
   }
 
   Future<void> _delete(Agent agent) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除 Agent'),
-        content: Text('确定删除「${agent.name}」吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.agentDeleteTitle,
+      message: context.l10n.agentDeleteConfirm(agent.name),
+      confirmText: context.l10n.commonDelete,
+      danger: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     setState(() => _agents.removeWhere((a) => a.id == agent.id));
     await _persist();
   }
@@ -82,38 +82,43 @@ class _AgentListScreenState extends State<AgentListScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final AppLocalizations l10n = context.l10n;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Agent 配置'),
+        title: Text(l10n.agentConfigTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            tooltip: '添加 Agent',
+            tooltip: l10n.agentAdd,
             onPressed: () => _openEditor(),
           ),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: _agents.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.smart_toy_outlined,
-                      size: 44,
-                      color: theme.colorScheme.outline,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      '暂无 Agent，点右上角添加',
-                      style: TextStyle(color: theme.colorScheme.outline),
-                    ),
-                  ],
-                ),
-              )
-            : ListView.builder(
+        child: Column(
+          children: [
+            if (_loadFailed) LoadFailedBanner(onRetry: _load),
+            Expanded(
+              child: _agents.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 44,
+                            color: theme.colorScheme.outline,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            l10n.agentEmpty,
+                            style: TextStyle(color: theme.colorScheme.outline),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
                 padding: const EdgeInsets.all(12),
                 itemCount: _agents.length,
                 itemBuilder: (context, index) {
@@ -167,7 +172,7 @@ class _AgentListScreenState extends State<AgentListScreen> {
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
-                                '默认',
+                                l10n.agentDefault,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onPrimaryContainer,
                                   fontWeight: FontWeight.w600,
@@ -178,14 +183,14 @@ class _AgentListScreenState extends State<AgentListScreen> {
                       ),
                       subtitle: Text(
                         a.options.systemPrompt.isEmpty
-                            ? '默认参数'
+                            ? l10n.agentDefaultParams
                             : a.options.systemPrompt,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete_outline),
-                        tooltip: '删除',
+                        tooltip: l10n.commonDelete,
                         onPressed: () => _delete(a),
                       ),
                       onTap: () => _openEditor(a),
@@ -193,6 +198,9 @@ class _AgentListScreenState extends State<AgentListScreen> {
                   );
                 },
               ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -21,8 +21,12 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    # 未等待的 Future 提示（避免 fire-and-forget 漏处理）
+    unawaited_futures: true
+    # 字符串拼接优先插值
+    prefer_interpolation_to_compose_strings: true
+    # 禁止遗留打印（统一走 Logger）
+    avoid_print: true
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

@@ -1,16 +1,31 @@
-/// 启发式 token 估算工具。
+import '../models/chat_message.dart';
+import 'token_estimator.dart';
+
+/// token 估算工具。
 ///
-/// 不依赖外部分词库，采用业界通用的近似规则：
-/// - 英文与数字：约 4 个字符 ≈ 1 token
-/// - 中文等 CJK：约 1.5 个字符 ≈ 1 token（取整）
-/// 误差通常在 ±20% 以内，足够用于上下文窗口管理。
+/// 优先使用 tiktoken 精确编码（[TokenEstimator]，按模型自动选择词表）；
+/// 词表未加载（启动早期或加载失败）时回退到启发式近似。
 class TokenCounter {
   static final RegExp _cjk = RegExp(
     r'[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u3040-\u30FF\uAC00-\uD7AF\u3000-\u303F\uFF00-\uFFEF]',
   );
 
   /// 估算一段文本的 token 数。
-  static int estimate(String text) {
+  ///
+  /// [modelId] 用于选择匹配的 tiktoken 词表（o200k/cl100k）；
+  /// 省略时使用默认 cl100k。
+  static int estimate(String text, {String? modelId}) {
+    final kind = modelId == null
+        ? TokenizerKind.cl100kBase
+        : tokenizerKindForModel(modelId);
+    final exact = TokenEstimator.instance.estimateCount(text, kind: kind);
+    if (exact != null) return exact;
+    return _heuristic(text);
+  }
+
+  /// 启发式近似（词表未就绪时的兜底）：
+  /// 英文与数字约 4 字符/token，CJK 约 1.5 字符/token。
+  static int _heuristic(String text) {
     if (text.isEmpty) return 0;
     var cjkChars = 0;
     for (final rune in text.runes) {
@@ -21,9 +36,18 @@ class TokenCounter {
     return (cjkChars / 1.5).ceil() + (otherChars / 4).ceil();
   }
 
-  /// 估算一条消息的 token 数（含角色标记开销）。
-  static int estimateMessage(String role, String content) {
-    return estimate(content) + 4; // role 与分隔符等开销
+  /// 估算一条消息的 token 数（含角色标记开销与图片开销）。
+  static int estimateMessage(
+    String role,
+    String content, [
+    List<ChatImage> images = const [],
+    String? modelId,
+  ]) {
+    var total = estimate(content, modelId: modelId) + 4; // role 与分隔符等开销
+    for (final img in images) {
+      total += img.estimatedTokens;
+    }
+    return total;
   }
 
   /// 人性化展示 token 数。

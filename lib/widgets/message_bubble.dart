@@ -1,13 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../models/chat_message.dart';
-import '../theme/app_theme.dart';
-import '../utils/token_counter.dart';
 import 'avatar.dart';
 import 'markdown_view.dart';
+import 'message_actions.dart';
+import 'message_content.dart';
+import 'message_usage_badge.dart';
 
-/// 单条聊天消息：头像 + 内容 + 操作（复制/编辑/重新生成/继续/删除）。
+/// 单条聊天消息：头像 + 内容 + 操作（复制/编辑/重新生成/继续/删除/朗读）。
+///
+/// 各区域委托独立组件：
+/// - [MessageContent]：角色分发 / 思考过程 / 流式渲染 / 图片条 / 文档卡
+/// - [MessageUsageBadge]：用量徽标
+/// - [MessageActionBar]：操作按钮条
 class MessageBubble extends StatefulWidget {
   final ChatMessage message;
 
@@ -17,22 +22,47 @@ class MessageBubble extends StatefulWidget {
   /// 是否允许重新生成（仅最后一条助手消息）。
   final bool canRegenerate;
 
+  /// 该消息是否正在被 TTS 朗读。
+  final bool speaking;
+
   final VoidCallback? onCopy;
   final VoidCallback? onEdit;
   final VoidCallback? onRollback;
+  final VoidCallback? onRollbackVersion;
   final VoidCallback? onRegenerate;
   final VoidCallback? onDelete;
+  final VoidCallback? onSpeak;
+
+  /// F1-5：图片消息「转为文字」。
+  final VoidCallback? onOcr;
+
+  /// 打开超长文本消息的文档详情页（气泡内文档占位卡点击）。
+  final VoidCallback? onOpenDocument;
+
+  /// 流式生成期间是否实时渲染 Markdown（设置项，默认开）。
+  final bool streamMarkdown;
+
+  /// 超过该字符数的消息折叠为「文本文档」入口（点击进详情页）；
+  /// 0 表示不折叠。默认与 [MarkdownView.kDefaultMaxRenderChars] 一致。
+  final int documentThreshold;
 
   const MessageBubble({
     super.key,
     required this.message,
     this.isStreaming = false,
     this.canRegenerate = false,
+    this.speaking = false,
     this.onCopy,
     this.onEdit,
     this.onRollback,
+    this.onRollbackVersion,
     this.onRegenerate,
     this.onDelete,
+    this.onSpeak,
+    this.onOcr,
+    this.onOpenDocument,
+    this.streamMarkdown = true,
+    this.documentThreshold = MarkdownView.kDefaultMaxRenderChars,
   });
 
   @override
@@ -43,6 +73,14 @@ class _MessageBubbleState extends State<MessageBubble> {
   bool _hovered = false;
 
   bool get _isUser => widget.message.role == 'user';
+
+  /// 超长文本消息：不在气泡内渲染内容，仅显示文本文档占位卡，
+  /// 点击进入详情页全量查看（避免长文档解析阻塞主线程）。
+  /// 阈值由设置项「文本文档阈值」控制，0 表示不折叠。
+  bool get _isLongDocument =>
+      !widget.isStreaming &&
+      widget.documentThreshold > 0 &&
+      widget.message.content.length > widget.documentThreshold;
 
   @override
   Widget build(BuildContext context) {
@@ -87,515 +125,45 @@ class _MessageBubbleState extends State<MessageBubble> {
 
   Widget _messageColumn(BuildContext context) {
     final message = widget.message;
+    final isTouch = Theme.of(context).platform != TargetPlatform.windows &&
+        Theme.of(context).platform != TargetPlatform.macOS &&
+        Theme.of(context).platform != TargetPlatform.linux;
     return Column(
       crossAxisAlignment: _isUser
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       children: [
-        _buildContent(context),
+        MessageContent(
+          message: message,
+          isUser: _isUser,
+          isStreaming: widget.isStreaming,
+          speaking: widget.speaking,
+          onOpenDocument: widget.onOpenDocument,
+          streamMarkdown: widget.streamMarkdown,
+          documentThreshold: widget.documentThreshold,
+        ),
         const SizedBox(height: 4),
         if (message.promptTokens != null ||
             message.completionTokens != null ||
             message.elapsedMs != null)
-          _buildUsage(context),
-        _buildActions(context),
+          MessageUsageBadge(message: message),
+        MessageActionBar(
+          message: message,
+          isUser: _isUser,
+          show: _hovered || isTouch,
+          speaking: widget.speaking,
+          longDocument: _isLongDocument,
+          canRegenerate: widget.canRegenerate,
+          onCopy: widget.onCopy,
+          onEdit: widget.onEdit,
+          onRollback: widget.onRollback,
+          onRollbackVersion: widget.onRollbackVersion,
+          onRegenerate: widget.onRegenerate,
+          onDelete: widget.onDelete,
+          onSpeak: widget.onSpeak,
+          onOcr: widget.onOcr,
+        ),
       ],
-    );
-  }
-
-  Widget _buildContent(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final message = widget.message;
-
-    if (_isUser) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: scheme.primaryContainer,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(6),
-          ),
-        ),
-        child: Text(
-          message.content,
-          style: TextStyle(
-            color: scheme.onPrimaryContainer,
-            fontSize: 14.5,
-            height: 1.55,
-          ),
-        ),
-      );
-    }
-
-    final showReasoning = message.reasoningContent.isNotEmpty;
-    final hasContent = message.content.trim().isNotEmpty ||
-        widget.isStreaming ||
-        message.interrupted ||
-        message.failed;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'Nona',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            // 标注本次回复的服务商与模型名（小字）
-            if (message.providerName != null && message.modelId != null) ...[
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  '（${message.providerName} · ${message.modelId}）',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.outline,
-                  ),
-                ),
-              ),
-            ],
-            if (widget.isStreaming) ...[
-              const SizedBox(width: 8),
-              const _StreamingDots(),
-            ],
-          ],
-        ),
-        const SizedBox(height: 4),
-        if (showReasoning)
-          _ReasoningSection(reasoning: message.reasoningContent),
-        if (showReasoning && hasContent) const SizedBox(height: 8),
-        if (hasContent)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: message.content.isEmpty
-                ? (widget.isStreaming
-                      ? const _StreamingCaretLine()
-                      : const SizedBox.shrink())
-                : _AssistantMarkdown(
-                    content: message.content,
-                    isStreaming: widget.isStreaming,
-                  ),
-          ),
-        if (message.failed)
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: scheme.errorContainer.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline, size: 14, color: scheme.error),
-                const SizedBox(width: 6),
-                Text(
-                  '生成失败',
-                  style: TextStyle(fontSize: 12, color: scheme.error),
-                ),
-              ],
-            ),
-          ),
-        if (message.interrupted && !message.failed)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              '已停止生成',
-              style: TextStyle(fontSize: 11, color: scheme.outline),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildUsage(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final m = widget.message;
-    final parts = <String>[
-      if (m.promptTokens != null) '↑${TokenCounter.format(m.promptTokens!)}',
-      if (m.completionTokens != null)
-        '↓${TokenCounter.format(m.completionTokens!)}',
-      if (m.elapsedMs != null && m.elapsedMs! >= 1000)
-        '${(m.elapsedMs! / 1000).toStringAsFixed(1)}s',
-    ];
-    if (parts.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Text(
-        parts.join(' · '),
-        style: TextStyle(fontSize: 11, color: scheme.outline),
-      ),
-    );
-  }
-
-  Widget _buildActions(BuildContext context) {
-    final message = widget.message;
-    final isTouch = Theme.of(context).platform != TargetPlatform.windows &&
-        Theme.of(context).platform != TargetPlatform.macOS &&
-        Theme.of(context).platform != TargetPlatform.linux;
-    final show = _hovered || isTouch;
-
-    final actions = <Widget>[
-      _ActionIcon(
-        icon: Icons.copy_rounded,
-        tooltip: '复制',
-        onTap: widget.onCopy,
-      ),
-      // 用户与助手消息都支持编辑（跳转独立编辑页）
-      if (widget.onEdit != null)
-        _ActionIcon(
-          icon: Icons.edit_outlined,
-          tooltip: '编辑',
-          onTap: widget.onEdit,
-        ),
-      // 用户消息支持回滚到此处：清空其后的消息并回填输入框
-      if (_isUser && widget.onRollback != null)
-        _ActionIcon(
-          icon: Icons.undo_rounded,
-          tooltip: '回滚到此处',
-          onTap: widget.onRollback,
-        ),
-      if (!_isUser && widget.canRegenerate && widget.onRegenerate != null)
-        _ActionIcon(
-          icon: Icons.refresh_rounded,
-          tooltip: message.failed ? '重试' : '重新生成',
-          onTap: widget.onRegenerate,
-        ),
-      if (widget.onDelete != null)
-        _ActionIcon(
-          icon: Icons.delete_outline_rounded,
-          tooltip: '删除',
-          danger: true,
-          onTap: widget.onDelete,
-        ),
-    ];
-
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 160),
-      opacity: show ? 1 : 0,
-      child: IgnorePointer(
-        ignoring: !show,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < actions.length; i++) ...[
-                if (i > 0) const SizedBox(width: 2),
-                actions[i],
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AssistantMarkdown extends StatelessWidget {
-  final String content;
-  final bool isStreaming;
-
-  const _AssistantMarkdown({
-    required this.content,
-    required this.isStreaming,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        MarkdownView(data: content),
-        if (isStreaming) const _StreamingCaret(),
-      ],
-    );
-  }
-}
-
-/// 流式输出时的闪烁光标。
-class _StreamingCaret extends StatefulWidget {
-  const _StreamingCaret();
-
-  @override
-  State<_StreamingCaret> createState() => _StreamingCaretState();
-}
-
-class _StreamingCaretState extends State<_StreamingCaret>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return FadeTransition(
-      opacity: Tween(begin: 0.25, end: 1.0).animate(_controller),
-      child: Padding(
-        padding: const EdgeInsets.only(top: 2),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            width: 8,
-            height: 16,
-            decoration: BoxDecoration(
-              color: primary,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 等待首个 token 时的流式行。
-class _StreamingCaretLine extends StatelessWidget {
-  const _StreamingCaretLine();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Row(
-        children: [
-          _StreamingCaret(),
-          const SizedBox(width: 8),
-          Text(
-            '正在生成…',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 「正在生成」的跳动三点。
-class _StreamingDots extends StatefulWidget {
-  const _StreamingDots();
-
-  @override
-  State<_StreamingDots> createState() => _StreamingDotsState();
-}
-
-class _StreamingDotsState extends State<_StreamingDots>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < 3; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1.5),
-                child: Opacity(
-                  // 相位错开的三角波，结果恒在 [0,1]
-                  opacity: _dotOpacity(i),
-                  child: Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: kBrandGradient,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  double _dotOpacity(int index) {
-    final phase = (_controller.value + index * 0.33) % 1.0;
-    final wave = 1.0 - (phase * 2 - 1).abs();
-    return 0.35 + 0.65 * wave;
-  }
-}
-
-/// 思考过程：默认收起（显示前 5 行），点击展开全部。
-class _ReasoningSection extends StatefulWidget {
-  final String reasoning;
-
-  const _ReasoningSection({required this.reasoning});
-
-  @override
-  State<_ReasoningSection> createState() => _ReasoningSectionState();
-}
-
-class _ReasoningSectionState extends State<_ReasoningSection> {
-  bool _expanded = false;
-
-  /// 取正文的最后 [count] 行：流式刷新时始终展示最新内容。
-  String _lastLines(String text, int count) {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return '';
-    final lines = trimmed.split('\n');
-    if (lines.length <= count) return trimmed;
-    return lines.sublist(lines.length - count).join('\n');
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHigh.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: BorderRadius.circular(10),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.psychology_alt_outlined,
-                    size: 14,
-                    color: scheme.secondary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '思考过程',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    _expanded ? Icons.expand_less : Icons.expand_more,
-                    size: 16,
-                    color: scheme.outline,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // 收起时显示最后 5 行（随流式刷新滚动到最新），展开时渲染完整 Markdown
-          if (!_expanded)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: Text(
-                _lastLines(widget.reasoning, 5),
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.6,
-                ),
-              ),
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: MarkdownView(
-                data: widget.reasoning,
-                styleSheet: MarkdownStyleSheet.fromTheme(
-                  theme,
-                ).copyWith(
-                  p: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.6,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 消息操作小图标按钮。
-class _ActionIcon extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onTap;
-  final bool danger;
-
-  const _ActionIcon({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.danger = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = danger ? scheme.error : scheme.outline;
-    return Tooltip(
-      message: tooltip,
-      waitDuration: const Duration(milliseconds: 300),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(icon, size: 16, color: color),
-        ),
-      ),
     );
   }
 }

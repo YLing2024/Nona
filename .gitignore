@@ -47,4 +47,7 @@ app.*.map.json
 # 环境变量文件（可能包含 API Key 等敏感信息，一律忽略）
 .env
 .env.*
-!.env.example
+# 正式签名密钥（本地生成，不上库）
+android/key.properties
+android/app/*.jks
+android/app/*.keystore

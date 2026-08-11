@@ -5,7 +5,10 @@ import '../services/network_log_service.dart';
 import '../services/storage_io_io.dart'
     if (dart.library.js_interop) '../services/storage_io_stub.dart'
     as storage_io;
-import 'network_log_body_screen.dart';
+import '../utils/l10n_ext.dart';
+import '../utils/format_bytes.dart';
+import '../routes/app_routes.dart';
+import '../utils/format_time.dart';
 
 /// 网络日志详情页：展示单条请求的完整信息（基本/请求/响应）。
 class NetworkLogDetailScreen extends StatelessWidget {
@@ -20,11 +23,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.linux);
 
-  String _fullTime(DateTime t) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${t.year}-${two(t.month)}-${two(t.day)} '
-        '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
-  }
+  String _fullTime(DateTime t) => formatFullTime(t);
 
   /// 根据正文内容猜测文件扩展名（JSON 用 .json 便于编辑器高亮）。
   String _guessExtension(String body) {
@@ -42,7 +41,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
     ok.then((success) {
       if (!success && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('当前平台暂不支持在外部编辑器中打开')),
+          SnackBar(content: Text(context.l10n.networkLogEditorUnsupported)),
         );
       }
     });
@@ -56,12 +55,10 @@ class NetworkLogDetailScreen extends StatelessWidget {
       children: [
         TextButton.icon(
           onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => NetworkLogBodyScreen(
-                title: '$label全文',
-                body: body,
-                bytes: bytes,
-              ),
+            AppRoutes.networkLogBody(
+              title: context.l10n.networkLogFullTitle(label),
+              body: body,
+              bytes: bytes,
             ),
           ),
           style: TextButton.styleFrom(
@@ -70,7 +67,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
           icon: const Icon(Icons.open_in_full, size: 14),
-          label: const Text('查看全文', style: TextStyle(fontSize: 12)),
+          label: Text(context.l10n.networkLogViewFull, style: const TextStyle(fontSize: 12)),
         ),
         if (_isDesktop)
           TextButton.icon(
@@ -81,7 +78,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             icon: const Icon(Icons.open_in_new, size: 14),
-            label: const Text('外部编辑器', style: TextStyle(fontSize: 12)),
+            label: Text(context.l10n.networkLogExternalEditor, style: const TextStyle(fontSize: 12)),
           ),
       ],
     );
@@ -91,24 +88,24 @@ class NetworkLogDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('日志详情')),
+      appBar: AppBar(title: Text(context.l10n.networkLogDetailTitle)),
       body: SafeArea(
         top: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
             _DetailCard(
-              title: '基本信息',
+              title: context.l10n.networkLogBasic,
               child: Column(
                 children: [
-                  _kv(theme, '类型', log.type.label),
-                  _kv(theme, '方法', log.method),
-                  _kv(theme, '状态码', log.statusCode?.toString() ?? '—'),
-                  _kv(theme, '耗时', '${log.durationMs} ms'),
-                  _kv(theme, '请求大小', formatBytes(log.requestBytes)),
-                  _kv(theme, '响应大小', formatBytes(log.responseBytes)),
-                  _kv(theme, '时间', _fullTime(log.time)),
-                  _kv(theme, 'URL', log.url, isLast: true),
+                  _kv(theme, context.l10n.networkLogType, log.type.labelOf(context.l10n)),
+                  _kv(theme, context.l10n.networkLogMethod, log.method),
+                  _kv(theme, context.l10n.networkLogStatus, log.statusCode?.toString() ?? '—'),
+                  _kv(theme, context.l10n.networkLogDuration, '${log.durationMs} ms'),
+                  _kv(theme, context.l10n.networkLogRequestSize, formatBytes(log.requestBytes)),
+                  _kv(theme, context.l10n.networkLogResponseSize, formatBytes(log.responseBytes)),
+                  _kv(theme, context.l10n.networkLogTime, _fullTime(log.time)),
+                  _kv(theme, context.l10n.networkLogUrl, log.url, isLast: true),
                 ],
               ),
             ),
@@ -127,7 +124,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: SelectableText(
-                        '请求失败：${log.error}',
+                        context.l10n.networkLogFailed(log.error ?? ''),
                         style: TextStyle(
                           fontSize: 12.5,
                           color: theme.colorScheme.onErrorContainer,
@@ -140,7 +137,7 @@ class NetworkLogDetailScreen extends StatelessWidget {
             ],
             const SizedBox(height: 16),
             _DetailCard(
-              title: '请求 Headers',
+              title: context.l10n.networkLogRequestHeaders,
               child: log.requestHeaders.isEmpty
                   ? _empty(theme)
                   : Column(
@@ -152,13 +149,13 @@ class NetworkLogDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _DetailCard(
-              title: '请求 Body',
-              action: _bodyActions(context, '请求', log.requestBody, log.requestBytes),
+              title: context.l10n.networkLogRequestBody,
+              action: _bodyActions(context, context.l10n.networkLogRequest, log.requestBody, log.requestBytes),
               child: _bodyView(theme, log.requestBody),
             ),
             const SizedBox(height: 16),
             _DetailCard(
-              title: '响应 Headers',
+              title: context.l10n.networkLogResponseHeaders,
               child: log.responseHeaders.isEmpty
                   ? _empty(theme)
                   : Column(
@@ -170,8 +167,8 @@ class NetworkLogDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _DetailCard(
-              title: '响应 Body',
-              action: _bodyActions(context, '响应', log.responseBody, log.responseBytes),
+              title: context.l10n.networkLogResponseBody,
+              action: _bodyActions(context, context.l10n.networkLogResponse, log.responseBody, log.responseBytes),
               child: _bodyView(theme, log.responseBody),
             ),
           ],
