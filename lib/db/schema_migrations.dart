@@ -14,6 +14,7 @@ const List<SchemaMigration> kSchemaMigrations = [
   addKnowledgeBase, // v2 → v3
   addMemories, // v3 → v4
   addWorldBook, // v4 → v5
+  addMemoryV2, // v5 → v6
 ];
 
 /// 从当前 user_version 顺序执行剩余迁移，全部完成后更新版本号。
@@ -195,6 +196,37 @@ void addWorldBook(Database db) {
       scope TEXT NOT NULL DEFAULT 'global',
       scope_ref TEXT,
       enabled INTEGER NOT NULL DEFAULT 1
+    );
+  ''');
+}
+
+/// v5 → v6：记忆 v2 数据层（F4-3 升级）。
+///
+/// - memories 表补 v2 列（幂等 [addMemoryV2]）；
+/// - 新增 memory_spaces（作用域预算，PK(scope, scope_ref) 区分空间）；
+/// - 新增 memory_state（增量提取游标：session_id → last_index）。
+void addMemoryV2(Database db) {
+  _addColumnIfMissing(db, 'memories', 'tags_json', "TEXT DEFAULT '[]'");
+  _addColumnIfMissing(db, 'memories', 'priority', "TEXT DEFAULT 'auto'");
+  _addColumnIfMissing(db, 'memories', 'use_count', 'INTEGER DEFAULT 0');
+  _addColumnIfMissing(db, 'memories', 'last_used_at', 'INTEGER');
+  _addColumnIfMissing(db, 'memories', 'history_json', "TEXT DEFAULT '[]'");
+  db.execute('''
+    CREATE TABLE IF NOT EXISTS memory_spaces (
+      scope TEXT NOT NULL,
+      scope_ref TEXT NOT NULL DEFAULT '',
+      max_items INTEGER NOT NULL DEFAULT 200,
+      max_inject_tokens INTEGER NOT NULL DEFAULT 800,
+      max_item_chars INTEGER NOT NULL DEFAULT 100,
+      extraction_interval INTEGER NOT NULL DEFAULT 10,
+      PRIMARY KEY (scope, scope_ref)
+    );
+  ''');
+  db.execute('''
+    CREATE TABLE IF NOT EXISTS memory_state (
+      session_id TEXT PRIMARY KEY,
+      last_index INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
     );
   ''');
 }

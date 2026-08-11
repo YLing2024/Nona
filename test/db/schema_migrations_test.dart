@@ -103,4 +103,35 @@ void main() {
         reason: '已声明为最新版本的库不应再被改写');
     db.dispose();
   });
+
+  test('v6：memories 补 v2 列并建 memory_spaces / memory_state', () {
+    final db = openLegacyDb();
+    applySchemaMigrations(db);
+    final memCols = db
+        .select('PRAGMA table_info(memories)')
+        .map((r) => r['name'] as String)
+        .toSet();
+    expect(memCols, containsAll([
+      'tags_json', 'priority', 'use_count', 'last_used_at', 'history_json',
+    ]));
+    expect(db.select('SELECT * FROM memory_spaces'), isEmpty);
+    expect(db.select('SELECT * FROM memory_state'), isEmpty);
+    db.dispose();
+  });
+
+  test('v6 迁移幂等：重复执行不新增列/表', () {
+    final db = openLegacyDb();
+    applySchemaMigrations(db);
+    final version = userVersion(db);
+    applySchemaMigrations(db);
+    expect(userVersion(db), version);
+    final memCols = db
+        .select('PRAGMA table_info(memories)')
+        .map((r) => r['name'] as String)
+        .toSet();
+    expect(memCols, containsAll([
+      'tags_json', 'priority', 'use_count', 'last_used_at', 'history_json',
+    ]));
+    db.dispose();
+  });
 }

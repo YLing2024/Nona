@@ -65,6 +65,7 @@ flutter:
     - assets/fonts/NotoSansSC-Regular.ttf
     - assets/prompts/summary.txt
     - assets/prompts/ocr.txt
+    - assets/prompts/extraction.txt
 
 flutter_launcher_icons:
   android: true

@@ -11,6 +11,7 @@ import 'di/app_scope.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/home_screen.dart';
 import 'services/knowledge_base_service.dart';
+import 'services/memory/memory_service.dart';
 import 'services/model_capability_service.dart';
 import 'services/network_log_service.dart';
 import 'services/settings_service.dart';
@@ -58,6 +59,8 @@ Future<void> main() async {
     unawaited(TokenEstimator.instance.load());
     // 旧版知识库 prefs 数据一次性迁移（成功即删键，幂等）
     unawaited(KnowledgeBaseService().migrateLegacy());
+    // 旧版记忆 v1（Agent.memories prefs）一次性迁移进 memories 表（幂等）
+    unawaited(MemoryService().migrateV1Memories());
     // 开发者选项开启「启动时自动更新」时，静默更新模型能力映射表，失败不影响启动
     unawaited(_maybeAutoUpdateCapabilities(settings));
     runApp(const AiChatApp());
