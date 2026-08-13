@@ -710,6 +710,60 @@ abstract class AppLocalizations {
   /// **'选择消息'**
   String get chatEnterSelection;
 
+  /// No description provided for @dropBackupUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'拖入的备份文件暂不支持恢复'**
+  String get dropBackupUnsupported;
+
+  /// No description provided for @dropUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'不支持的文件类型'**
+  String get dropUnsupported;
+
+  /// No description provided for @dropFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件处理失败'**
+  String get dropFailed;
+
+  /// No description provided for @dropImageTooLarge.
+  ///
+  /// In zh, this message translates to:
+  /// **'图片超过 8MB，已跳过'**
+  String get dropImageTooLarge;
+
+  /// No description provided for @dropExtractFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'文档内容提取失败'**
+  String get dropExtractFailed;
+
+  /// No description provided for @dropRestoreTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复备份'**
+  String get dropRestoreTitle;
+
+  /// No description provided for @dropRestoreBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将把 {file} 中的会话合并导入当前数据（跳过重复）。确定继续吗？'**
+  String dropRestoreBody(String file);
+
+  /// No description provided for @dropRestoreConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复'**
+  String get dropRestoreConfirm;
+
+  /// No description provided for @dropRestoreDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已恢复 {count} 个会话'**
+  String dropRestoreDone(int count);
+
   /// No description provided for @chatInvertSelection.
   ///
   /// In zh, this message translates to:

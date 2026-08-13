@@ -231,6 +231,9 @@ class ChatController {
 
   // ---------------- 附件队列（委托 AttachmentManager） ----------------
 
+  /// 附件管理器（A-03 拖放分派等使用）。
+  AttachmentManager get attachmentManager => _attachments;
+
   /// 待发送的图片附件。
   List<ChatImage> get pendingImages => _attachments.images;
 

@@ -346,6 +346,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatEnterSelection => 'Select messages';
 
   @override
+  String get dropBackupUnsupported =>
+      'Dropped backup files are not supported here';
+
+  @override
+  String get dropUnsupported => 'Unsupported file type';
+
+  @override
+  String get dropFailed => 'Failed to process file';
+
+  @override
+  String get dropImageTooLarge => 'Image over 8MB, skipped';
+
+  @override
+  String get dropExtractFailed => 'Failed to extract document text';
+
+  @override
+  String get dropRestoreTitle => 'Restore backup';
+
+  @override
+  String dropRestoreBody(String file) {
+    return 'Sessions from $file will be merged into current data (duplicates skipped). Continue?';
+  }
+
+  @override
+  String get dropRestoreConfirm => 'Restore';
+
+  @override
+  String dropRestoreDone(int count) {
+    return 'Restored $count sessions';
+  }
+
+  @override
   String get chatInvertSelection => 'Invert';
 
   @override

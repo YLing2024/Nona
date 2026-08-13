@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -13,8 +14,12 @@ import '../../../core/models/chat_provider.dart';
 import '../../../core/models/chat_session.dart';
 import '../../settings/screens/context_settings_screen.dart';
 import '../../search/screens/search_screen.dart';
+import '../../../shared/widgets/desktop_drop_zone.dart';
+import '../../../shared/desktop_event_bus.dart';
+import '../../../shared/widgets/desktop_window_title_bar.dart';
 import '../../../core/services/agent_service.dart';
 import '../../../core/services/chat_service.dart';
+import '../../../core/services/export/backup_archive.dart';
 import '../../../core/services/export_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';
@@ -220,7 +225,56 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.addObserver(this);
     // TTS 朗读开始/结束（含自动播完）时刷新朗读状态图标
     _ttsController.addListener(_onTtsChanged);
+    // A-03：桌面托盘/热键动作（新建会话/打开设置等）
+    _desktopSub = DesktopEventBus.instance.actions.listen(_onDesktopAction);
     _loadData();
+  }
+
+  StreamSubscription<DesktopAction>? _desktopSub;
+
+  void _onDesktopAction(DesktopAction action) {
+    if (!mounted) return;
+    switch (action) {
+      case DesktopAction.newTopic:
+        _onShortcutNewSession();
+      case DesktopAction.openSettings:
+        Navigator.of(context).push(AppRoutes.settings());
+      case DesktopAction.toggleAppVisibility:
+      case DesktopAction.closeWindow:
+      case DesktopAction.toggleTray:
+        break;
+    }
+  }
+
+  /// A-03：拖入备份文件 → 恢复确认。
+  Future<void> _onDroppedBackup(Uint8List bytes, String fileName) async {
+    final confirmed = await _confirmDialog(
+      title: context.l10n.dropRestoreTitle,
+      message: context.l10n.dropRestoreBody(fileName),
+      confirmText: context.l10n.dropRestoreConfirm,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+    final result = BackupArchive.importFromZipBytes(bytes);
+    if (result == null || result.sessions.isEmpty) {
+      showAppSnack(context, context.l10n.importFailed);
+      return;
+    }
+    final existing = await SessionService().load();
+    final byId = {for (final s in existing) s.id: s};
+    for (final s in result.sessions) {
+      if (byId.containsKey(s.id)) continue;
+      existing.add(s);
+      byId[s.id] = s;
+    }
+    await SessionService().saveAll(existing);
+    if (!mounted) return;
+    await controller.loadSessions(
+      defaultTitle: context.l10n.chatSessionNewTitle,
+      defaultAgentPrompt: context.l10n.agentDefaultSystemPrompt,
+    );
+    if (!mounted) return;
+    showAppSnack(context, context.l10n.dropRestoreDone(result.sessions.length));
   }
 
   void _onTtsChanged() {
@@ -241,6 +295,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _desktopSub?.cancel();
     _ttsController.removeListener(_onTtsChanged);
     _ttsController.dispose();
     controller.dispose();
@@ -833,21 +888,33 @@ class _HomeScreenState extends State<HomeScreen>
                 shape: const RoundedRectangleBorder(),
                 child: SafeArea(child: sidebar),
               ),
+        // A-03：Windows 无边框自绘标题栏（其余平台无）
+        appBar: defaultTargetPlatform == TargetPlatform.windows
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(40),
+                child: const DesktopWindowTitleBar(),
+              )
+            : null,
         // SafeArea 处理状态栏（刘海）与底部手势条，避免内容重叠。
+        // A-03：桌面拖放壳层（桌面平台生效；其余平台 no-op）
         body: SafeArea(
           top: !_isWide,
           bottom: !_isWide,
           left: false,
           right: false,
-          child: _isWide
-              ? Row(
-                  children: [
-                    sidebar,
-                    const VerticalDivider(width: 1, thickness: 1),
-                    Expanded(child: chatView),
-                  ],
-                )
-              : chatView,
+          child: DesktopDropZone(
+            attachmentManager: controller.attachmentManager,
+            onRestoreBackup: _onDroppedBackup,
+            child: _isWide
+                ? Row(
+                    children: [
+                      sidebar,
+                      const VerticalDivider(width: 1, thickness: 1),
+                      Expanded(child: chatView),
+                    ],
+                  )
+                : chatView,
+          ),
         ),
       ),
     );

@@ -18,8 +18,9 @@ import 'core/services/theme_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'core/utils/token_estimator.dart';
-import 'l10n/app_localizations.dart';
 import 'features/chat/screens/home_screen.dart';
+import 'features/desktop/desktop_shell.dart';
+import 'l10n/app_localizations.dart';
 
 /// 全局界面语言通知器（设置页修改后驱动 MaterialApp 刷新）。
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
@@ -62,6 +63,8 @@ Future<void> main() async {
     unawaited(KnowledgeBaseService().migrateLegacy());
     // B-06：启动恢复——遗留 streaming 消息回填已存内容并置 failed（可重试）
     unawaited(CheckpointService().recover());
+    // A-03：桌面基座（窗口/托盘/热键；非桌面平台 no-op）
+    unawaited(DesktopShell.instance.init());
     // B-06/A-03：退出前冲刷注册（checkpoint barrier + 网络日志落盘）
     AppExitFlush.instance.register(() async {
       await CheckpointService().barrier();

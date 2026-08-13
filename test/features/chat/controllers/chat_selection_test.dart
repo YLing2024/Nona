@@ -30,20 +30,6 @@ void main() {
     );
   });
 
-  Future<void> setupSession(int messageCount) async {
-    await controller.newSession();
-    final s = controller.sessions.first;
-    s.messages.addAll(
-      List.generate(
-        messageCount,
-        (i) => ChatMessage(
-          role: i.isEven ? 'user' : 'assistant',
-          content: '消息 $i',
-        ),
-      ),
-    );
-  }
-
   ChatSession makeSession(int messageCount) {
     final now = DateTime(2024, 1, 1);
     return ChatSession(

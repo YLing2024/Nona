@@ -337,6 +337,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatEnterSelection => '选择消息';
 
   @override
+  String get dropBackupUnsupported => '拖入的备份文件暂不支持恢复';
+
+  @override
+  String get dropUnsupported => '不支持的文件类型';
+
+  @override
+  String get dropFailed => '文件处理失败';
+
+  @override
+  String get dropImageTooLarge => '图片超过 8MB，已跳过';
+
+  @override
+  String get dropExtractFailed => '文档内容提取失败';
+
+  @override
+  String get dropRestoreTitle => '恢复备份';
+
+  @override
+  String dropRestoreBody(String file) {
+    return '将把 $file 中的会话合并导入当前数据（跳过重复）。确定继续吗？';
+  }
+
+  @override
+  String get dropRestoreConfirm => '恢复';
+
+  @override
+  String dropRestoreDone(int count) {
+    return '已恢复 $count 个会话';
+  }
+
+  @override
   String get chatInvertSelection => '反选';
 
   @override
