@@ -347,6 +347,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wfHistoryTitle => 'Run history';
 
   @override
+  String get routerTitle => 'Model routing';
+
+  @override
+  String get routerEnable => 'Enable smart model routing';
+
+  @override
+  String get routerEnableHint =>
+      'Auto-pick models for title/summary tasks by cost & speed (low cost first)';
+
+  @override
+  String get routerNoData =>
+      'No routing records yet - they will appear here after tasks run';
+
+  @override
+  String get routerRecentStats => 'Routing stats (last 30 days)';
+
+  @override
+  String get settingsRouterSubtitle => 'Auto-pick models by cost & speed';
+
+  @override
   String get settingsWfSubtitle =>
       'Scheduled / event-triggered automated actions';
 

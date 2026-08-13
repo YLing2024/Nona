@@ -305,6 +305,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const TileDivider(),
                 SettingsTile(
+                  icon: Icons.route_rounded,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.routerTitle,
+                  subtitle: l10n.settingsRouterSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.modelRouter(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.image_outlined,
                   iconColor: Theme.of(context).colorScheme.tertiary,
                   title: l10n.imgGenTitle,

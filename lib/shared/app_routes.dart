@@ -27,6 +27,7 @@ import '../features/settings/screens/preferences_screen.dart';
 import '../features/settings/screens/quick_phrases_screen.dart';
 import '../features/settings/screens/instruction_injections_screen.dart';
 import '../features/automation/workflows_screen.dart';
+import '../features/settings/screens/model_router_screen.dart';
 import '../features/provider/screens/provider_edit_screen.dart';
 import '../features/provider/screens/provider_list_screen.dart';
 import '../features/search/screens/search_screen.dart';
@@ -62,6 +63,9 @@ abstract final class AppRoutes {
 
   static Route<T> workflows<T>() =>
       MaterialPageRoute<T>(builder: (_) => const WorkflowsScreen());
+
+  static Route<T> modelRouter<T>() =>
+      MaterialPageRoute<T>(builder: (_) => const ModelRouterScreen());
 
   static Route<T> themeSettings<T>({required String initialThemeMode}) =>
       MaterialPageRoute<T>(

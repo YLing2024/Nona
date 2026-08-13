@@ -722,6 +722,42 @@ abstract class AppLocalizations {
   /// **'运行历史'**
   String get wfHistoryTitle;
 
+  /// No description provided for @routerTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型路由'**
+  String get routerTitle;
+
+  /// No description provided for @routerEnable.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用智能模型路由'**
+  String get routerEnable;
+
+  /// No description provided for @routerEnableHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'标题/摘要等任务自动按成本与速度选模型（优先低成本）'**
+  String get routerEnableHint;
+
+  /// No description provided for @routerNoData.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无路由记录——启用后运行任务会在这里展示统计'**
+  String get routerNoData;
+
+  /// No description provided for @routerRecentStats.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近 30 天路由统计'**
+  String get routerRecentStats;
+
+  /// No description provided for @settingsRouterSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'按成本与速度自动选模型'**
+  String get settingsRouterSubtitle;
+
   /// No description provided for @settingsWfSubtitle.
   ///
   /// In zh, this message translates to:

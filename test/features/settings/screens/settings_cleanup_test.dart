@@ -25,7 +25,7 @@ void main() {
     testWidgets('偏好设置 subtitle 随 Enter 偏好更新', (tester) async {
       SharedPreferences.setMockInitialValues({'send_on_enter': true});
       // 大视口使全部入口可见（避免嵌套 Scrollable 的滚动问题）
-      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.physicalSize = const Size(800, 2200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await pumpScreen(tester, const SettingsScreen());

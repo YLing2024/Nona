@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'model_router.dart';
+import 'model_router_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/chat_provider.dart';
 import '../models/chat_session.dart';
@@ -30,6 +32,9 @@ class TitleGenerator {
   /// 持久化当前会话列表。
   final Future<void> Function() persist;
 
+  /// X-02：智能模型路由服务。
+  final ModelRouterService routerService;
+
   TitleGenerator({
     required this.providerService,
     required this.chatService,
@@ -38,7 +43,8 @@ class TitleGenerator {
     this.l10n,
     this.onStateChanged,
     required this.persist,
-  });
+    ModelRouterService? routerService,
+  }) : routerService = routerService ?? ModelRouterService();
 
   /// 生成会话标题：配置了「标题生成模型」时异步调用模型生成；
   /// 未配置或调用失败时维持「截取首条消息」的现有逻辑。
@@ -56,10 +62,67 @@ class TitleGenerator {
     }
     final titleModel = settings().titleModel;
     if (titleModel.isEmpty) {
+      // X-02：自动模型路由（启用时按成本/速度自动选模型生成标题）
+      if (routerService.autoRoutingEnabled) {
+        unawaited(_generateTitleWithRouter(session, firstUser.content));
+        return;
+      }
       session.updateTitleFromFirstMessage();
       return;
     }
     unawaited(_generateTitle(session, titleModel, firstUser.content));
+  }
+
+  /// X-02：自动路由生成标题（路由失败回退截取逻辑）。
+  Future<void> _generateTitleWithRouter(
+    ChatSession session,
+    String firstMessage,
+  ) async {
+    try {
+      final route = await routerService.route(RoutingTask.title);
+      if (route == null || !route.hasModel) {
+        fallbackTitle(session, defaultTitle());
+        return;
+      }
+      final providers = await providerService.load();
+      final provider = providers
+          .where((p) => p.id == route.providerId)
+          .firstOrNull;
+      if (provider == null || provider.apiKey.isEmpty) {
+        fallbackTitle(session, defaultTitle());
+        return;
+      }
+      final started = DateTime.now();
+      final result = await chatService.sendSimple(
+        settings: AppSettings(
+          apiKey: provider.apiKey,
+          baseUrl: provider.baseUrl,
+          model: route.modelId!,
+        ),
+        userMessage: firstMessage,
+        systemPrompt: l10n?.call()?.homeTitlePrompt ?? '',
+        maxTokens: 30,
+      );
+      unawaited(
+        routerService.recordRouteEvent(
+          task: RoutingTask.title,
+          providerId: route.providerId,
+          modelId: route.modelId,
+          success: true,
+          elapsedMs: DateTime.now().difference(started).inMilliseconds,
+        ),
+      );
+      final title = result.trim().replaceAll('\n', ' ');
+      if (title.isNotEmpty && title.length <= 80) {
+        session.title = title;
+        unawaited(persist());
+        onStateChanged?.call();
+      } else {
+        fallbackTitle(session, defaultTitle());
+      }
+    } catch (_) {
+      fallbackTitle(session, defaultTitle());
+    }
   }
 
   /// 回退到「截取首条消息」逻辑；仅当用户未手动重命名时生效，

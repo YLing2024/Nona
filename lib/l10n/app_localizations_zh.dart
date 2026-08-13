@@ -339,6 +339,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get wfHistoryTitle => '运行历史';
 
   @override
+  String get routerTitle => '模型路由';
+
+  @override
+  String get routerEnable => '启用智能模型路由';
+
+  @override
+  String get routerEnableHint => '标题/摘要等任务自动按成本与速度选模型（优先低成本）';
+
+  @override
+  String get routerNoData => '暂无路由记录——启用后运行任务会在这里展示统计';
+
+  @override
+  String get routerRecentStats => '最近 30 天路由统计';
+
+  @override
+  String get settingsRouterSubtitle => '按成本与速度自动选模型';
+
+  @override
   String get settingsWfSubtitle => '定时 / 事件触发自动执行动作';
 
   @override

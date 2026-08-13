@@ -1,3 +1,4 @@
+import 'model_router_service.dart';
 import '../network/nona_dio.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
@@ -97,6 +98,9 @@ class AppSettings {
   /// A-04：代理用户名（可选）。
   final String proxyUser;
 
+  /// X-02：启用智能模型路由（任务槽自动选模型）。
+  final bool autoModelRouting;
+
   /// J-02：启动时检查更新（默认关）。
   final bool checkUpdatesOnStart;
 
@@ -144,6 +148,7 @@ class AppSettings {
     this.ttsRate = 0.5,
     this.ttsLanguage = 'zh-CN',
     this.providerKind = 'auto',
+    this.autoModelRouting = false,
     this.checkUpdatesOnStart = false,
     this.updateSource = '',
     this.proxyEnabled = false,
@@ -183,6 +188,7 @@ class AppSettings {
     double? ttsRate,
     String? ttsLanguage,
     String? providerKind,
+    bool? autoModelRouting,
     bool? checkUpdatesOnStart,
     String? updateSource,
     bool? proxyEnabled,
@@ -222,6 +228,7 @@ class AppSettings {
       ttsRate: ttsRate ?? this.ttsRate,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       providerKind: providerKind ?? this.providerKind,
+      autoModelRouting: autoModelRouting ?? this.autoModelRouting,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
       updateSource: updateSource ?? this.updateSource,
       proxyEnabled: proxyEnabled ?? this.proxyEnabled,
@@ -265,6 +272,7 @@ class SettingsService {
   static const _kTtsLanguage = 'tts_language';
   static const _kProviderKind = 'provider_kind';
   static const _kWebSearchEnabled = 'web_search_enabled';
+  static const _kAutoModelRouting = 'auto_model_routing';
   static const _kCheckUpdatesOnStart = 'check_updates_on_start';
   static const _kUpdateSource = 'update_source';
   static const _kProxyEnabled = 'proxy_enabled';
@@ -308,6 +316,7 @@ class SettingsService {
       ttsRate: prefs.getDouble(_kTtsRate) ?? 0.5,
       ttsLanguage: prefs.getString(_kTtsLanguage) ?? 'zh-CN',
       providerKind: prefs.getString(_kProviderKind) ?? 'auto',
+      autoModelRouting: prefs.getBool(_kAutoModelRouting) ?? false,
       checkUpdatesOnStart: prefs.getBool(_kCheckUpdatesOnStart) ?? false,
       updateSource: prefs.getString(_kUpdateSource) ?? '',
       proxyEnabled: prefs.getBool(_kProxyEnabled) ?? false,
@@ -323,6 +332,7 @@ class SettingsService {
       webSearchBaseUrl: prefs.getString(_kWebSearchBaseUrl) ?? '',
     );
     _syncProxy(settings);
+    _syncRouter(settings);
     return settings;
   }
 
@@ -367,6 +377,7 @@ class SettingsService {
     await prefs.setDouble(_kTtsRate, settings.ttsRate);
     await prefs.setString(_kTtsLanguage, settings.ttsLanguage);
     await prefs.setString(_kProviderKind, settings.providerKind);
+    await prefs.setBool(_kAutoModelRouting, settings.autoModelRouting);
     await prefs.setBool(_kCheckUpdatesOnStart, settings.checkUpdatesOnStart);
     await prefs.setString(_kUpdateSource, settings.updateSource);
     await prefs.setBool(_kProxyEnabled, settings.proxyEnabled);
@@ -381,6 +392,12 @@ class SettingsService {
     await prefs.setString(_kWebSearchApiKey, settings.webSearchApiKey);
     await prefs.setString(_kWebSearchBaseUrl, settings.webSearchBaseUrl);
     _syncProxy(settings);
+    _syncRouter(settings);
+  }
+
+  /// X-02：把路由开关同步到 ModelRouterService。
+  void _syncRouter(AppSettings settings) {
+    ModelRouterService().autoRoutingEnabled = settings.autoModelRouting;
   }
 
   /// A-04：把代理设置同步到 NonaDio（http/https findProxy / socks5 adapter）。
