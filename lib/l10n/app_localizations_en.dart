@@ -367,6 +367,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsRouterSubtitle => 'Auto-pick models by cost & speed';
 
   @override
+  String get syncIncrementalTitle => 'Multi-device incremental sync';
+
+  @override
+  String get syncIncrementalHint =>
+      'Push local changes and pull changes from other devices';
+
+  @override
+  String get syncIncrementalNow => 'Sync now';
+
+  @override
+  String syncIncrementalDone(int pushed, int pulled) {
+    return 'Pushed $pushed, pulled $pulled changes';
+  }
+
+  @override
+  String syncLastAt(String at) {
+    return 'Last sync: $at';
+  }
+
+  @override
+  String syncConflicts(int n) {
+    return '$n conflict(s) pending (local newer changes kept)';
+  }
+
+  @override
   String get settingsWfSubtitle =>
       'Scheduled / event-triggered automated actions';
 

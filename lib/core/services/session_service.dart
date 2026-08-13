@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ import '../utils/logger.dart';
 import 'search_service.dart';
 import 'session_persistence.dart';
 import 'session_persistence_factory.dart';
+import 'sync/change_log_service.dart';
 
 /// 会话持久化服务。
 ///
@@ -21,8 +23,12 @@ class SessionService {
   /// 持久化串行链：避免并发读改写丢更新/乱序覆盖。
   Future<void>? _persistChain;
 
-  SessionService({SessionPersistence? persistence})
-      : _persistence = persistence ?? createSessionPersistence();
+  /// X-04：变更日志（增量同步埋点；测试可注入）。
+  final ChangeLogService _changeLog;
+
+  SessionService({SessionPersistence? persistence, ChangeLogService? changeLog})
+      : _persistence = persistence ?? createSessionPersistence(),
+        _changeLog = changeLog ?? ChangeLogService();
 
   Future<List<ChatSession>> load() async {
     final stored = await _persistence.readAll();
@@ -48,11 +54,16 @@ class SessionService {
   /// 后续保存照常执行（避免一次 SQLITE_BUSY/磁盘错误导致
   /// 本进程内所有后续保存永久失效）。
   Future<void> saveAll(List<ChatSession> sessions) {
+    // X-04：变更日志（全量保存视为各会话 upsert）
+    for (final s in sessions) {
+      unawaited(_changeLog.record(entity: 'session', entityId: s.id, op: 'upsert'));
+    }
     return _enqueue(() => _persistence.writeAll(sessions));
   }
 
   /// 增量保存单个会话（其余会话不动）。
   Future<void> saveSession(ChatSession session) {
+    unawaited(_changeLog.record(entity: 'session', entityId: session.id, op: 'upsert'));
     return _enqueue(() => _persistence.writeSession(session));
   }
 
@@ -63,6 +74,7 @@ class SessionService {
 
   /// 按 id 删除单个会话（其余会话不动）。
   Future<void> deleteById(String sessionId) {
+    unawaited(_changeLog.record(entity: 'session', entityId: sessionId, op: 'delete'));
     return _enqueue(() => _persistence.deleteSession(sessionId));
   }
 

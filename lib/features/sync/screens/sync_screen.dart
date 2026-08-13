@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/services/sync/sync_clients.dart';
+import '../../../core/services/sync/sync_engine.dart';
 import '../../../core/services/sync/sync_exception.dart';
 import '../../../core/services/sync/sync_service.dart';
 import '../../../core/utils/format_bytes.dart';
@@ -39,6 +40,7 @@ class _SyncScreenState extends State<SyncScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadSyncState();
   }
 
   @override
@@ -111,6 +113,36 @@ class _SyncScreenState extends State<SyncScreen> {
       final name = await SyncService.uploadBackup();
       if (mounted) showAppSnack(context, context.l10n.syncUploaded(name));
       await _refresh();
+    });
+  }
+
+  // X-04：增量同步
+  final SyncEngine _engine = SyncEngine();
+  List<Map<String, dynamic>> _conflicts = [];
+  DateTime? _lastSyncAt;
+
+  Future<void> _incrementalSync() async {
+    await _guard(() async {
+      final result = await _engine.sync();
+      if (mounted) {
+        setState(() {
+          _lastSyncAt = DateTime.now();
+        });
+        showAppSnack(
+          context,
+          context.l10n.syncIncrementalDone(result.pushed, result.pulled),
+        );
+      }
+    });
+  }
+
+  Future<void> _loadSyncState() async {
+    final conflicts = await _engine.conflicts();
+    final lastSyncAt = await _engine.lastSyncAt();
+    if (!mounted) return;
+    setState(() {
+      _conflicts = conflicts;
+      _lastSyncAt = lastSyncAt;
     });
   }
 
@@ -257,6 +289,48 @@ class _SyncScreenState extends State<SyncScreen> {
                   child: Text(l10n.commonSave),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            // X-04：增量同步
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.syncIncrementalTitle,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _lastSyncAt != null
+                          ? l10n.syncLastAt(
+                              _lastSyncAt!.toLocal().toString().substring(0, 19),
+                            )
+                          : l10n.syncIncrementalHint,
+                      style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton.tonalIcon(
+                      onPressed: _busy ? null : _incrementalSync,
+                      icon: const Icon(Icons.sync_rounded, size: 18),
+                      label: Text(l10n.syncIncrementalNow),
+                    ),
+                    if (_conflicts.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.syncConflicts(_conflicts.length),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
             if (_error != null) ...[
               const SizedBox(height: 12),

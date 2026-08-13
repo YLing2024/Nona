@@ -357,6 +357,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsRouterSubtitle => '按成本与速度自动选模型';
 
   @override
+  String get syncIncrementalTitle => '多设备增量同步';
+
+  @override
+  String get syncIncrementalHint => '推送本地变更并拉取其他设备的变更';
+
+  @override
+  String get syncIncrementalNow => '立即同步';
+
+  @override
+  String syncIncrementalDone(int pushed, int pulled) {
+    return '已推送 $pushed 条、拉取 $pulled 条变更';
+  }
+
+  @override
+  String syncLastAt(String at) {
+    return '上次同步：$at';
+  }
+
+  @override
+  String syncConflicts(int n) {
+    return '$n 个冲突待处理（本地较新的变更已保留）';
+  }
+
+  @override
   String get settingsWfSubtitle => '定时 / 事件触发自动执行动作';
 
   @override

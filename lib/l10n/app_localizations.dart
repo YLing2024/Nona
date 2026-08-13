@@ -758,6 +758,42 @@ abstract class AppLocalizations {
   /// **'按成本与速度自动选模型'**
   String get settingsRouterSubtitle;
 
+  /// No description provided for @syncIncrementalTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'多设备增量同步'**
+  String get syncIncrementalTitle;
+
+  /// No description provided for @syncIncrementalHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'推送本地变更并拉取其他设备的变更'**
+  String get syncIncrementalHint;
+
+  /// No description provided for @syncIncrementalNow.
+  ///
+  /// In zh, this message translates to:
+  /// **'立即同步'**
+  String get syncIncrementalNow;
+
+  /// No description provided for @syncIncrementalDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已推送 {pushed} 条、拉取 {pulled} 条变更'**
+  String syncIncrementalDone(int pushed, int pulled);
+
+  /// No description provided for @syncLastAt.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次同步：{at}'**
+  String syncLastAt(String at);
+
+  /// No description provided for @syncConflicts.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 个冲突待处理（本地较新的变更已保留）'**
+  String syncConflicts(int n);
+
   /// No description provided for @settingsWfSubtitle.
   ///
   /// In zh, this message translates to:
