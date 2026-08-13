@@ -182,7 +182,7 @@ void _applyLegacyMigrations(sqlite3.Database db) {
 }
 
 void main() {
-  test('旧库 v5 → v7 升级：数据无丢失且新表/新列就绪', () async {
+  test('旧库 v5 → v8 升级：数据无丢失且新表/新列就绪', () async {
     final tmp = File(
       '${Directory.systemTemp.createTempSync('nona_mig_test').path}'
       '/nona.db',
@@ -237,7 +237,7 @@ void main() {
       );
       legacy.dispose();
 
-      // 2. drift 打开旧库：触发 onUpgrade v5→v7
+      // 2. drift 打开旧库：触发 onUpgrade v5→v8
       final db = NonaAppDatabase(NativeDatabase(File(tmp.path)));
       db.wasFresh = false;
 
@@ -288,8 +288,14 @@ void main() {
       expect(messages.first.streamingState, isNull);
       expect(wb.first.useRegex, isFalse);
       expect(wb.first.bookId, isNull);
+      // v8：记忆 v2 列就绪（旧行读回默认值）
+      expect(memories.first.tagsJson, '[]');
+      expect(memories.first.priority, 'auto');
+      expect(memories.first.useCount, 0);
+      expect(memories.first.lastUsedAt, isNull);
+      expect(memories.first.historyJson, '[]');
 
-      // 5. v6/v7 新表可写可读
+      // 5. v6/v8 新表可写可读
       await db.into(db.worldBooks).insert(
         WorldBooksCompanion.insert(id: 'book1', name: '书一'),
       );
@@ -334,13 +340,25 @@ void main() {
           'preparing');
       expect((await (db.select(db.tags)).get()).first.name, '工作');
       expect((await (db.select(db.workflows)).get()).first.name, '工作流');
+      // v8：memory_spaces / memory_state 可写可读
+      await db.into(db.memorySpaces).insert(
+        MemorySpacesCompanion.insert(
+          id: 'global|',
+          scope: 'global',
+        ),
+      );
+      await db.into(db.memoryState).insert(
+        MemoryStateCompanion.insert(sessionId: 's1'),
+      );
+      expect((await (db.select(db.memorySpaces)).get()).first.scope, 'global');
+      expect((await (db.select(db.memoryState)).get()).first.sessionId, 's1');
 
       // 6. user_version 收敛到 7，索引就绪
       final version = await db
           .customSelect('PRAGMA user_version')
           .get()
           .then((r) => r.first.data['user_version'] as int);
-      expect(version, 7);
+      expect(version, 8);
       final idx = await db
           .customSelect('PRAGMA index_list(messages)')
           .get();
@@ -352,7 +370,7 @@ void main() {
     }
   });
 
-  test('新库直接建全量 v7 schema（含全部新表）', () async {
+  test('新库直接建全量 v8 schema（含全部新表）', () async {
     final db = NonaAppDatabase(NativeDatabase.memory());
     db.wasFresh = true;
     await db.customSelect('PRAGMA user_version').get();
@@ -388,6 +406,8 @@ void main() {
       'route_events',
       'workflows',
       'workflow_runs',
+      'memory_spaces',
+      'memory_state',
     ]) {
       expect(names, contains(t), reason: '新库应包含表 $t');
     }

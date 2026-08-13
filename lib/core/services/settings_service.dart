@@ -154,6 +154,21 @@ class AppSettings {
   /// D-02：搜索用量开关。
   final bool searchUsageEnabled;
 
+  /// 记忆 v2：记忆功能总开关。
+  final bool memoryEnabled;
+
+  /// 记忆 v2：记忆库总容量（条）。
+  final int memoryMaxItems;
+
+  /// 记忆 v2：每次注入 token 预算。
+  final int memoryMaxInjectTokens;
+
+  /// 记忆 v2：单条记忆最大字数。
+  final int memoryMaxItemChars;
+
+  /// 记忆 v2：自动提取间隔（轮数）。
+  final int memoryExtractionInterval;
+
   const AppSettings({
     this.apiKey = '',
     this.baseUrl = 'https://api.openai.com/v1',
@@ -200,6 +215,11 @@ class AppSettings {
     this.webSearchBaseUrl = '',
     this.webSearchApiKeys = const {},
     this.searchUsageEnabled = true,
+    this.memoryEnabled = true,
+    this.memoryMaxItems = 200,
+    this.memoryMaxInjectTokens = 800,
+    this.memoryMaxItemChars = 100,
+    this.memoryExtractionInterval = 10,
     this.fontFamily = '',
     this.uiDensity = 'standard',
     this.chatFontScale = 1.0,
@@ -256,6 +276,11 @@ class AppSettings {
     String? uiDensity,
     double? chatFontScale,
     String? androidBackgroundMode,
+    bool? memoryEnabled,
+    int? memoryMaxItems,
+    int? memoryMaxInjectTokens,
+    int? memoryMaxItemChars,
+    int? memoryExtractionInterval,
   }) {
     return AppSettings(
       apiKey: apiKey ?? this.apiKey,
@@ -304,6 +329,13 @@ class AppSettings {
       webSearchBaseUrl: webSearchBaseUrl ?? this.webSearchBaseUrl,
       webSearchApiKeys: webSearchApiKeys ?? this.webSearchApiKeys,
       searchUsageEnabled: searchUsageEnabled ?? this.searchUsageEnabled,
+      memoryEnabled: memoryEnabled ?? this.memoryEnabled,
+      memoryMaxItems: memoryMaxItems ?? this.memoryMaxItems,
+      memoryMaxInjectTokens:
+          memoryMaxInjectTokens ?? this.memoryMaxInjectTokens,
+      memoryMaxItemChars: memoryMaxItemChars ?? this.memoryMaxItemChars,
+      memoryExtractionInterval:
+          memoryExtractionInterval ?? this.memoryExtractionInterval,
       fontFamily: fontFamily ?? this.fontFamily,
       uiDensity: uiDensity ?? this.uiDensity,
       chatFontScale: chatFontScale ?? this.chatFontScale,
@@ -318,6 +350,11 @@ class SettingsService {
   static const _kApiKey = 'api_key';
   static const _kBaseUrl = 'base_url';
   static const _kModel = 'model';
+  static const _kMemoryEnabled = 'memory_enabled';
+  static const _kMemoryMaxItems = 'memory_max_items';
+  static const _kMemoryMaxInjectTokens = 'memory_max_inject_tokens';
+  static const _kMemoryMaxItemChars = 'memory_max_item_chars';
+  static const _kMemoryExtractionInterval = 'memory_extraction_interval';
   static const _kThemeMode = 'theme_mode';
   static const _kLocale = 'locale';
   static const _kAccentColor = 'accent_color';
@@ -399,6 +436,13 @@ class SettingsService {
       webSearchEngine: prefs.getString(_kWebSearchEngine) ?? 'bing',
       webSearchApiKey: prefs.getString(_kWebSearchApiKey) ?? '',
       webSearchBaseUrl: prefs.getString(_kWebSearchBaseUrl) ?? '',
+      // 记忆 v2（默认开启；容量 200 / 注入 800 / 单条 100 / 间隔 10 轮）
+      memoryEnabled: prefs.getBool(_kMemoryEnabled) ?? true,
+      memoryMaxItems: prefs.getInt(_kMemoryMaxItems) ?? 200,
+      memoryMaxInjectTokens: prefs.getInt(_kMemoryMaxInjectTokens) ?? 800,
+      memoryMaxItemChars: prefs.getInt(_kMemoryMaxItemChars) ?? 100,
+      memoryExtractionInterval:
+          prefs.getInt(_kMemoryExtractionInterval) ?? 10,
     );
     _syncProxy(settings);
     _syncRouter(settings);
@@ -461,6 +505,15 @@ class SettingsService {
     await prefs.setString(_kWebSearchEngine, settings.webSearchEngine);
     await prefs.setString(_kWebSearchApiKey, settings.webSearchApiKey);
     await prefs.setString(_kWebSearchBaseUrl, settings.webSearchBaseUrl);
+    // 记忆 v2
+    await prefs.setBool(_kMemoryEnabled, settings.memoryEnabled);
+    await prefs.setInt(_kMemoryMaxItems, settings.memoryMaxItems);
+    await prefs.setInt(_kMemoryMaxInjectTokens, settings.memoryMaxInjectTokens);
+    await prefs.setInt(_kMemoryMaxItemChars, settings.memoryMaxItemChars);
+    await prefs.setInt(
+      _kMemoryExtractionInterval,
+      settings.memoryExtractionInterval,
+    );
     _syncProxy(settings);
     _syncRouter(settings);
   }

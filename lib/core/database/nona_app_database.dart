@@ -25,6 +25,8 @@ part 'nona_app_database.g.dart';
     KbBigrams,
     KbVectors,
     Memories,
+    MemorySpaces,
+    MemoryState,
     WorldBookEntries,
     WorldBooks,
     ProviderGroups,
@@ -47,7 +49,7 @@ class NonaAppDatabase extends _$NonaAppDatabase {
   bool wasFresh = false;
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -121,6 +123,17 @@ class NonaAppDatabase extends _$NonaAppDatabase {
       await m.createTable(routeEvents);
       await m.createTable(workflows);
       await m.createTable(workflowRuns);
+    }
+    // v8：记忆系统 v2（tags/priority/use_count/last_used_at/history_json 列
+    // + memory_spaces/memory_state 表）
+    if (to >= 8 && from < 8) {
+      await m.addColumn(memories, memories.tagsJson);
+      await m.addColumn(memories, memories.priority);
+      await m.addColumn(memories, memories.useCount);
+      await m.addColumn(memories, memories.lastUsedAt);
+      await m.addColumn(memories, memories.historyJson);
+      await m.createTable(memorySpaces);
+      await m.createTable(memoryState);
     }
   }
 

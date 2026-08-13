@@ -226,8 +226,52 @@ class Memories extends Table {
   IntColumn get createdAt => integer().named('created_at')();
   IntColumn get updatedAt => integer().named('updated_at')();
 
+  // ---- v8：记忆系统 v2 扩展 ----
+  /// 标签列表（JSON 数组）。
+  TextColumn get tagsJson => text().named('tags_json').withDefault(const Constant('[]'))();
+
+  /// 优先级（auto/low/medium/high）。
+  TextColumn get priority => text().withDefault(const Constant('auto'))();
+
+  /// 被注入次数（打分权重之一）。
+  IntColumn get useCount => integer().named('use_count').withDefault(const Constant(0))();
+
+  /// 最近一次被注入时间（ms 时间戳）。
+  IntColumn get lastUsedAt => integer().named('last_used_at').nullable()();
+
+  /// 版本历史（JSON 数组，编辑留痕）。
+  TextColumn get historyJson => text().named('history_json').withDefault(const Constant('[]'))();
+
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// v8：记忆空间预算（scope+scopeRef 唯一）。
+@DataClassName('MemorySpaceRow')
+class MemorySpaces extends Table {
+  TextColumn get id => text()();
+  TextColumn get scope => text()();
+  TextColumn get scopeRef => text().named('scope_ref').withDefault(const Constant(''))();
+  IntColumn get maxItems => integer().named('max_items').withDefault(const Constant(200))();
+  IntColumn get maxInjectTokens =>
+      integer().named('max_inject_tokens').withDefault(const Constant(800))();
+  IntColumn get maxItemChars =>
+      integer().named('max_item_chars').withDefault(const Constant(100))();
+  IntColumn get extractionInterval =>
+      integer().named('extraction_interval').withDefault(const Constant(10))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// v8：自动提取游标（session_id + last_index，防重复提取）。
+@DataClassName('MemoryStateRow')
+class MemoryState extends Table {
+  TextColumn get sessionId => text().named('session_id')();
+  IntColumn get lastIndex => integer().named('last_index').withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {sessionId};
 }
 
 /// 世界书条目（对应 world_book_entries；v6 新增 use_regex / book_id）。

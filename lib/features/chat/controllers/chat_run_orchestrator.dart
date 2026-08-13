@@ -422,6 +422,8 @@ class ChatRunOrchestrator {
               options.systemPrompt,
             ].where((s) => s.trim().isNotEmpty).join('\n\n'),
           );
+          // v2：记录注入命中记忆的使用次数（fire-and-forget）
+          unawaited(_memoryService.recordUseLast());
         }
       }
 

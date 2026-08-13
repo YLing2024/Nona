@@ -15,6 +15,7 @@ import 'core/services/checkpoint_service.dart';
 import 'core/services/knowledge_base_service.dart';
 import 'core/services/mcp/mcp_service.dart';
 import 'core/services/model_capability_service.dart';
+import 'core/services/memory/memory_service.dart';
 import 'core/services/network_log_service.dart';
 import 'core/services/network_monitor.dart';
 import 'core/services/export/restore_service.dart';
@@ -122,6 +123,8 @@ Future<void> main() async {
     unawaited(TokenEstimator.instance.load());
     // 旧版知识库 prefs 数据一次性迁移（成功即删键，幂等）
     unawaited(KnowledgeBaseService().migrateLegacy());
+    // 记忆 v2：旧版 Agent.memories（prefs）一次性迁移进 memories 表（幂等）
+    unawaited(MemoryService().migrateV1Memories());
     // B-06：启动恢复——遗留 streaming 消息回填已存内容并置 failed（可重试）
     unawaited(CheckpointService().recover());
     // G-01：未完成的事务化恢复收敛（断电/崩溃后自动完成或回滚）

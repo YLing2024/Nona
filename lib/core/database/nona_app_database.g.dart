@@ -5615,6 +5615,65 @@ class $MemoriesTable extends Memories
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _tagsJsonMeta = const VerificationMeta(
+    'tagsJson',
+  );
+  @override
+  late final GeneratedColumn<String> tagsJson = GeneratedColumn<String>(
+    'tags_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<String> priority = GeneratedColumn<String>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('auto'),
+  );
+  static const VerificationMeta _useCountMeta = const VerificationMeta(
+    'useCount',
+  );
+  @override
+  late final GeneratedColumn<int> useCount = GeneratedColumn<int>(
+    'use_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastUsedAtMeta = const VerificationMeta(
+    'lastUsedAt',
+  );
+  @override
+  late final GeneratedColumn<int> lastUsedAt = GeneratedColumn<int>(
+    'last_used_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _historyJsonMeta = const VerificationMeta(
+    'historyJson',
+  );
+  @override
+  late final GeneratedColumn<String> historyJson = GeneratedColumn<String>(
+    'history_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -5626,6 +5685,11 @@ class $MemoriesTable extends Memories
     sourceMessageId,
     createdAt,
     updatedAt,
+    tagsJson,
+    priority,
+    useCount,
+    lastUsedAt,
+    historyJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5703,6 +5767,42 @@ class $MemoriesTable extends Memories
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
     }
+    if (data.containsKey('tags_json')) {
+      context.handle(
+        _tagsJsonMeta,
+        tagsJson.isAcceptableOrUnknown(data['tags_json']!, _tagsJsonMeta),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
+    if (data.containsKey('use_count')) {
+      context.handle(
+        _useCountMeta,
+        useCount.isAcceptableOrUnknown(data['use_count']!, _useCountMeta),
+      );
+    }
+    if (data.containsKey('last_used_at')) {
+      context.handle(
+        _lastUsedAtMeta,
+        lastUsedAt.isAcceptableOrUnknown(
+          data['last_used_at']!,
+          _lastUsedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('history_json')) {
+      context.handle(
+        _historyJsonMeta,
+        historyJson.isAcceptableOrUnknown(
+          data['history_json']!,
+          _historyJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5748,6 +5848,26 @@ class $MemoriesTable extends Memories
         DriftSqlType.int,
         data['${effectivePrefix}updated_at'],
       )!,
+      tagsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tags_json'],
+      )!,
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}priority'],
+      )!,
+      useCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}use_count'],
+      )!,
+      lastUsedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_used_at'],
+      ),
+      historyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}history_json'],
+      )!,
     );
   }
 
@@ -5767,6 +5887,21 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
   final String? sourceMessageId;
   final int createdAt;
   final int updatedAt;
+
+  /// 标签列表（JSON 数组）。
+  final String tagsJson;
+
+  /// 优先级（auto/low/medium/high）。
+  final String priority;
+
+  /// 被注入次数（打分权重之一）。
+  final int useCount;
+
+  /// 最近一次被注入时间（ms 时间戳）。
+  final int? lastUsedAt;
+
+  /// 版本历史（JSON 数组，编辑留痕）。
+  final String historyJson;
   const MemoryRow({
     required this.id,
     required this.scope,
@@ -5777,6 +5912,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
     this.sourceMessageId,
     required this.createdAt,
     required this.updatedAt,
+    required this.tagsJson,
+    required this.priority,
+    required this.useCount,
+    this.lastUsedAt,
+    required this.historyJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5794,6 +5934,13 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
     }
     map['created_at'] = Variable<int>(createdAt);
     map['updated_at'] = Variable<int>(updatedAt);
+    map['tags_json'] = Variable<String>(tagsJson);
+    map['priority'] = Variable<String>(priority);
+    map['use_count'] = Variable<int>(useCount);
+    if (!nullToAbsent || lastUsedAt != null) {
+      map['last_used_at'] = Variable<int>(lastUsedAt);
+    }
+    map['history_json'] = Variable<String>(historyJson);
     return map;
   }
 
@@ -5812,6 +5959,13 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
           : Value(sourceMessageId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      tagsJson: Value(tagsJson),
+      priority: Value(priority),
+      useCount: Value(useCount),
+      lastUsedAt: lastUsedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUsedAt),
+      historyJson: Value(historyJson),
     );
   }
 
@@ -5830,6 +5984,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
       sourceMessageId: serializer.fromJson<String?>(json['sourceMessageId']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
       updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      tagsJson: serializer.fromJson<String>(json['tagsJson']),
+      priority: serializer.fromJson<String>(json['priority']),
+      useCount: serializer.fromJson<int>(json['useCount']),
+      lastUsedAt: serializer.fromJson<int?>(json['lastUsedAt']),
+      historyJson: serializer.fromJson<String>(json['historyJson']),
     );
   }
   @override
@@ -5845,6 +6004,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
       'sourceMessageId': serializer.toJson<String?>(sourceMessageId),
       'createdAt': serializer.toJson<int>(createdAt),
       'updatedAt': serializer.toJson<int>(updatedAt),
+      'tagsJson': serializer.toJson<String>(tagsJson),
+      'priority': serializer.toJson<String>(priority),
+      'useCount': serializer.toJson<int>(useCount),
+      'lastUsedAt': serializer.toJson<int?>(lastUsedAt),
+      'historyJson': serializer.toJson<String>(historyJson),
     };
   }
 
@@ -5858,6 +6022,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
     Value<String?> sourceMessageId = const Value.absent(),
     int? createdAt,
     int? updatedAt,
+    String? tagsJson,
+    String? priority,
+    int? useCount,
+    Value<int?> lastUsedAt = const Value.absent(),
+    String? historyJson,
   }) => MemoryRow(
     id: id ?? this.id,
     scope: scope ?? this.scope,
@@ -5870,6 +6039,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
         : this.sourceMessageId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    tagsJson: tagsJson ?? this.tagsJson,
+    priority: priority ?? this.priority,
+    useCount: useCount ?? this.useCount,
+    lastUsedAt: lastUsedAt.present ? lastUsedAt.value : this.lastUsedAt,
+    historyJson: historyJson ?? this.historyJson,
   );
   MemoryRow copyWithCompanion(MemoriesCompanion data) {
     return MemoryRow(
@@ -5884,6 +6058,15 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
           : this.sourceMessageId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      tagsJson: data.tagsJson.present ? data.tagsJson.value : this.tagsJson,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      useCount: data.useCount.present ? data.useCount.value : this.useCount,
+      lastUsedAt: data.lastUsedAt.present
+          ? data.lastUsedAt.value
+          : this.lastUsedAt,
+      historyJson: data.historyJson.present
+          ? data.historyJson.value
+          : this.historyJson,
     );
   }
 
@@ -5898,7 +6081,12 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
           ..write('pinned: $pinned, ')
           ..write('sourceMessageId: $sourceMessageId, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('tagsJson: $tagsJson, ')
+          ..write('priority: $priority, ')
+          ..write('useCount: $useCount, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('historyJson: $historyJson')
           ..write(')'))
         .toString();
   }
@@ -5914,6 +6102,11 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
     sourceMessageId,
     createdAt,
     updatedAt,
+    tagsJson,
+    priority,
+    useCount,
+    lastUsedAt,
+    historyJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -5927,7 +6120,12 @@ class MemoryRow extends DataClass implements Insertable<MemoryRow> {
           other.pinned == this.pinned &&
           other.sourceMessageId == this.sourceMessageId &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.tagsJson == this.tagsJson &&
+          other.priority == this.priority &&
+          other.useCount == this.useCount &&
+          other.lastUsedAt == this.lastUsedAt &&
+          other.historyJson == this.historyJson);
 }
 
 class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
@@ -5940,6 +6138,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
   final Value<String?> sourceMessageId;
   final Value<int> createdAt;
   final Value<int> updatedAt;
+  final Value<String> tagsJson;
+  final Value<String> priority;
+  final Value<int> useCount;
+  final Value<int?> lastUsedAt;
+  final Value<String> historyJson;
   final Value<int> rowid;
   const MemoriesCompanion({
     this.id = const Value.absent(),
@@ -5951,6 +6154,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
     this.sourceMessageId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.tagsJson = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.useCount = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.historyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MemoriesCompanion.insert({
@@ -5963,6 +6171,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
     this.sourceMessageId = const Value.absent(),
     required int createdAt,
     required int updatedAt,
+    this.tagsJson = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.useCount = const Value.absent(),
+    this.lastUsedAt = const Value.absent(),
+    this.historyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        scope = Value(scope),
@@ -5979,6 +6192,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
     Expression<String>? sourceMessageId,
     Expression<int>? createdAt,
     Expression<int>? updatedAt,
+    Expression<String>? tagsJson,
+    Expression<String>? priority,
+    Expression<int>? useCount,
+    Expression<int>? lastUsedAt,
+    Expression<String>? historyJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -5991,6 +6209,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
       if (sourceMessageId != null) 'source_message_id': sourceMessageId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (tagsJson != null) 'tags_json': tagsJson,
+      if (priority != null) 'priority': priority,
+      if (useCount != null) 'use_count': useCount,
+      if (lastUsedAt != null) 'last_used_at': lastUsedAt,
+      if (historyJson != null) 'history_json': historyJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6005,6 +6228,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
     Value<String?>? sourceMessageId,
     Value<int>? createdAt,
     Value<int>? updatedAt,
+    Value<String>? tagsJson,
+    Value<String>? priority,
+    Value<int>? useCount,
+    Value<int?>? lastUsedAt,
+    Value<String>? historyJson,
     Value<int>? rowid,
   }) {
     return MemoriesCompanion(
@@ -6017,6 +6245,11 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
       sourceMessageId: sourceMessageId ?? this.sourceMessageId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      tagsJson: tagsJson ?? this.tagsJson,
+      priority: priority ?? this.priority,
+      useCount: useCount ?? this.useCount,
+      lastUsedAt: lastUsedAt ?? this.lastUsedAt,
+      historyJson: historyJson ?? this.historyJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6051,6 +6284,21 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<int>(updatedAt.value);
     }
+    if (tagsJson.present) {
+      map['tags_json'] = Variable<String>(tagsJson.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<String>(priority.value);
+    }
+    if (useCount.present) {
+      map['use_count'] = Variable<int>(useCount.value);
+    }
+    if (lastUsedAt.present) {
+      map['last_used_at'] = Variable<int>(lastUsedAt.value);
+    }
+    if (historyJson.present) {
+      map['history_json'] = Variable<String>(historyJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6069,6 +6317,693 @@ class MemoriesCompanion extends UpdateCompanion<MemoryRow> {
           ..write('sourceMessageId: $sourceMessageId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('tagsJson: $tagsJson, ')
+          ..write('priority: $priority, ')
+          ..write('useCount: $useCount, ')
+          ..write('lastUsedAt: $lastUsedAt, ')
+          ..write('historyJson: $historyJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemorySpacesTable extends MemorySpaces
+    with TableInfo<$MemorySpacesTable, MemorySpaceRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemorySpacesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scopeMeta = const VerificationMeta('scope');
+  @override
+  late final GeneratedColumn<String> scope = GeneratedColumn<String>(
+    'scope',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _scopeRefMeta = const VerificationMeta(
+    'scopeRef',
+  );
+  @override
+  late final GeneratedColumn<String> scopeRef = GeneratedColumn<String>(
+    'scope_ref',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _maxItemsMeta = const VerificationMeta(
+    'maxItems',
+  );
+  @override
+  late final GeneratedColumn<int> maxItems = GeneratedColumn<int>(
+    'max_items',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(200),
+  );
+  static const VerificationMeta _maxInjectTokensMeta = const VerificationMeta(
+    'maxInjectTokens',
+  );
+  @override
+  late final GeneratedColumn<int> maxInjectTokens = GeneratedColumn<int>(
+    'max_inject_tokens',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(800),
+  );
+  static const VerificationMeta _maxItemCharsMeta = const VerificationMeta(
+    'maxItemChars',
+  );
+  @override
+  late final GeneratedColumn<int> maxItemChars = GeneratedColumn<int>(
+    'max_item_chars',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(100),
+  );
+  static const VerificationMeta _extractionIntervalMeta =
+      const VerificationMeta('extractionInterval');
+  @override
+  late final GeneratedColumn<int> extractionInterval = GeneratedColumn<int>(
+    'extraction_interval',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(10),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    scope,
+    scopeRef,
+    maxItems,
+    maxInjectTokens,
+    maxItemChars,
+    extractionInterval,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_spaces';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MemorySpaceRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('scope')) {
+      context.handle(
+        _scopeMeta,
+        scope.isAcceptableOrUnknown(data['scope']!, _scopeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_scopeMeta);
+    }
+    if (data.containsKey('scope_ref')) {
+      context.handle(
+        _scopeRefMeta,
+        scopeRef.isAcceptableOrUnknown(data['scope_ref']!, _scopeRefMeta),
+      );
+    }
+    if (data.containsKey('max_items')) {
+      context.handle(
+        _maxItemsMeta,
+        maxItems.isAcceptableOrUnknown(data['max_items']!, _maxItemsMeta),
+      );
+    }
+    if (data.containsKey('max_inject_tokens')) {
+      context.handle(
+        _maxInjectTokensMeta,
+        maxInjectTokens.isAcceptableOrUnknown(
+          data['max_inject_tokens']!,
+          _maxInjectTokensMeta,
+        ),
+      );
+    }
+    if (data.containsKey('max_item_chars')) {
+      context.handle(
+        _maxItemCharsMeta,
+        maxItemChars.isAcceptableOrUnknown(
+          data['max_item_chars']!,
+          _maxItemCharsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('extraction_interval')) {
+      context.handle(
+        _extractionIntervalMeta,
+        extractionInterval.isAcceptableOrUnknown(
+          data['extraction_interval']!,
+          _extractionIntervalMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MemorySpaceRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemorySpaceRow(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      scope: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope'],
+      )!,
+      scopeRef: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scope_ref'],
+      )!,
+      maxItems: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_items'],
+      )!,
+      maxInjectTokens: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_inject_tokens'],
+      )!,
+      maxItemChars: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}max_item_chars'],
+      )!,
+      extractionInterval: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}extraction_interval'],
+      )!,
+    );
+  }
+
+  @override
+  $MemorySpacesTable createAlias(String alias) {
+    return $MemorySpacesTable(attachedDatabase, alias);
+  }
+}
+
+class MemorySpaceRow extends DataClass implements Insertable<MemorySpaceRow> {
+  final String id;
+  final String scope;
+  final String scopeRef;
+  final int maxItems;
+  final int maxInjectTokens;
+  final int maxItemChars;
+  final int extractionInterval;
+  const MemorySpaceRow({
+    required this.id,
+    required this.scope,
+    required this.scopeRef,
+    required this.maxItems,
+    required this.maxInjectTokens,
+    required this.maxItemChars,
+    required this.extractionInterval,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['scope'] = Variable<String>(scope);
+    map['scope_ref'] = Variable<String>(scopeRef);
+    map['max_items'] = Variable<int>(maxItems);
+    map['max_inject_tokens'] = Variable<int>(maxInjectTokens);
+    map['max_item_chars'] = Variable<int>(maxItemChars);
+    map['extraction_interval'] = Variable<int>(extractionInterval);
+    return map;
+  }
+
+  MemorySpacesCompanion toCompanion(bool nullToAbsent) {
+    return MemorySpacesCompanion(
+      id: Value(id),
+      scope: Value(scope),
+      scopeRef: Value(scopeRef),
+      maxItems: Value(maxItems),
+      maxInjectTokens: Value(maxInjectTokens),
+      maxItemChars: Value(maxItemChars),
+      extractionInterval: Value(extractionInterval),
+    );
+  }
+
+  factory MemorySpaceRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemorySpaceRow(
+      id: serializer.fromJson<String>(json['id']),
+      scope: serializer.fromJson<String>(json['scope']),
+      scopeRef: serializer.fromJson<String>(json['scopeRef']),
+      maxItems: serializer.fromJson<int>(json['maxItems']),
+      maxInjectTokens: serializer.fromJson<int>(json['maxInjectTokens']),
+      maxItemChars: serializer.fromJson<int>(json['maxItemChars']),
+      extractionInterval: serializer.fromJson<int>(json['extractionInterval']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'scope': serializer.toJson<String>(scope),
+      'scopeRef': serializer.toJson<String>(scopeRef),
+      'maxItems': serializer.toJson<int>(maxItems),
+      'maxInjectTokens': serializer.toJson<int>(maxInjectTokens),
+      'maxItemChars': serializer.toJson<int>(maxItemChars),
+      'extractionInterval': serializer.toJson<int>(extractionInterval),
+    };
+  }
+
+  MemorySpaceRow copyWith({
+    String? id,
+    String? scope,
+    String? scopeRef,
+    int? maxItems,
+    int? maxInjectTokens,
+    int? maxItemChars,
+    int? extractionInterval,
+  }) => MemorySpaceRow(
+    id: id ?? this.id,
+    scope: scope ?? this.scope,
+    scopeRef: scopeRef ?? this.scopeRef,
+    maxItems: maxItems ?? this.maxItems,
+    maxInjectTokens: maxInjectTokens ?? this.maxInjectTokens,
+    maxItemChars: maxItemChars ?? this.maxItemChars,
+    extractionInterval: extractionInterval ?? this.extractionInterval,
+  );
+  MemorySpaceRow copyWithCompanion(MemorySpacesCompanion data) {
+    return MemorySpaceRow(
+      id: data.id.present ? data.id.value : this.id,
+      scope: data.scope.present ? data.scope.value : this.scope,
+      scopeRef: data.scopeRef.present ? data.scopeRef.value : this.scopeRef,
+      maxItems: data.maxItems.present ? data.maxItems.value : this.maxItems,
+      maxInjectTokens: data.maxInjectTokens.present
+          ? data.maxInjectTokens.value
+          : this.maxInjectTokens,
+      maxItemChars: data.maxItemChars.present
+          ? data.maxItemChars.value
+          : this.maxItemChars,
+      extractionInterval: data.extractionInterval.present
+          ? data.extractionInterval.value
+          : this.extractionInterval,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemorySpaceRow(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('scopeRef: $scopeRef, ')
+          ..write('maxItems: $maxItems, ')
+          ..write('maxInjectTokens: $maxInjectTokens, ')
+          ..write('maxItemChars: $maxItemChars, ')
+          ..write('extractionInterval: $extractionInterval')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    scope,
+    scopeRef,
+    maxItems,
+    maxInjectTokens,
+    maxItemChars,
+    extractionInterval,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemorySpaceRow &&
+          other.id == this.id &&
+          other.scope == this.scope &&
+          other.scopeRef == this.scopeRef &&
+          other.maxItems == this.maxItems &&
+          other.maxInjectTokens == this.maxInjectTokens &&
+          other.maxItemChars == this.maxItemChars &&
+          other.extractionInterval == this.extractionInterval);
+}
+
+class MemorySpacesCompanion extends UpdateCompanion<MemorySpaceRow> {
+  final Value<String> id;
+  final Value<String> scope;
+  final Value<String> scopeRef;
+  final Value<int> maxItems;
+  final Value<int> maxInjectTokens;
+  final Value<int> maxItemChars;
+  final Value<int> extractionInterval;
+  final Value<int> rowid;
+  const MemorySpacesCompanion({
+    this.id = const Value.absent(),
+    this.scope = const Value.absent(),
+    this.scopeRef = const Value.absent(),
+    this.maxItems = const Value.absent(),
+    this.maxInjectTokens = const Value.absent(),
+    this.maxItemChars = const Value.absent(),
+    this.extractionInterval = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemorySpacesCompanion.insert({
+    required String id,
+    required String scope,
+    this.scopeRef = const Value.absent(),
+    this.maxItems = const Value.absent(),
+    this.maxInjectTokens = const Value.absent(),
+    this.maxItemChars = const Value.absent(),
+    this.extractionInterval = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       scope = Value(scope);
+  static Insertable<MemorySpaceRow> custom({
+    Expression<String>? id,
+    Expression<String>? scope,
+    Expression<String>? scopeRef,
+    Expression<int>? maxItems,
+    Expression<int>? maxInjectTokens,
+    Expression<int>? maxItemChars,
+    Expression<int>? extractionInterval,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (scope != null) 'scope': scope,
+      if (scopeRef != null) 'scope_ref': scopeRef,
+      if (maxItems != null) 'max_items': maxItems,
+      if (maxInjectTokens != null) 'max_inject_tokens': maxInjectTokens,
+      if (maxItemChars != null) 'max_item_chars': maxItemChars,
+      if (extractionInterval != null) 'extraction_interval': extractionInterval,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemorySpacesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? scope,
+    Value<String>? scopeRef,
+    Value<int>? maxItems,
+    Value<int>? maxInjectTokens,
+    Value<int>? maxItemChars,
+    Value<int>? extractionInterval,
+    Value<int>? rowid,
+  }) {
+    return MemorySpacesCompanion(
+      id: id ?? this.id,
+      scope: scope ?? this.scope,
+      scopeRef: scopeRef ?? this.scopeRef,
+      maxItems: maxItems ?? this.maxItems,
+      maxInjectTokens: maxInjectTokens ?? this.maxInjectTokens,
+      maxItemChars: maxItemChars ?? this.maxItemChars,
+      extractionInterval: extractionInterval ?? this.extractionInterval,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (scope.present) {
+      map['scope'] = Variable<String>(scope.value);
+    }
+    if (scopeRef.present) {
+      map['scope_ref'] = Variable<String>(scopeRef.value);
+    }
+    if (maxItems.present) {
+      map['max_items'] = Variable<int>(maxItems.value);
+    }
+    if (maxInjectTokens.present) {
+      map['max_inject_tokens'] = Variable<int>(maxInjectTokens.value);
+    }
+    if (maxItemChars.present) {
+      map['max_item_chars'] = Variable<int>(maxItemChars.value);
+    }
+    if (extractionInterval.present) {
+      map['extraction_interval'] = Variable<int>(extractionInterval.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemorySpacesCompanion(')
+          ..write('id: $id, ')
+          ..write('scope: $scope, ')
+          ..write('scopeRef: $scopeRef, ')
+          ..write('maxItems: $maxItems, ')
+          ..write('maxInjectTokens: $maxInjectTokens, ')
+          ..write('maxItemChars: $maxItemChars, ')
+          ..write('extractionInterval: $extractionInterval, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MemoryStateTable extends MemoryState
+    with TableInfo<$MemoryStateTable, MemoryStateRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MemoryStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _sessionIdMeta = const VerificationMeta(
+    'sessionId',
+  );
+  @override
+  late final GeneratedColumn<String> sessionId = GeneratedColumn<String>(
+    'session_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastIndexMeta = const VerificationMeta(
+    'lastIndex',
+  );
+  @override
+  late final GeneratedColumn<int> lastIndex = GeneratedColumn<int>(
+    'last_index',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [sessionId, lastIndex];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'memory_state';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MemoryStateRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('session_id')) {
+      context.handle(
+        _sessionIdMeta,
+        sessionId.isAcceptableOrUnknown(data['session_id']!, _sessionIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sessionIdMeta);
+    }
+    if (data.containsKey('last_index')) {
+      context.handle(
+        _lastIndexMeta,
+        lastIndex.isAcceptableOrUnknown(data['last_index']!, _lastIndexMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {sessionId};
+  @override
+  MemoryStateRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MemoryStateRow(
+      sessionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}session_id'],
+      )!,
+      lastIndex: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_index'],
+      )!,
+    );
+  }
+
+  @override
+  $MemoryStateTable createAlias(String alias) {
+    return $MemoryStateTable(attachedDatabase, alias);
+  }
+}
+
+class MemoryStateRow extends DataClass implements Insertable<MemoryStateRow> {
+  final String sessionId;
+  final int lastIndex;
+  const MemoryStateRow({required this.sessionId, required this.lastIndex});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['session_id'] = Variable<String>(sessionId);
+    map['last_index'] = Variable<int>(lastIndex);
+    return map;
+  }
+
+  MemoryStateCompanion toCompanion(bool nullToAbsent) {
+    return MemoryStateCompanion(
+      sessionId: Value(sessionId),
+      lastIndex: Value(lastIndex),
+    );
+  }
+
+  factory MemoryStateRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MemoryStateRow(
+      sessionId: serializer.fromJson<String>(json['sessionId']),
+      lastIndex: serializer.fromJson<int>(json['lastIndex']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'sessionId': serializer.toJson<String>(sessionId),
+      'lastIndex': serializer.toJson<int>(lastIndex),
+    };
+  }
+
+  MemoryStateRow copyWith({String? sessionId, int? lastIndex}) =>
+      MemoryStateRow(
+        sessionId: sessionId ?? this.sessionId,
+        lastIndex: lastIndex ?? this.lastIndex,
+      );
+  MemoryStateRow copyWithCompanion(MemoryStateCompanion data) {
+    return MemoryStateRow(
+      sessionId: data.sessionId.present ? data.sessionId.value : this.sessionId,
+      lastIndex: data.lastIndex.present ? data.lastIndex.value : this.lastIndex,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryStateRow(')
+          ..write('sessionId: $sessionId, ')
+          ..write('lastIndex: $lastIndex')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(sessionId, lastIndex);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MemoryStateRow &&
+          other.sessionId == this.sessionId &&
+          other.lastIndex == this.lastIndex);
+}
+
+class MemoryStateCompanion extends UpdateCompanion<MemoryStateRow> {
+  final Value<String> sessionId;
+  final Value<int> lastIndex;
+  final Value<int> rowid;
+  const MemoryStateCompanion({
+    this.sessionId = const Value.absent(),
+    this.lastIndex = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MemoryStateCompanion.insert({
+    required String sessionId,
+    this.lastIndex = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : sessionId = Value(sessionId);
+  static Insertable<MemoryStateRow> custom({
+    Expression<String>? sessionId,
+    Expression<int>? lastIndex,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (sessionId != null) 'session_id': sessionId,
+      if (lastIndex != null) 'last_index': lastIndex,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MemoryStateCompanion copyWith({
+    Value<String>? sessionId,
+    Value<int>? lastIndex,
+    Value<int>? rowid,
+  }) {
+    return MemoryStateCompanion(
+      sessionId: sessionId ?? this.sessionId,
+      lastIndex: lastIndex ?? this.lastIndex,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (sessionId.present) {
+      map['session_id'] = Variable<String>(sessionId.value);
+    }
+    if (lastIndex.present) {
+      map['last_index'] = Variable<int>(lastIndex.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MemoryStateCompanion(')
+          ..write('sessionId: $sessionId, ')
+          ..write('lastIndex: $lastIndex, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11576,6 +12511,8 @@ abstract class _$NonaAppDatabase extends GeneratedDatabase {
   late final $KbBigramsTable kbBigrams = $KbBigramsTable(this);
   late final $KbVectorsTable kbVectors = $KbVectorsTable(this);
   late final $MemoriesTable memories = $MemoriesTable(this);
+  late final $MemorySpacesTable memorySpaces = $MemorySpacesTable(this);
+  late final $MemoryStateTable memoryState = $MemoryStateTable(this);
   late final $WorldBookEntriesTable worldBookEntries = $WorldBookEntriesTable(
     this,
   );
@@ -11628,6 +12565,8 @@ abstract class _$NonaAppDatabase extends GeneratedDatabase {
     kbBigrams,
     kbVectors,
     memories,
+    memorySpaces,
+    memoryState,
     worldBookEntries,
     worldBooks,
     providerGroups,
@@ -15599,6 +16538,11 @@ typedef $$MemoriesTableCreateCompanionBuilder =
       Value<String?> sourceMessageId,
       required int createdAt,
       required int updatedAt,
+      Value<String> tagsJson,
+      Value<String> priority,
+      Value<int> useCount,
+      Value<int?> lastUsedAt,
+      Value<String> historyJson,
       Value<int> rowid,
     });
 typedef $$MemoriesTableUpdateCompanionBuilder =
@@ -15612,6 +16556,11 @@ typedef $$MemoriesTableUpdateCompanionBuilder =
       Value<String?> sourceMessageId,
       Value<int> createdAt,
       Value<int> updatedAt,
+      Value<String> tagsJson,
+      Value<String> priority,
+      Value<int> useCount,
+      Value<int?> lastUsedAt,
+      Value<String> historyJson,
       Value<int> rowid,
     });
 
@@ -15666,6 +16615,31 @@ class $$MemoriesTableFilterComposer
 
   ColumnFilters<int> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagsJson => $composableBuilder(
+    column: $table.tagsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get useCount => $composableBuilder(
+    column: $table.useCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get historyJson => $composableBuilder(
+    column: $table.historyJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -15723,6 +16697,31 @@ class $$MemoriesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get tagsJson => $composableBuilder(
+    column: $table.tagsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get useCount => $composableBuilder(
+    column: $table.useCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get historyJson => $composableBuilder(
+    column: $table.historyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$MemoriesTableAnnotationComposer
@@ -15762,6 +16761,25 @@ class $$MemoriesTableAnnotationComposer
 
   GeneratedColumn<int> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get tagsJson =>
+      $composableBuilder(column: $table.tagsJson, builder: (column) => column);
+
+  GeneratedColumn<String> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<int> get useCount =>
+      $composableBuilder(column: $table.useCount, builder: (column) => column);
+
+  GeneratedColumn<int> get lastUsedAt => $composableBuilder(
+    column: $table.lastUsedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get historyJson => $composableBuilder(
+    column: $table.historyJson,
+    builder: (column) => column,
+  );
 }
 
 class $$MemoriesTableTableManager
@@ -15804,6 +16822,11 @@ class $$MemoriesTableTableManager
                 Value<String?> sourceMessageId = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> updatedAt = const Value.absent(),
+                Value<String> tagsJson = const Value.absent(),
+                Value<String> priority = const Value.absent(),
+                Value<int> useCount = const Value.absent(),
+                Value<int?> lastUsedAt = const Value.absent(),
+                Value<String> historyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MemoriesCompanion(
                 id: id,
@@ -15815,6 +16838,11 @@ class $$MemoriesTableTableManager
                 sourceMessageId: sourceMessageId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                tagsJson: tagsJson,
+                priority: priority,
+                useCount: useCount,
+                lastUsedAt: lastUsedAt,
+                historyJson: historyJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15828,6 +16856,11 @@ class $$MemoriesTableTableManager
                 Value<String?> sourceMessageId = const Value.absent(),
                 required int createdAt,
                 required int updatedAt,
+                Value<String> tagsJson = const Value.absent(),
+                Value<String> priority = const Value.absent(),
+                Value<int> useCount = const Value.absent(),
+                Value<int?> lastUsedAt = const Value.absent(),
+                Value<String> historyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => MemoriesCompanion.insert(
                 id: id,
@@ -15839,6 +16872,11 @@ class $$MemoriesTableTableManager
                 sourceMessageId: sourceMessageId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                tagsJson: tagsJson,
+                priority: priority,
+                useCount: useCount,
+                lastUsedAt: lastUsedAt,
+                historyJson: historyJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -15861,6 +16899,403 @@ typedef $$MemoriesTableProcessedTableManager =
       $$MemoriesTableUpdateCompanionBuilder,
       (MemoryRow, BaseReferences<_$NonaAppDatabase, $MemoriesTable, MemoryRow>),
       MemoryRow,
+      PrefetchHooks Function()
+    >;
+typedef $$MemorySpacesTableCreateCompanionBuilder =
+    MemorySpacesCompanion Function({
+      required String id,
+      required String scope,
+      Value<String> scopeRef,
+      Value<int> maxItems,
+      Value<int> maxInjectTokens,
+      Value<int> maxItemChars,
+      Value<int> extractionInterval,
+      Value<int> rowid,
+    });
+typedef $$MemorySpacesTableUpdateCompanionBuilder =
+    MemorySpacesCompanion Function({
+      Value<String> id,
+      Value<String> scope,
+      Value<String> scopeRef,
+      Value<int> maxItems,
+      Value<int> maxInjectTokens,
+      Value<int> maxItemChars,
+      Value<int> extractionInterval,
+      Value<int> rowid,
+    });
+
+class $$MemorySpacesTableFilterComposer
+    extends Composer<_$NonaAppDatabase, $MemorySpacesTable> {
+  $$MemorySpacesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scopeRef => $composableBuilder(
+    column: $table.scopeRef,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxItems => $composableBuilder(
+    column: $table.maxItems,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxInjectTokens => $composableBuilder(
+    column: $table.maxInjectTokens,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get maxItemChars => $composableBuilder(
+    column: $table.maxItemChars,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get extractionInterval => $composableBuilder(
+    column: $table.extractionInterval,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MemorySpacesTableOrderingComposer
+    extends Composer<_$NonaAppDatabase, $MemorySpacesTable> {
+  $$MemorySpacesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scope => $composableBuilder(
+    column: $table.scope,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scopeRef => $composableBuilder(
+    column: $table.scopeRef,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxItems => $composableBuilder(
+    column: $table.maxItems,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxInjectTokens => $composableBuilder(
+    column: $table.maxInjectTokens,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get maxItemChars => $composableBuilder(
+    column: $table.maxItemChars,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get extractionInterval => $composableBuilder(
+    column: $table.extractionInterval,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MemorySpacesTableAnnotationComposer
+    extends Composer<_$NonaAppDatabase, $MemorySpacesTable> {
+  $$MemorySpacesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get scope =>
+      $composableBuilder(column: $table.scope, builder: (column) => column);
+
+  GeneratedColumn<String> get scopeRef =>
+      $composableBuilder(column: $table.scopeRef, builder: (column) => column);
+
+  GeneratedColumn<int> get maxItems =>
+      $composableBuilder(column: $table.maxItems, builder: (column) => column);
+
+  GeneratedColumn<int> get maxInjectTokens => $composableBuilder(
+    column: $table.maxInjectTokens,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get maxItemChars => $composableBuilder(
+    column: $table.maxItemChars,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get extractionInterval => $composableBuilder(
+    column: $table.extractionInterval,
+    builder: (column) => column,
+  );
+}
+
+class $$MemorySpacesTableTableManager
+    extends
+        RootTableManager<
+          _$NonaAppDatabase,
+          $MemorySpacesTable,
+          MemorySpaceRow,
+          $$MemorySpacesTableFilterComposer,
+          $$MemorySpacesTableOrderingComposer,
+          $$MemorySpacesTableAnnotationComposer,
+          $$MemorySpacesTableCreateCompanionBuilder,
+          $$MemorySpacesTableUpdateCompanionBuilder,
+          (
+            MemorySpaceRow,
+            BaseReferences<
+              _$NonaAppDatabase,
+              $MemorySpacesTable,
+              MemorySpaceRow
+            >,
+          ),
+          MemorySpaceRow,
+          PrefetchHooks Function()
+        > {
+  $$MemorySpacesTableTableManager(
+    _$NonaAppDatabase db,
+    $MemorySpacesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemorySpacesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemorySpacesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemorySpacesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> scope = const Value.absent(),
+                Value<String> scopeRef = const Value.absent(),
+                Value<int> maxItems = const Value.absent(),
+                Value<int> maxInjectTokens = const Value.absent(),
+                Value<int> maxItemChars = const Value.absent(),
+                Value<int> extractionInterval = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemorySpacesCompanion(
+                id: id,
+                scope: scope,
+                scopeRef: scopeRef,
+                maxItems: maxItems,
+                maxInjectTokens: maxInjectTokens,
+                maxItemChars: maxItemChars,
+                extractionInterval: extractionInterval,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String scope,
+                Value<String> scopeRef = const Value.absent(),
+                Value<int> maxItems = const Value.absent(),
+                Value<int> maxInjectTokens = const Value.absent(),
+                Value<int> maxItemChars = const Value.absent(),
+                Value<int> extractionInterval = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemorySpacesCompanion.insert(
+                id: id,
+                scope: scope,
+                scopeRef: scopeRef,
+                maxItems: maxItems,
+                maxInjectTokens: maxInjectTokens,
+                maxItemChars: maxItemChars,
+                extractionInterval: extractionInterval,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MemorySpacesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$NonaAppDatabase,
+      $MemorySpacesTable,
+      MemorySpaceRow,
+      $$MemorySpacesTableFilterComposer,
+      $$MemorySpacesTableOrderingComposer,
+      $$MemorySpacesTableAnnotationComposer,
+      $$MemorySpacesTableCreateCompanionBuilder,
+      $$MemorySpacesTableUpdateCompanionBuilder,
+      (
+        MemorySpaceRow,
+        BaseReferences<_$NonaAppDatabase, $MemorySpacesTable, MemorySpaceRow>,
+      ),
+      MemorySpaceRow,
+      PrefetchHooks Function()
+    >;
+typedef $$MemoryStateTableCreateCompanionBuilder =
+    MemoryStateCompanion Function({
+      required String sessionId,
+      Value<int> lastIndex,
+      Value<int> rowid,
+    });
+typedef $$MemoryStateTableUpdateCompanionBuilder =
+    MemoryStateCompanion Function({
+      Value<String> sessionId,
+      Value<int> lastIndex,
+      Value<int> rowid,
+    });
+
+class $$MemoryStateTableFilterComposer
+    extends Composer<_$NonaAppDatabase, $MemoryStateTable> {
+  $$MemoryStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastIndex => $composableBuilder(
+    column: $table.lastIndex,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$MemoryStateTableOrderingComposer
+    extends Composer<_$NonaAppDatabase, $MemoryStateTable> {
+  $$MemoryStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get sessionId => $composableBuilder(
+    column: $table.sessionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastIndex => $composableBuilder(
+    column: $table.lastIndex,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$MemoryStateTableAnnotationComposer
+    extends Composer<_$NonaAppDatabase, $MemoryStateTable> {
+  $$MemoryStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get sessionId =>
+      $composableBuilder(column: $table.sessionId, builder: (column) => column);
+
+  GeneratedColumn<int> get lastIndex =>
+      $composableBuilder(column: $table.lastIndex, builder: (column) => column);
+}
+
+class $$MemoryStateTableTableManager
+    extends
+        RootTableManager<
+          _$NonaAppDatabase,
+          $MemoryStateTable,
+          MemoryStateRow,
+          $$MemoryStateTableFilterComposer,
+          $$MemoryStateTableOrderingComposer,
+          $$MemoryStateTableAnnotationComposer,
+          $$MemoryStateTableCreateCompanionBuilder,
+          $$MemoryStateTableUpdateCompanionBuilder,
+          (
+            MemoryStateRow,
+            BaseReferences<
+              _$NonaAppDatabase,
+              $MemoryStateTable,
+              MemoryStateRow
+            >,
+          ),
+          MemoryStateRow,
+          PrefetchHooks Function()
+        > {
+  $$MemoryStateTableTableManager(_$NonaAppDatabase db, $MemoryStateTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MemoryStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MemoryStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MemoryStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> sessionId = const Value.absent(),
+                Value<int> lastIndex = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemoryStateCompanion(
+                sessionId: sessionId,
+                lastIndex: lastIndex,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String sessionId,
+                Value<int> lastIndex = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MemoryStateCompanion.insert(
+                sessionId: sessionId,
+                lastIndex: lastIndex,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$MemoryStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$NonaAppDatabase,
+      $MemoryStateTable,
+      MemoryStateRow,
+      $$MemoryStateTableFilterComposer,
+      $$MemoryStateTableOrderingComposer,
+      $$MemoryStateTableAnnotationComposer,
+      $$MemoryStateTableCreateCompanionBuilder,
+      $$MemoryStateTableUpdateCompanionBuilder,
+      (
+        MemoryStateRow,
+        BaseReferences<_$NonaAppDatabase, $MemoryStateTable, MemoryStateRow>,
+      ),
+      MemoryStateRow,
       PrefetchHooks Function()
     >;
 typedef $$WorldBookEntriesTableCreateCompanionBuilder =
@@ -18801,6 +20236,10 @@ class $NonaAppDatabaseManager {
       $$KbVectorsTableTableManager(_db, _db.kbVectors);
   $$MemoriesTableTableManager get memories =>
       $$MemoriesTableTableManager(_db, _db.memories);
+  $$MemorySpacesTableTableManager get memorySpaces =>
+      $$MemorySpacesTableTableManager(_db, _db.memorySpaces);
+  $$MemoryStateTableTableManager get memoryState =>
+      $$MemoryStateTableTableManager(_db, _db.memoryState);
   $$WorldBookEntriesTableTableManager get worldBookEntries =>
       $$WorldBookEntriesTableTableManager(_db, _db.worldBookEntries);
   $$WorldBooksTableTableManager get worldBooks =>
