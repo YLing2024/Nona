@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/utils/l10n_ext.dart';
 import '../../../core/models/chat_message.dart';
+import '../../../core/services/quick_phrase_service.dart';
+import '../../../core/utils/l10n_ext.dart';
+import '../../../core/utils/prompt_variables.dart';
 import '../../../core/services/document_extractor.dart' show ChatDocument;
 import '../../../core/models/chat_options.dart';
 import '../../../core/models/chat_provider.dart';
@@ -64,6 +66,12 @@ class ChatComposer extends StatefulWidget {
   /// 偏好：Enter 是否发送消息（否则 Enter 换行、Ctrl+Enter 发送）。
   final bool sendOnEnter;
 
+  /// G-04：快捷短语加载器（null 时禁用 `/` 菜单）。
+  final Future<List<QuickPhrase>> Function(String? agentId)? quickPhrasesLoader;
+
+  /// 当前 Agent id（快捷短语按 Agent 过滤）。
+  final String? agentId;
+
   /// 当 [modelId] 为 null 时是否自动选择第一个模型。
   /// 为 false 时返回 null，显示「未选择模型」。
   final bool autoSelectModel;
@@ -94,6 +102,8 @@ class ChatComposer extends StatefulWidget {
     this.onPickDocuments = _noop,
     this.onRemoveDocument = _noopIndex,
     this.autoSelectModel = true,
+    this.quickPhrasesLoader,
+    this.agentId,
   });
 
   @override
@@ -101,6 +111,8 @@ class ChatComposer extends StatefulWidget {
 }
 
 class _ChatComposerState extends State<ChatComposer> {
+  final GlobalKey _inputKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -115,6 +127,70 @@ class _ChatComposerState extends State<ChatComposer> {
 
   void _onTextChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// G-04：`/` 触发快捷短语菜单（输入框上方 Popover 风格菜单）。
+  Future<void> _showQuickPhrases() async {
+    final loader = widget.quickPhrasesLoader;
+    if (loader == null) return;
+    final phrases = await loader(widget.agentId);
+    if (!mounted || phrases.isEmpty) return;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final inputBox = _inputKey.currentContext?.findRenderObject() as RenderBox?;
+    if (overlay == null || inputBox == null) return;
+    final topLeft = inputBox.localToGlobal(Offset.zero);
+    final bottomRight =
+        inputBox.localToGlobal(inputBox.size.bottomRight(Offset.zero));
+    final selected = await showMenu<QuickPhrase>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final p in phrases)
+          PopupMenuItem(
+            value: p,
+            child: SizedBox(
+              width: 260,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    p.content,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+    if (selected == null || !mounted) return;
+    // 替换输入：移除「/」前缀后插入短语内容（展开变量）
+    final text = widget.controller.text;
+    final base = text.startsWith('/')
+        ? text.substring(1).trimLeft()
+        : text;
+    final content = PromptVariables.resolve(selected.content);
+    widget.controller.text = base.isEmpty ? content : '$base $content';
+    widget.controller.value = widget.controller.value.copyWith(
+      text: widget.controller.text,
+      selection: TextSelection.collapsed(offset: widget.controller.text.length),
+    );
   }
 
   @override
@@ -177,12 +253,18 @@ class _ChatComposerState extends State<ChatComposer> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: ComposerInputField(
-                  controller: widget.controller,
-                  enabled: !widget.isLoading,
-                  sendOnEnter: widget.sendOnEnter,
-                  onSend: () => widget.onSend(),
-                  onAddImageUrl: widget.onAddImageUrl,
+                child: KeyedSubtree(
+                  key: _inputKey,
+                  child: ComposerInputField(
+                    controller: widget.controller,
+                    enabled: !widget.isLoading,
+                    sendOnEnter: widget.sendOnEnter,
+                    onSend: () => widget.onSend(),
+                    onAddImageUrl: widget.onAddImageUrl,
+                    onQuickPhraseTriggered: widget.quickPhrasesLoader == null
+                        ? null
+                        : _showQuickPhrases,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

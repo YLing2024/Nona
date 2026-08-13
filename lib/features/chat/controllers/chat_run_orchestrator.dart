@@ -14,6 +14,7 @@ import '../../../core/models/chat_session.dart';
 import '../../../core/models/citation_source.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/checkpoint_service.dart';
+import '../../../core/services/instruction_injection_service.dart';
 import '../../../core/services/document_extractor.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';import '../../../core/services/mcp/mcp_client.dart';
@@ -389,6 +390,18 @@ class ChatRunOrchestrator {
             ].where((s) => s.trim().isNotEmpty).join('\n\n'),
           );
         }
+      }
+
+      // G-05 指令注入：用户自定义提示词片段（按 Agent 激活集）
+      final instructionText =
+          await _instructionInjections.buildInjection(session.agentId);
+      if (instructionText.trim().isNotEmpty) {
+        options = options.copyWith(
+          systemPrompt: [
+            instructionText,
+            options.systemPrompt,
+          ].where((s) => s.trim().isNotEmpty).join('\n\n'),
+        );
       }
 
       // B-03：本次请求的引用出处（知识库/搜索），统一编号注入并随消息落库
@@ -1027,6 +1040,10 @@ class ChatRunOrchestrator {
 
   /// 世界书服务（F5）。
   final WorldBookService _worldBookService = WorldBookService();
+
+  /// 指令注入服务（G-05）。
+  final InstructionInjectionService _instructionInjections =
+      InstructionInjectionService();
 
   /// 本次请求注入的世界书消息数（发送后移除，不污染会话历史）。
   int _wbInjectedCount = 0;

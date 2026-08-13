@@ -189,6 +189,100 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get tokenDetailTitle => 'Token details';
+
+  @override
+  String get tokenDetailInput => 'Input (API)';
+
+  @override
+  String get tokenDetailOutput => 'Output (API)';
+
+  @override
+  String get tokenDetailElapsed => 'Elapsed';
+
+  @override
+  String get tokenDetailModel => 'Model';
+
+  @override
+  String get tokenDetailEstimated => 'Local estimate (body)';
+
+  @override
+  String get tokenDetailCost => 'Cost';
+
+  @override
+  String get tokenDetailUnavailable => '—';
+
+  @override
+  String get tokenDetailNoPrice => 'No price recorded';
+
+  @override
+  String get tokenDetailHint =>
+      'Local estimate counts the reply body with tiktoken (prompt excluded).';
+
+  @override
+  String get quickPhrasesTitle => 'Quick phrases';
+
+  @override
+  String get quickPhrasesAdd => 'Add phrase';
+
+  @override
+  String get quickPhrasesEdit => 'Edit phrase';
+
+  @override
+  String get quickPhrasesEmpty => 'No quick phrases yet. Tap + to add one.';
+
+  @override
+  String get quickPhrasesContent => 'Content';
+
+  @override
+  String get quickPhrasesGlobal => 'Global (all sessions)';
+
+  @override
+  String get settingsQuickPhrasesSubtitle => 'Type / in the input to insert';
+
+  @override
+  String get quickPhrasesDeleteTitle => 'Delete quick phrase';
+
+  @override
+  String quickPhrasesDeleteBody(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get quickPhrasesDeleted => 'Deleted';
+
+  @override
+  String get iiTitle => 'Instruction injections';
+
+  @override
+  String get iiAdd => 'Add instruction';
+
+  @override
+  String get iiEdit => 'Edit instruction';
+
+  @override
+  String get iiEmpty =>
+      'No instructions yet. Tap + to add one (check to activate).';
+
+  @override
+  String get iiPrompt => 'Instruction text';
+
+  @override
+  String get iiGroup => 'Group (optional)';
+
+  @override
+  String get iiDeleteTitle => 'Delete instruction';
+
+  @override
+  String iiDeleteBody(String title) {
+    return 'Delete \"$title\"?';
+  }
+
+  @override
+  String get settingsIiSubtitle =>
+      'Custom prompt snippets injected with each request';
+
+  @override
   String get chatDocument => 'Document';
 
   @override

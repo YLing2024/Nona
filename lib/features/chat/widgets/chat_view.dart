@@ -4,6 +4,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../core/utils/l10n_ext.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/services/document_extractor.dart' show ChatDocument;
+import '../../../core/services/quick_phrase_service.dart';
 import '../../../core/models/chat_provider.dart';
 import '../../../core/models/chat_session.dart';
 import '../../../core/services/model_resolver.dart';
@@ -87,6 +88,10 @@ class ChatView extends StatelessWidget {
   /// F1-5：图片消息「转为文字」。
   final void Function(ChatMessage message)? onOcr;
 
+  /// G-04：快捷短语加载器与 Agent 过滤。
+  final Future<List<QuickPhrase>> Function(String? agentId)? quickPhrasesLoader;
+  final String? agentId;
+
   /// B-01：消息多选模式状态与操作。
   final bool selectionActive;
   final Set<int> selectedIndices;
@@ -163,6 +168,8 @@ class ChatView extends StatelessWidget {
     this.onSummaryEdited,
     this.onClearCompaction,
     this.onOcr,
+    this.quickPhrasesLoader,
+    this.agentId,
   });
 
   @override
@@ -255,6 +262,8 @@ class ChatView extends StatelessWidget {
             onStreamChanged: onStreamChanged,
             onSend: onSend,
             onStop: onStop,
+            quickPhrasesLoader: quickPhrasesLoader,
+            agentId: agentId,
           ),
       ],
     );

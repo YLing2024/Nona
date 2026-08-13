@@ -428,6 +428,180 @@ abstract class AppLocalizations {
   /// **'已删除 {count} 条消息'**
   String chatDeleted(int count);
 
+  /// No description provided for @tokenDetailTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'Token 明细'**
+  String get tokenDetailTitle;
+
+  /// No description provided for @tokenDetailInput.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入（接口）'**
+  String get tokenDetailInput;
+
+  /// No description provided for @tokenDetailOutput.
+  ///
+  /// In zh, this message translates to:
+  /// **'输出（接口）'**
+  String get tokenDetailOutput;
+
+  /// No description provided for @tokenDetailElapsed.
+  ///
+  /// In zh, this message translates to:
+  /// **'耗时'**
+  String get tokenDetailElapsed;
+
+  /// No description provided for @tokenDetailModel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get tokenDetailModel;
+
+  /// No description provided for @tokenDetailEstimated.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地估算（正文）'**
+  String get tokenDetailEstimated;
+
+  /// No description provided for @tokenDetailCost.
+  ///
+  /// In zh, this message translates to:
+  /// **'成本'**
+  String get tokenDetailCost;
+
+  /// No description provided for @tokenDetailUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'—'**
+  String get tokenDetailUnavailable;
+
+  /// No description provided for @tokenDetailNoPrice.
+  ///
+  /// In zh, this message translates to:
+  /// **'价格未收录'**
+  String get tokenDetailNoPrice;
+
+  /// No description provided for @tokenDetailHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地估算为回复正文的 tiktoken 精确计数（不含提示词）。'**
+  String get tokenDetailHint;
+
+  /// No description provided for @quickPhrasesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'快捷短语'**
+  String get quickPhrasesTitle;
+
+  /// No description provided for @quickPhrasesAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新增短语'**
+  String get quickPhrasesAdd;
+
+  /// No description provided for @quickPhrasesEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑短语'**
+  String get quickPhrasesEdit;
+
+  /// No description provided for @quickPhrasesEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有快捷短语，点击右下角新增'**
+  String get quickPhrasesEmpty;
+
+  /// No description provided for @quickPhrasesContent.
+  ///
+  /// In zh, this message translates to:
+  /// **'内容'**
+  String get quickPhrasesContent;
+
+  /// No description provided for @quickPhrasesGlobal.
+  ///
+  /// In zh, this message translates to:
+  /// **'全局可用（所有会话）'**
+  String get quickPhrasesGlobal;
+
+  /// No description provided for @settingsQuickPhrasesSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入框输入 / 快速插入'**
+  String get settingsQuickPhrasesSubtitle;
+
+  /// No description provided for @quickPhrasesDeleteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除快捷短语'**
+  String get quickPhrasesDeleteTitle;
+
+  /// No description provided for @quickPhrasesDeleteBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除「{title}」。确定继续吗？'**
+  String quickPhrasesDeleteBody(String title);
+
+  /// No description provided for @quickPhrasesDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除'**
+  String get quickPhrasesDeleted;
+
+  /// No description provided for @iiTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'指令注入'**
+  String get iiTitle;
+
+  /// No description provided for @iiAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新增指令'**
+  String get iiAdd;
+
+  /// No description provided for @iiEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑指令'**
+  String get iiEdit;
+
+  /// No description provided for @iiEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有指令，点击右下角新增（勾选即激活）'**
+  String get iiEmpty;
+
+  /// No description provided for @iiPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'指令内容'**
+  String get iiPrompt;
+
+  /// No description provided for @iiGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'分组（可选）'**
+  String get iiGroup;
+
+  /// No description provided for @iiDeleteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除指令'**
+  String get iiDeleteTitle;
+
+  /// No description provided for @iiDeleteBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除「{title}」。确定继续吗？'**
+  String iiDeleteBody(String title);
+
+  /// No description provided for @settingsIiSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义提示词片段，随请求注入'**
+  String get settingsIiSubtitle;
+
   /// No description provided for @chatDocument.
   ///
   /// In zh, this message translates to:

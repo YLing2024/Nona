@@ -19,6 +19,9 @@ class ComposerInputField extends StatefulWidget {
   /// 通过剪贴板粘贴/外部链接添加单张图片。
   final void Function(ChatImage image) onAddImageUrl;
 
+  /// G-04：输入框首字符为 `/` 时触发快捷短语菜单。
+  final VoidCallback? onQuickPhraseTriggered;
+
   const ComposerInputField({
     super.key,
     required this.controller,
@@ -26,6 +29,7 @@ class ComposerInputField extends StatefulWidget {
     required this.sendOnEnter,
     required this.onSend,
     required this.onAddImageUrl,
+    this.onQuickPhraseTriggered,
   });
 
   @override
@@ -86,6 +90,19 @@ class _ComposerInputFieldState extends State<ComposerInputField> {
         path.endsWith('.bmp');
   }
 
+  /// G-04：输入「/」时触发快捷短语菜单（菜单显示期间不重复触发）。
+  bool _quickMenuOpen = false;
+
+  void _onChanged(String text) {
+    if (text == '/' && !_quickMenuOpen) {
+      _quickMenuOpen = true;
+      widget.onQuickPhraseTriggered?.call();
+    } else if (text != '/') {
+      // 输入变化（选中短语/继续输入）后复位，允许再次触发
+      _quickMenuOpen = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -99,6 +116,7 @@ class _ComposerInputFieldState extends State<ComposerInputField> {
         keyboardType: TextInputType.multiline,
         textInputAction: TextInputAction.newline,
         onTapOutside: unfocusOnTap,
+        onChanged: _onChanged,
         style: const TextStyle(fontSize: 14.5, height: 1.5),
         inputFormatters: [
           _EnterSendFormatter(

@@ -275,6 +275,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const TileDivider(),
                 SettingsTile(
+                  icon: Icons.bolt_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.quickPhrasesTitle,
+                  subtitle: l10n.settingsQuickPhrasesSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.quickPhrases(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
+                  icon: Icons.text_snippet_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.iiTitle,
+                  subtitle: l10n.settingsIiSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.instructionInjections(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.image_outlined,
                   iconColor: Theme.of(context).colorScheme.tertiary,
                   title: l10n.imgGenTitle,

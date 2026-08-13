@@ -186,6 +186,97 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get tokenDetailTitle => 'Token 明细';
+
+  @override
+  String get tokenDetailInput => '输入（接口）';
+
+  @override
+  String get tokenDetailOutput => '输出（接口）';
+
+  @override
+  String get tokenDetailElapsed => '耗时';
+
+  @override
+  String get tokenDetailModel => '模型';
+
+  @override
+  String get tokenDetailEstimated => '本地估算（正文）';
+
+  @override
+  String get tokenDetailCost => '成本';
+
+  @override
+  String get tokenDetailUnavailable => '—';
+
+  @override
+  String get tokenDetailNoPrice => '价格未收录';
+
+  @override
+  String get tokenDetailHint => '本地估算为回复正文的 tiktoken 精确计数（不含提示词）。';
+
+  @override
+  String get quickPhrasesTitle => '快捷短语';
+
+  @override
+  String get quickPhrasesAdd => '新增短语';
+
+  @override
+  String get quickPhrasesEdit => '编辑短语';
+
+  @override
+  String get quickPhrasesEmpty => '还没有快捷短语，点击右下角新增';
+
+  @override
+  String get quickPhrasesContent => '内容';
+
+  @override
+  String get quickPhrasesGlobal => '全局可用（所有会话）';
+
+  @override
+  String get settingsQuickPhrasesSubtitle => '输入框输入 / 快速插入';
+
+  @override
+  String get quickPhrasesDeleteTitle => '删除快捷短语';
+
+  @override
+  String quickPhrasesDeleteBody(String title) {
+    return '将删除「$title」。确定继续吗？';
+  }
+
+  @override
+  String get quickPhrasesDeleted => '已删除';
+
+  @override
+  String get iiTitle => '指令注入';
+
+  @override
+  String get iiAdd => '新增指令';
+
+  @override
+  String get iiEdit => '编辑指令';
+
+  @override
+  String get iiEmpty => '还没有指令，点击右下角新增（勾选即激活）';
+
+  @override
+  String get iiPrompt => '指令内容';
+
+  @override
+  String get iiGroup => '分组（可选）';
+
+  @override
+  String get iiDeleteTitle => '删除指令';
+
+  @override
+  String iiDeleteBody(String title) {
+    return '将删除「$title」。确定继续吗？';
+  }
+
+  @override
+  String get settingsIiSubtitle => '自定义提示词片段，随请求注入';
+
+  @override
   String get chatDocument => '文档';
 
   @override

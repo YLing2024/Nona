@@ -24,6 +24,8 @@ import '../features/settings/screens/network_log_body_screen.dart';
 import '../features/settings/screens/network_log_detail_screen.dart';
 import '../features/settings/screens/network_log_screen.dart';
 import '../features/settings/screens/preferences_screen.dart';
+import '../features/settings/screens/quick_phrases_screen.dart';
+import '../features/settings/screens/instruction_injections_screen.dart';
 import '../features/provider/screens/provider_edit_screen.dart';
 import '../features/provider/screens/provider_list_screen.dart';
 import '../features/search/screens/search_screen.dart';
@@ -50,6 +52,12 @@ abstract final class AppRoutes {
 
   static Route<T> preferences<T>() =>
       MaterialPageRoute<T>(builder: (_) => const PreferencesScreen());
+
+  static Route<T> quickPhrases<T>() =>
+      MaterialPageRoute<T>(builder: (_) => const QuickPhrasesScreen());
+
+  static Route<T> instructionInjections<T>() =>
+      MaterialPageRoute<T>(builder: (_) => const InstructionInjectionsScreen());
 
   static Route<T> themeSettings<T>({required String initialThemeMode}) =>
       MaterialPageRoute<T>(

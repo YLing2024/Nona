@@ -21,6 +21,7 @@ import '../../../core/services/agent_service.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/export/backup_archive.dart';
 import '../../../core/services/export_service.dart';
+import '../../../core/services/quick_phrase_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';
 import '../../../core/services/mcp/mcp_service.dart';
@@ -866,6 +867,8 @@ class _HomeScreenState extends State<HomeScreen>
       onRangeSelect: controller.selectRangeTo,
       onDeleteSelected: _deleteSelectedMessages,
       onExportSelectedMarkdown: _exportSelectedMarkdown,
+      quickPhrasesLoader: (agentId) => QuickPhraseService().list(agentId: agentId),
+      agentId: session?.agentId,
     );
 
     return CallbackShortcuts(
