@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:nona_chat/di/app_scope.dart';
+import 'package:nona_chat/core/di/app_scope.dart';
 import 'package:nona_chat/l10n/app_localizations.dart';
 
 /// 测试用应用包装：MaterialApp + l10n + DI 根（[AppScope]）。

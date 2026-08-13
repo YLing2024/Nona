@@ -1,12 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nona_chat/models/chat_message.dart';
-import 'package:nona_chat/models/chat_session.dart';
-import 'package:nona_chat/services/mcp/mcp_client.dart';
-import 'package:nona_chat/services/mcp/mcp_service.dart';
-import 'package:nona_chat/services/session_persistence.dart';
-import 'package:nona_chat/services/session_service.dart';
+import 'package:nona_chat/core/models/chat_message.dart';
+import 'package:nona_chat/core/models/chat_session.dart';
+import 'package:nona_chat/core/services/mcp/mcp_client.dart';
+import 'package:nona_chat/core/services/mcp/mcp_service.dart';
+import 'package:nona_chat/core/services/session_persistence.dart';
+import 'package:nona_chat/core/services/session_service.dart';
 
 /// 关键缺陷回归测试：工具消息过滤、工具名路由、持久化链自愈。
 void main() {

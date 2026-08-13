@@ -316,6 +316,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get assistantDisplayName => 'Nona';
 
   @override
+  String get citationSourcesTitle => 'Sources';
+
+  @override
+  String get importSelectSessions => 'Select sessions to import';
+
+  @override
+  String get importToggleAll => 'Select all / none';
+
+  @override
   String messageProviderBadge(String provider, String model) {
     return '($provider · $model)';
   }

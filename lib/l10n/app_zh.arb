@@ -149,6 +149,9 @@
   "chatSessionCopySuffix": "（副本）",
   "chatSessionList": "会话列表",
   "assistantDisplayName": "Nona",
+  "citationSourcesTitle": "引用来源",
+  "importSelectSessions": "选择要导入的会话",
+  "importToggleAll": "全选/全不选",
   "messageProviderBadge": "（{provider} · {model}）",
   "@messageProviderBadge": {
     "description": "消息头服务商与模型标注",

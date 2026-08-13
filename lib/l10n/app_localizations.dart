@@ -662,6 +662,24 @@ abstract class AppLocalizations {
   /// **'Nona'**
   String get assistantDisplayName;
 
+  /// No description provided for @citationSourcesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'引用来源'**
+  String get citationSourcesTitle;
+
+  /// No description provided for @importSelectSessions.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择要导入的会话'**
+  String get importSelectSessions;
+
+  /// No description provided for @importToggleAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全选/全不选'**
+  String get importToggleAll;
+
   /// 消息头服务商与模型标注
   ///
   /// In zh, this message translates to:

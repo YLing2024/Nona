@@ -7,17 +7,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-import 'di/app_scope.dart';
+import 'core/di/app_scope.dart';
+import 'core/services/app_exit_flush.dart';
+import 'core/services/checkpoint_service.dart';
+import 'core/services/knowledge_base_service.dart';
+import 'core/services/model_capability_service.dart';
+import 'core/services/network_log_service.dart';
+import 'core/services/settings_service.dart';
+import 'core/services/theme_controller.dart';
+import 'core/theme/app_theme.dart';
+import 'core/utils/logger.dart';
+import 'core/utils/token_estimator.dart';
 import 'l10n/app_localizations.dart';
-import 'screens/home_screen.dart';
-import 'services/knowledge_base_service.dart';
-import 'services/model_capability_service.dart';
-import 'services/network_log_service.dart';
-import 'services/settings_service.dart';
-import 'services/theme_controller.dart';
-import 'theme/app_theme.dart';
-import 'utils/logger.dart';
-import 'utils/token_estimator.dart';
+import 'features/chat/screens/home_screen.dart';
 
 /// 全局界面语言通知器（设置页修改后驱动 MaterialApp 刷新）。
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
@@ -58,6 +60,13 @@ Future<void> main() async {
     unawaited(TokenEstimator.instance.load());
     // 旧版知识库 prefs 数据一次性迁移（成功即删键，幂等）
     unawaited(KnowledgeBaseService().migrateLegacy());
+    // B-06：启动恢复——遗留 streaming 消息回填已存内容并置 failed（可重试）
+    unawaited(CheckpointService().recover());
+    // B-06/A-03：退出前冲刷注册（checkpoint barrier + 网络日志落盘）
+    AppExitFlush.instance.register(() async {
+      await CheckpointService().barrier();
+      await NetworkLogService.instance.flush();
+    });
     // 开发者选项开启「启动时自动更新」时，静默更新模型能力映射表，失败不影响启动
     unawaited(_maybeAutoUpdateCapabilities(settings));
     runApp(const AiChatApp());

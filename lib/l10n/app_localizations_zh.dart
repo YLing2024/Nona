@@ -307,6 +307,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get assistantDisplayName => 'Nona';
 
   @override
+  String get citationSourcesTitle => '引用来源';
+
+  @override
+  String get importSelectSessions => '选择要导入的会话';
+
+  @override
+  String get importToggleAll => '全选/全不选';
+
+  @override
   String messageProviderBadge(String provider, String model) {
     return '（$provider · $model）';
   }
