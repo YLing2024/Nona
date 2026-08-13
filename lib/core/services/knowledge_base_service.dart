@@ -7,6 +7,7 @@ import '../database/nona_app_database.dart';
 import '../database/nona_db_factory.dart';
 import '../utils/logger.dart';
 import 'knowledge/embedding_provider.dart';
+import 'knowledge/local_embedding_provider.dart';
 import 'knowledge/kb_retriever.dart';
 import 'search_service.dart' show bigrams;
 
@@ -64,6 +65,12 @@ class KnowledgeBaseService {
   static const String _kLegacyStore = 'knowledge_base_v1';
 
   final EmbeddingProvider _embeddingProvider = EmbeddingProvider();
+
+  /// X-05：本地嵌入（离线模式使用；确定性哈希向量，无需网络）。
+  final LocalEmbeddingProvider _localEmbedding = LocalEmbeddingProvider();
+
+  /// X-05：离线模式开关（开启后嵌入走本地、不发起网络）。
+  bool offlineMode = false;
 
   KnowledgeBaseService({NonaAppDatabase? database}) : _explicitDb = database;
 
@@ -361,12 +368,18 @@ class KnowledgeBaseService {
     final queryBigrams = bigrams(q).toSet();
     if (queryBigrams.isEmpty) return const [];
 
-    // 向量路：配置可用时尝试嵌入查询（失败自动降级纯 bigram）
+    // 向量路：配置可用时尝试嵌入查询（失败自动降级纯 bigram）。
+    // X-05：离线模式使用本地嵌入（确定性哈希向量，无需网络）。
     var queryVector = const <double>[];
     try {
-      await _embeddingProvider.load();
-      if (_embeddingProvider.configured) {
-        queryVector = await _embeddingProvider.embed(query);
+      if (offlineMode) {
+        await _localEmbedding.load();
+        queryVector = _localEmbedding.embed(query);
+      } else {
+        await _embeddingProvider.load();
+        if (_embeddingProvider.configured) {
+          queryVector = await _embeddingProvider.embed(query);
+        }
       }
     } catch (e) {
       Logger.warn('kb', 'embedding query failed, fallback bigram only: $e');
@@ -400,8 +413,13 @@ class KnowledgeBaseService {
   }) async {
     final db = await _db;
     if (db == null) return false;
-    await _embeddingProvider.load();
-    if (!_embeddingProvider.configured) return false;
+    // X-05：离线模式用本地嵌入向量化（恒可用）
+    if (offlineMode) {
+      await _localEmbedding.load();
+    } else {
+      await _embeddingProvider.load();
+      if (!_embeddingProvider.configured) return false;
+    }
     final rows = await db
         .customSelect(
           'SELECT c.id, c.text FROM kb_chunks c '
@@ -414,7 +432,9 @@ class KnowledgeBaseService {
     if (total == 0) return true;
     final texts = [for (final r in rows) r.data['text'] as String];
     try {
-      final vectors = await _embeddingProvider.embedBatch(texts);
+      final vectors = offlineMode
+          ? _localEmbedding.embedBatch(texts)
+          : await _embeddingProvider.embedBatch(texts);
       await db.transaction(() async {
         for (var i = 0; i < rows.length; i++) {
           final chunkId = rows[i].data['id'] as String;
@@ -429,7 +449,7 @@ class KnowledgeBaseService {
         // 记录 embedding 模型
         await db.customStatement(
           'UPDATE kb_documents SET embedding_model = ? WHERE library_id = ?',
-          [_embeddingProvider.model, libraryId],
+          [offlineMode ? 'local-hash-${_localEmbedding.dim}' : _embeddingProvider.model, libraryId],
         );
       });
       return true;

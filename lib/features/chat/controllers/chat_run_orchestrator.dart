@@ -437,8 +437,9 @@ class ChatRunOrchestrator {
         }
       }
 
-      // 网络搜索：启用时先搜索，结果注入系统提示词（带引用编号）
-      if (settings().webSearchEnabled) {
+      // 网络搜索：启用时先搜索，结果注入系统提示词（带引用编号）。
+      // X-05：离线模式强制跳过（不发起网络请求）。
+      if (settings().webSearchEnabled && !settings().offlineMode) {
         final query = text.trim().isEmpty
             ? (session.messages.isEmpty ? '' : session.messages.last.content)
             : text.trim();

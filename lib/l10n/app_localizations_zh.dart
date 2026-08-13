@@ -381,6 +381,55 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get privacyTitle => '隐私与离线';
+
+  @override
+  String get offlineMode => '离线模式';
+
+  @override
+  String get offlineModeHint => '嵌入走本地、不发起网络请求；适合飞行模式或隐私场景';
+
+  @override
+  String get offlineCapabilities => '能力离线状态';
+
+  @override
+  String get offlineCapEmbedding => '文本嵌入';
+
+  @override
+  String get offlineCapKbSearch => '知识库检索';
+
+  @override
+  String get offlineCapWebSearch => '网络搜索';
+
+  @override
+  String get offlineCapTts => '语音朗读';
+
+  @override
+  String get offlineCapAsr => '语音输入（本地）';
+
+  @override
+  String get offlineStatusLocal => '本地可用';
+
+  @override
+  String get offlineStatusCloud => '云端';
+
+  @override
+  String get offlineStatusOff => '已关闭';
+
+  @override
+  String get offlineStatusSystem => '系统';
+
+  @override
+  String get offlineStatusNeedsDownload => '需下载模型';
+
+  @override
+  String get offlineNote =>
+      '本地嵌入为确定性哈希向量（384 维），完全离线；接入 ONNX 语义模型后自动升级。语音输入本地模型见语音设置。';
+
+  @override
+  String get settingsPrivacySubtitle => '离线模式与本地能力';
+
+  @override
   String get settingsWfSubtitle => '定时 / 事件触发自动执行动作';
 
   @override

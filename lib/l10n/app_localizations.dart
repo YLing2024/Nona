@@ -794,6 +794,102 @@ abstract class AppLocalizations {
   /// **'{n} 个冲突待处理（本地较新的变更已保留）'**
   String syncConflicts(int n);
 
+  /// No description provided for @privacyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'隐私与离线'**
+  String get privacyTitle;
+
+  /// No description provided for @offlineMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线模式'**
+  String get offlineMode;
+
+  /// No description provided for @offlineModeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'嵌入走本地、不发起网络请求；适合飞行模式或隐私场景'**
+  String get offlineModeHint;
+
+  /// No description provided for @offlineCapabilities.
+  ///
+  /// In zh, this message translates to:
+  /// **'能力离线状态'**
+  String get offlineCapabilities;
+
+  /// No description provided for @offlineCapEmbedding.
+  ///
+  /// In zh, this message translates to:
+  /// **'文本嵌入'**
+  String get offlineCapEmbedding;
+
+  /// No description provided for @offlineCapKbSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识库检索'**
+  String get offlineCapKbSearch;
+
+  /// No description provided for @offlineCapWebSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络搜索'**
+  String get offlineCapWebSearch;
+
+  /// No description provided for @offlineCapTts.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音朗读'**
+  String get offlineCapTts;
+
+  /// No description provided for @offlineCapAsr.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音输入（本地）'**
+  String get offlineCapAsr;
+
+  /// No description provided for @offlineStatusLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地可用'**
+  String get offlineStatusLocal;
+
+  /// No description provided for @offlineStatusCloud.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端'**
+  String get offlineStatusCloud;
+
+  /// No description provided for @offlineStatusOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'已关闭'**
+  String get offlineStatusOff;
+
+  /// No description provided for @offlineStatusSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统'**
+  String get offlineStatusSystem;
+
+  /// No description provided for @offlineStatusNeedsDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'需下载模型'**
+  String get offlineStatusNeedsDownload;
+
+  /// No description provided for @offlineNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地嵌入为确定性哈希向量（384 维），完全离线；接入 ONNX 语义模型后自动升级。语音输入本地模型见语音设置。'**
+  String get offlineNote;
+
+  /// No description provided for @settingsPrivacySubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线模式与本地能力'**
+  String get settingsPrivacySubtitle;
+
   /// No description provided for @settingsWfSubtitle.
   ///
   /// In zh, this message translates to:

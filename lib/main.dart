@@ -85,6 +85,8 @@ Future<void> main() async {
         : settings.accentColor);
     oledDarkNotifier.value = settings.oledDark;
     localeNotifier.value = localeFromSetting(settings.locale);
+    // X-05：离线模式同步到知识库（嵌入走本地）
+    KnowledgeBaseService().offlineMode = settings.offlineMode;
     NetworkLogService.instance.setEnabled(settings.networkLogEnabled);
     NetworkLogService.instance.setMaxLogs(settings.networkLogMaxLogs);
     // 恢复持久化的网络日志（与记录开关无关）

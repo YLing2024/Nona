@@ -392,6 +392,56 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get privacyTitle => 'Privacy & offline';
+
+  @override
+  String get offlineMode => 'Offline mode';
+
+  @override
+  String get offlineModeHint =>
+      'Local embeddings, no network requests; ideal for airplane mode';
+
+  @override
+  String get offlineCapabilities => 'Offline capability status';
+
+  @override
+  String get offlineCapEmbedding => 'Text embeddings';
+
+  @override
+  String get offlineCapKbSearch => 'Knowledge base search';
+
+  @override
+  String get offlineCapWebSearch => 'Web search';
+
+  @override
+  String get offlineCapTts => 'Speech (TTS)';
+
+  @override
+  String get offlineCapAsr => 'Speech input (local)';
+
+  @override
+  String get offlineStatusLocal => 'Local';
+
+  @override
+  String get offlineStatusCloud => 'Cloud';
+
+  @override
+  String get offlineStatusOff => 'Off';
+
+  @override
+  String get offlineStatusSystem => 'System';
+
+  @override
+  String get offlineStatusNeedsDownload => 'Model download needed';
+
+  @override
+  String get offlineNote =>
+      'Local embeddings are deterministic hash vectors (384-d), fully offline; upgrades automatically when an ONNX semantic model is available.';
+
+  @override
+  String get settingsPrivacySubtitle => 'Offline mode & local capabilities';
+
+  @override
   String get settingsWfSubtitle =>
       'Scheduled / event-triggered automated actions';
 

@@ -98,6 +98,9 @@ class AppSettings {
   /// A-04：代理用户名（可选）。
   final String proxyUser;
 
+  /// X-05：离线模式（嵌入走本地、搜索/语音降级提示）。
+  final bool offlineMode;
+
   /// X-02：启用智能模型路由（任务槽自动选模型）。
   final bool autoModelRouting;
 
@@ -148,6 +151,7 @@ class AppSettings {
     this.ttsRate = 0.5,
     this.ttsLanguage = 'zh-CN',
     this.providerKind = 'auto',
+    this.offlineMode = false,
     this.autoModelRouting = false,
     this.checkUpdatesOnStart = false,
     this.updateSource = '',
@@ -188,6 +192,7 @@ class AppSettings {
     double? ttsRate,
     String? ttsLanguage,
     String? providerKind,
+    bool? offlineMode,
     bool? autoModelRouting,
     bool? checkUpdatesOnStart,
     String? updateSource,
@@ -228,6 +233,7 @@ class AppSettings {
       ttsRate: ttsRate ?? this.ttsRate,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       providerKind: providerKind ?? this.providerKind,
+      offlineMode: offlineMode ?? this.offlineMode,
       autoModelRouting: autoModelRouting ?? this.autoModelRouting,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
       updateSource: updateSource ?? this.updateSource,
@@ -272,6 +278,7 @@ class SettingsService {
   static const _kTtsLanguage = 'tts_language';
   static const _kProviderKind = 'provider_kind';
   static const _kWebSearchEnabled = 'web_search_enabled';
+  static const _kOfflineMode = 'offline_mode';
   static const _kAutoModelRouting = 'auto_model_routing';
   static const _kCheckUpdatesOnStart = 'check_updates_on_start';
   static const _kUpdateSource = 'update_source';
@@ -316,6 +323,7 @@ class SettingsService {
       ttsRate: prefs.getDouble(_kTtsRate) ?? 0.5,
       ttsLanguage: prefs.getString(_kTtsLanguage) ?? 'zh-CN',
       providerKind: prefs.getString(_kProviderKind) ?? 'auto',
+      offlineMode: prefs.getBool(_kOfflineMode) ?? false,
       autoModelRouting: prefs.getBool(_kAutoModelRouting) ?? false,
       checkUpdatesOnStart: prefs.getBool(_kCheckUpdatesOnStart) ?? false,
       updateSource: prefs.getString(_kUpdateSource) ?? '',
@@ -377,6 +385,7 @@ class SettingsService {
     await prefs.setDouble(_kTtsRate, settings.ttsRate);
     await prefs.setString(_kTtsLanguage, settings.ttsLanguage);
     await prefs.setString(_kProviderKind, settings.providerKind);
+    await prefs.setBool(_kOfflineMode, settings.offlineMode);
     await prefs.setBool(_kAutoModelRouting, settings.autoModelRouting);
     await prefs.setBool(_kCheckUpdatesOnStart, settings.checkUpdatesOnStart);
     await prefs.setString(_kUpdateSource, settings.updateSource);
