@@ -239,6 +239,238 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
         _ => value,
       };
 
+  // ---------------- A-04：网络代理 ----------------
+
+  Future<void> _updateProxyEnabled(bool? value) async {
+    if (value == null) return;
+    setState(() => _settings = _settings.copyWith(proxyEnabled: value));
+    await _settingsService.save(_settings);
+  }
+
+  Future<void> _updateProxyType(String? value) async {
+    if (value == null) return;
+    setState(() => _settings = _settings.copyWith(proxyType: value));
+    await _settingsService.save(_settings);
+  }
+
+  String _proxyTypeLabel(String value) => switch (value) {
+    'http' => 'HTTP',
+    'https' => 'HTTPS',
+    'socks5' => 'SOCKS5',
+    _ => value,
+  };
+
+  Future<void> _editProxyText({
+    required String title,
+    required String initial,
+    required AppSettings Function(AppSettings, String) apply,
+  }) async {
+    final controller = TextEditingController(text: initial);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: title.contains('密码') || title.contains('Password'),
+          onTapOutside: unfocusOnTap,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(ctx.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(ctx.l10n.commonSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || !mounted) return;
+    setState(() => _settings = apply(_settings, result));
+    await _settingsService.save(_settings);
+  }
+
+  Future<void> _editProxyPort() async {
+    final controller = TextEditingController(
+      text: _settings.proxyPort > 0 ? '${_settings.proxyPort}' : '',
+    );
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('端口'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          onTapOutside: unfocusOnTap,
+          decoration: const InputDecoration(
+            hintText: '8080 / 1080',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(ctx.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(ctx.l10n.commonSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || !mounted) return;
+    final port = int.tryParse(result) ?? 0;
+    if (port < 0 || port > 65535) return;
+    setState(() => _settings = _settings.copyWith(proxyPort: port));
+    await _settingsService.save(_settings);
+  }
+
+  /// 网络代理设置区块。
+  Widget _buildProxySection(ThemeData theme, AppLocalizations l10n) {
+    final scheme = theme.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Text(
+          '网络代理',
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _PreferenceTile(
+          icon: Icons.vpn_lock_outlined,
+          iconColor: scheme.primary,
+          title: '启用全局代理',
+          subtitle: 'HTTP / HTTPS / SOCKS5，所有请求生效',
+          trailing: Switch(
+            value: _settings.proxyEnabled,
+            onChanged: _updateProxyEnabled,
+          ),
+        ),
+        if (_settings.proxyEnabled) ...[
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.swap_vert_rounded,
+            iconColor: scheme.primary,
+            title: '代理类型',
+            subtitle: _proxyTypeLabel(_settings.proxyType),
+            trailing: PopupMenuButton<String>(
+              initialValue: _settings.proxyType,
+              onSelected: _updateProxyType,
+              itemBuilder: (context) => [
+                for (final v in const ['http', 'https', 'socks5'])
+                  PopupMenuItem(
+                    value: v,
+                    child: Text(_proxyTypeLabel(v)),
+                  ),
+              ],
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.expand_more, size: 18),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.dns_rounded,
+            iconColor: scheme.primary,
+            title: '代理主机',
+            subtitle: _settings.proxyHost.isEmpty ? '如 127.0.0.1' : _settings.proxyHost,
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.outline,
+            ),
+            onTap: () => _editProxyText(
+              title: '代理主机',
+              initial: _settings.proxyHost,
+              apply: (s, v) => s.copyWith(proxyHost: v),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.numbers_rounded,
+            iconColor: scheme.primary,
+            title: '代理端口',
+            subtitle: _settings.proxyPort > 0
+                ? '${_settings.proxyPort}'
+                : 'HTTP 默认 8080 / SOCKS5 默认 1080',
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.outline,
+            ),
+            onTap: _editProxyPort,
+          ),
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.person_outline_rounded,
+            iconColor: scheme.primary,
+            title: '代理用户名（可选）',
+            subtitle: _settings.proxyUser.isEmpty ? '未设置' : '••••',
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.outline,
+            ),
+            onTap: () => _editProxyText(
+              title: '代理用户名',
+              initial: _settings.proxyUser,
+              apply: (s, v) => s.copyWith(proxyUser: v),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.key_rounded,
+            iconColor: scheme.primary,
+            title: '代理密码（可选）',
+            subtitle: _settings.proxyPassword.isEmpty ? '未设置' : '••••',
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.outline,
+            ),
+            onTap: () => _editProxyText(
+              title: '代理密码',
+              initial: _settings.proxyPassword,
+              apply: (s, v) => s.copyWith(proxyPassword: v),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PreferenceTile(
+            icon: Icons.block_rounded,
+            iconColor: scheme.primary,
+            title: '绕过列表',
+            subtitle: _settings.proxyBypass.isEmpty
+                ? 'localhost, 127.0.0.1（默认）'
+                : _settings.proxyBypass,
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.outline,
+            ),
+            onTap: () => _editProxyText(
+              title: '绕过列表（逗号分隔）',
+              initial: _settings.proxyBypass,
+              apply: (s, v) => s.copyWith(proxyBypass: v),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -412,6 +644,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 ),
               ],
             ],
+            _buildProxySection(theme, l10n),
             const SizedBox(height: 12),
             _PreferenceTile(
               icon: Icons.language_rounded,

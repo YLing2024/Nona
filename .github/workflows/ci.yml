@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [dev_2.0, main]
+  pull_request:
+
+jobs:
+  analyze-test:
+    name: Analyze + Test + Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Generate l10n
+        run: flutter gen-l10n
+
+      - name: Codegen (drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Layer check
+        run: dart run tool/check_layers.dart
+
+      - name: Test with coverage
+        run: flutter test --coverage
+
+      - name: Coverage gate
+        run: dart run tool/coverage_gate.dart
+
+  web-build:
+    name: Web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --no-tree-shake-icons

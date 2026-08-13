@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:http/http.dart' as http;
 
 import '../services/chat_service.dart' show ChatCancelledException;
 import '../services/network_log_service.dart';
+import 'nona_dio.dart';
 
-/// 统一网络客户端：连接池复用、自动网络日志、指数退避重试、统一超时。
+/// 统一网络客户端（A-04：底层基于 dio 5.x，对外 API 不变）。
 ///
 /// - [send]：请求并读取完整响应，自动记录网络日志，对 429/5xx 与
 ///   连接阶段失败按指数退避重试（可关闭）；用于 /models、测速、能力表更新等。
@@ -34,9 +36,6 @@ class AppHttpClient {
 
   /// 默认连接超时。
   static const Duration defaultConnectTimeout = Duration(seconds: 60);
-
-  /// 共享底层客户端：连接池复用，避免每次请求新建。
-  final http.Client _client = http.Client();
 
   /// 构造 JSON 请求头；[bearer] 为空时省略 Authorization 头。
   static Map<String, String> jsonHeaders({String bearer = ''}) => {
@@ -91,29 +90,24 @@ class AppHttpClient {
         type: type,
       );
       try {
-        final request = http.Request(method, uri)
-          ..headers.addAll(headers)
-          ..body = body;
-        if (bodyBytes != null) {
-          request.bodyBytes = bodyBytes;
-        }
-        final streamed =
-            await _client.send(request).timeout(timeout ?? defaultConnectTimeout);
-        final responseBody = await streamed.stream
-            .bytesToString()
-            .timeout(timeout ?? defaultConnectTimeout);
+        final response = await _fetch(
+          method: method,
+          uri: uri,
+          headers: headers,
+          body: bodyBytes ?? utf8.encode(body),
+          timeout: timeout,
+        );
         log?.end(
-          statusCode: streamed.statusCode,
-          responseHeaders: Map.of(streamed.headers),
-          responseBody: responseBody,
-          error: streamed.statusCode == 200 ? null : 'HTTP ${streamed.statusCode}',
+          statusCode: response.statusCode,
+          responseHeaders: response.headers.isEmpty
+              ? null
+              : Map.of(response.headers),
+          responseBody: response.body,
+          error: response.statusCode == 200 ? null : 'HTTP ${response.statusCode}',
         );
-        final response = http.Response(
-          responseBody,
-          streamed.statusCode,
-          headers: Map.of(streamed.headers),
-        );
-        if (retry && attempt < maxAttempts && isRetryableStatus(response.statusCode)) {
+        if (retry &&
+            attempt < maxAttempts &&
+            isRetryableStatus(response.statusCode)) {
           await _backoff(attempt);
           continue;
         }
@@ -142,8 +136,8 @@ class AppHttpClient {
 
   /// 发送流式请求并返回响应流（不读取正文，单次尝试）。
   ///
-  /// 使用共享连接池并施加连接超时；重试策略由调用方统一处理
-  /// （聊天场景的重试需要感知取消与 429/5xx 状态码，见 ChatService）。
+  /// 重试策略由调用方统一处理（聊天场景的重试需要感知取消与
+  /// 429/5xx 状态码，见 ChatService）。
   /// 发起前若 [isCancelled] 返回 true，直接以 [ChatCancelledException] 终止。
   Future<http.StreamedResponse> sendStreamed({
     required String method,
@@ -156,16 +150,98 @@ class AppHttpClient {
     if (isCancelled?.call() ?? false) {
       throw const ChatCancelledException();
     }
-    final request = http.Request(method, uri)
-      ..headers.addAll(headers)
-      ..body = body;
-    return await _client
-        .send(request)
-        .timeout(connectTimeout ?? defaultConnectTimeout);
+    try {
+      final response = await NonaDio.instance.fetch<ResponseBody>(
+        Options(
+          method: method,
+          headers: headers,
+          responseType: ResponseType.stream,
+          validateStatus: (_) => true, // 状态码交上层处理（重试/错误提取）
+          sendTimeout: connectTimeout,
+          receiveTimeout: connectTimeout,
+          // 请求级禁用拦截器重试：聊天管线自行管理重试/取消
+          extra: {
+            'nona_no_retry': true,
+            'nona_dio': NonaDio.instance,
+          },
+        ).compose(
+          NonaDio.instance.options,
+          uri.toString(),
+          data: utf8.encode(body),
+        ),
+      );
+      final statusCode = response.statusCode ?? 0;
+      final responseHeaders = <String, String>{
+        for (final e in response.headers.map.entries)
+          e.key: e.value.isEmpty ? '' : e.value.join('; '),
+      };
+      return http.StreamedResponse(
+        http.ByteStream(response.data!.stream),
+        statusCode,
+        headers: responseHeaders,
+      );
+    } on DioException catch (e) {
+      throw _toHttpError(e);
+    }
+  }
+
+  /// 单次请求（无重试），返回完整响应。
+  Future<http.Response> _fetch({
+    required String method,
+    required Uri uri,
+    required Map<String, String> headers,
+    required List<int> body,
+    Duration? timeout,
+  }) async {
+    try {
+      final response = await NonaDio.instance.fetch<dynamic>(
+        Options(
+          method: method,
+          headers: headers,
+          responseType: ResponseType.plain,
+          validateStatus: (_) => true, // 状态码交上层处理（重试/错误提取）
+          sendTimeout: timeout,
+          receiveTimeout: timeout,
+          // 请求级禁用拦截器重试：AppHttpClient 自行管理退避
+          extra: {'nona_no_retry': true, 'nona_dio': NonaDio.instance},
+        ).compose(
+          NonaDio.instance.options,
+          uri.toString(),
+          data: body.isEmpty ? null : body,
+        ),
+      );
+      return http.Response(
+        response.data?.toString() ?? '',
+        response.statusCode ?? 0,
+        headers: {
+          for (final e in response.headers.map.entries)
+            e.key: e.value.isEmpty ? '' : e.value.join('; '),
+        },
+      );
+    } on DioException catch (e) {
+      throw _toHttpError(e);
+    }
+  }
+
+  /// dio 异常 → http 层异常契约（TimeoutException / ClientException）。
+  Object _toHttpError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+        return TimeoutException(e.message ?? 'timeout');
+      case DioExceptionType.badResponse:
+        final status = e.response?.statusCode ?? 0;
+        return http.ClientException(
+          'HTTP $status: ${e.response?.data ?? e.message}',
+        );
+      default:
+        return http.ClientException(e.message ?? e.type.toString());
+    }
   }
 
   /// 关闭底层连接池（应用退出时调用）。
-  void close() => _client.close();
+  void close() {}
 
   static bool isRetryableStatus(int status) =>
       status == 429 || (status >= 500 && status < 600);

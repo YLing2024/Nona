@@ -82,22 +82,28 @@ flutter run
 
 ```
 lib/
-├── main.dart                        # 应用入口（启动时恢复日志/映射表自动更新等）
-├── theme/                           # 设计系统（靛蓝紫双主题 + 组件主题化）
-├── models/                          # 数据模型（消息/会话/上下文/服务商/Agent/网络日志）
-├── services/                        # 业务服务（聊天/存储/导出/网络日志/模型能力映射等）
-│   ├── chat/                        # 请求执行器 / SSE 解析 / 工具调用循环
-│   ├── protocol/                    # OpenAI / Anthropic / Gemini 协议适配器
-│   ├── mcp/                         # MCP 客户端 / 审批策略 / 本地工具（fetch/计算器/记忆等）
-│   ├── usage/                       # 成本价格表 / 用量统计 / 余额查询
-│   ├── knowledge/                   # 知识库检索器 / embedding 提供者
-│   ├── memory/                      # 记忆服务（自动提取 / 注入 / 工具）
-│   ├── roulette/                    # 多 Key 轮换
-│   ├── export/importers/            # Nona/Chatbox/Cherry/NextChat/ChatGPT/RikkaHub/Kelivo 导入
-│   └── sync/                        # WebDAV / S3 云同步
-├── screens/                         # 页面（主界面/设置/统计/记忆/世界书/图片生成/导入向导等）
-├── utils/                           # 工具（token 估算）
-└── widgets/                         # 复用组件（侧边栏/消息流/输入区/审批弹窗/摘要压缩条等）
+├── main.dart                        # 应用入口（启动恢复/退出冲刷/代理同步等）
+├── core/                            # 地基层（禁止依赖 features）
+│   ├── database/                    # drift 数据库（24 张表 / v7 schema / DAO / 工厂）
+│   │   └── dao/                     # SessionDao / GenerationRunDao（类型安全读写）
+│   ├── models/                      # 数据模型（消息/会话/引用/服务商/Agent 等）
+│   ├── services/                    # 跨域基础服务（聊天/存储/网络日志/能力映射等）
+│   │   ├── chat/                    # 请求执行器 / SSE 解析
+│   │   ├── protocol/                # OpenAI / Anthropic / Gemini 协议适配器
+│   │   ├── mcp/                     # MCP 客户端 / 审批策略 / 本地工具
+│   │   ├── usage/                   # 成本价格表 / 用量统计 / 余额查询
+│   │   ├── knowledge/               # 知识库检索器 / embedding 提供者
+│   │   ├── memory/                  # 记忆服务（自动提取 / 注入 / 工具）
+│   │   ├── export/                  # 备份 / 导入（8 格式）/ 导出（MD/HTML/PDF/JSON）
+│   │   ├── sync/                    # WebDAV / S3 云同步
+│   │   └── checkpoint_service.dart  # 流式 checkpoint（B-06）
+│   ├── network/                     # dio 统一网络层（日志/重试/代理拦截器）
+│   └── utils/                       # 工具（token 估算 / checkpoint writer 等）
+├── features/                        # 业务域（chat/session/provider/model/agent/mcp/
+│                                   #  search/knowledge/memory/world_book/sync/export/
+│                                   #  stats/imggen/translator/settings）
+├── shared/                          # 跨域复用（路由 / 通用组件）
+└── l10n/                            # 本地化（zh/en）
 ```
 
 ## 技术说明

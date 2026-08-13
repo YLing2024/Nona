@@ -404,6 +404,30 @@ abstract class AppLocalizations {
   /// **'删除会话'**
   String get chatDeleteSession;
 
+  /// No description provided for @chatDeleteSelectedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除所选消息'**
+  String get chatDeleteSelectedTitle;
+
+  /// No description provided for @chatDeleteSelectedBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除所选 {count} 条消息及其后的所有消息，且不可恢复。确定继续吗？'**
+  String chatDeleteSelectedBody(int count);
+
+  /// No description provided for @chatDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String get chatDelete;
+
+  /// No description provided for @chatDeleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除 {count} 条消息'**
+  String chatDeleted(int count);
+
   /// No description provided for @chatDocument.
   ///
   /// In zh, this message translates to:
@@ -667,6 +691,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'引用来源'**
   String get citationSourcesTitle;
+
+  /// No description provided for @chatSelectionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'已选 {count} 条'**
+  String chatSelectionTitle(int count);
+
+  /// No description provided for @chatSelectAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全选'**
+  String get chatSelectAll;
+
+  /// No description provided for @chatEnterSelection.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择消息'**
+  String get chatEnterSelection;
+
+  /// No description provided for @chatInvertSelection.
+  ///
+  /// In zh, this message translates to:
+  /// **'反选'**
+  String get chatInvertSelection;
+
+  /// No description provided for @chatDeleteSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除所选（{count}）'**
+  String chatDeleteSelected(int count);
 
   /// No description provided for @importSelectSessions.
   ///

@@ -46,6 +46,14 @@ class MessageList extends StatefulWidget {
   /// 超过该字符数的消息折叠为「文本文档」入口；0 表示不折叠。
   final int documentThreshold;
 
+  /// B-01：多选模式与选中索引集合。
+  final bool selectionActive;
+  final Set<int> selectedIndices;
+  final void Function(int index)? onToggleSelect;
+
+  /// 连续选择（长按/右键触发，范围 = 锚点 → index）。
+  final void Function(int index)? onRangeSelect;
+
   const MessageList({
     super.key,
     required this.messages,
@@ -66,6 +74,10 @@ class MessageList extends StatefulWidget {
     this.speakingMessageId,
     this.initialScrollIndex,
     this.onScrollTargetHandled,
+    this.selectionActive = false,
+    this.selectedIndices = const {},
+    this.onToggleSelect,
+    this.onRangeSelect,
   });
 
   @override
@@ -219,8 +231,9 @@ class _MessageListState extends State<MessageList> {
                 !isStreaming;
             final speaking = widget.speakingMessageId != null &&
                 widget.speakingMessageId == identityHashCode(message);
-            // 流式消息内容每帧都在变化，必须直接渲染（轻量纯文本），
-            // 不能走记忆化缓存，否则内容更新不会触发重绘、流式输出「冻结」
+            // B-01：多选模式下的选中态包裹
+            final selected = widget.selectionActive &&
+                widget.selectedIndices.contains(index);
             final bubble = isStreaming
                 ? MessageBubble(
                     message: message,
@@ -260,12 +273,21 @@ class _MessageListState extends State<MessageList> {
                     onOcr: () => widget.onOcr?.call(message),
                     onOpenDocument: () => widget.onOpenDocument?.call(message),
                   );
-            return RepaintBoundary(
+            Widget item = RepaintBoundary(
               child: _AnimatedEntry(
                 key: ValueKey('msg-${message.hashCode}-$index'),
                 child: bubble,
               ),
             );
+            if (widget.selectionActive) {
+              item = _SelectableMessage(
+                selected: selected,
+                onTap: () => widget.onToggleSelect?.call(index),
+                onRange: () => widget.onRangeSelect?.call(index),
+                child: item,
+              );
+            }
+            return item;
           },
         ),
         // 回底按钮：仅在未跟随滚动时显示
@@ -452,6 +474,74 @@ class _AnimatedEntryState extends State<_AnimatedEntry>
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(position: _offset, child: widget.child),
+    );
+  }
+}
+
+/// B-01：多选模式消息包裹层——点击切换选中、长按/右键连续选择，
+/// 选中时显示强调边框与右上角选中圈。
+class _SelectableMessage extends StatelessWidget {
+  final bool selected;
+  final VoidCallback onTap;
+  final VoidCallback onRange;
+  final Widget child;
+
+  const _SelectableMessage({
+    required this.selected,
+    required this.onTap,
+    required this.onRange,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      onLongPress: onRange,
+      onSecondaryTap: onRange,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? scheme.primary
+                : scheme.outlineVariant.withValues(alpha: 0.0),
+            width: 1.5,
+          ),
+          color: selected
+              ? scheme.primaryContainer.withValues(alpha: 0.25)
+              : null,
+        ),
+        padding: const EdgeInsets.all(2),
+        child: Stack(
+          children: [
+            child,
+            Positioned(
+              top: 8,
+              right: 8,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? scheme.primary : scheme.surface,
+                  border: Border.all(
+                    color: selected ? scheme.primary : scheme.outline,
+                    width: 1.5,
+                  ),
+                ),
+                child: selected
+                    ? Icon(Icons.check, size: 14, color: scheme.onPrimary)
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

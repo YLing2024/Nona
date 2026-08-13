@@ -428,6 +428,43 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _deleteMessage(ChatMessage message) => controller.deleteMessage(message);
 
+  // ---------------- B-01：消息多选 ----------------
+
+  /// 批量删除所选消息（含其后所有），二次确认后执行。
+  Future<void> _deleteSelectedMessages() async {
+    final count = controller.selectedCount;
+    if (count == 0 || !mounted) return;
+    final confirmed = await _confirmDialog(
+      title: context.l10n.chatDeleteSelectedTitle,
+      message: context.l10n.chatDeleteSelectedBody(count),
+      confirmText: context.l10n.chatDelete,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+    await controller.deleteSelectedMessages();
+    await controller.flushPersist();
+    if (!mounted) return;
+    showAppSnack(context, context.l10n.chatDeleted(count));
+  }
+
+  /// 导出所选消息为 Markdown 文件。
+  Future<void> _exportSelectedMarkdown() async {
+    final session = controller.currentSession;
+    final indices = controller.selectedMessageIndices;
+    if (session == null || indices.isEmpty) return;
+    final path = await ExportService.exportToFile(
+      session,
+      messageIndices: indices,
+    );
+    controller.exitSelection();
+    if (!mounted) return;
+    if (path != null) {
+      showAppSnack(context, context.l10n.homeExportedTo(path));
+    } else {
+      showAppSnack(context, context.l10n.settingsExportFailed(''));
+    }
+  }
+
   // ---------------- 发送 ----------------
 
   Future<void> _send() async {
@@ -762,6 +799,18 @@ class _HomeScreenState extends State<HomeScreen>
       onSummaryEdited: _onSummaryEdited,
       onClearCompaction: _onClearCompaction,
       onOcr: (message) => _onOcr(message),
+      // B-01：消息多选
+      selectionActive: controller.selectionActive,
+      selectedIndices: controller.selectedMessageIndices,
+      selectedCount: controller.selectedCount,
+      onEnterSelection: controller.enterSelection,
+      onExitSelection: controller.exitSelection,
+      onSelectAll: controller.selectAllMessages,
+      onInvertSelection: controller.invertSelection,
+      onToggleSelect: controller.toggleSelect,
+      onRangeSelect: controller.selectRangeTo,
+      onDeleteSelected: _deleteSelectedMessages,
+      onExportSelectedMarkdown: _exportSelectedMarkdown,
     );
 
     return CallbackShortcuts(

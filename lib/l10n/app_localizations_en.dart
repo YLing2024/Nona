@@ -173,6 +173,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatDeleteSession => 'Delete session';
 
   @override
+  String get chatDeleteSelectedTitle => 'Delete selected messages';
+
+  @override
+  String chatDeleteSelectedBody(int count) {
+    return 'This will delete the selected $count messages and everything after them. This cannot be undone. Continue?';
+  }
+
+  @override
+  String get chatDelete => 'Delete';
+
+  @override
+  String chatDeleted(int count) {
+    return 'Deleted $count messages';
+  }
+
+  @override
   String get chatDocument => 'Document';
 
   @override
@@ -317,6 +333,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get citationSourcesTitle => 'Sources';
+
+  @override
+  String chatSelectionTitle(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get chatSelectAll => 'Select all';
+
+  @override
+  String get chatEnterSelection => 'Select messages';
+
+  @override
+  String get chatInvertSelection => 'Invert';
+
+  @override
+  String chatDeleteSelected(int count) {
+    return 'Delete ($count)';
+  }
 
   @override
   String get importSelectSessions => 'Select sessions to import';

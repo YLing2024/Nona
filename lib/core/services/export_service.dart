@@ -26,8 +26,13 @@ class ExportService {
       SessionExporter.sessionToMarkdown(session);
 
   /// 导出为 .md 文件（桌面端弹出保存对话框）。
-  static Future<String?> exportToFile(ChatSession session) =>
-      SessionExporter.exportToFile(session);
+  ///
+  /// [messageIndices] 非空时只导出指定消息（B-01 多选导出）。
+  static Future<String?> exportToFile(
+    ChatSession session, {
+    Set<int>? messageIndices,
+  }) =>
+      SessionExporter.exportToFile(session, messageIndices: messageIndices);
 
   /// 渲染为自包含 HTML 文件内容（内嵌样式；代码块 pre 保留格式；思考内容折叠）。
   static String sessionToHtml(ChatSession session) =>

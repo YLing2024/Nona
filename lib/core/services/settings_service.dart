@@ -1,4 +1,5 @@
-﻿import 'package:flutter/foundation.dart'
+import '../network/nona_dio.dart';
+import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -81,6 +82,26 @@ class AppSettings {
   /// 服务商协议类型（auto/openai/anthropic/gemini），请求时按此分发。
   final String providerKind;
 
+  /// A-04：全局网络代理开关（设置 → 网络）。
+  final bool proxyEnabled;
+
+  /// A-04：代理类型 http / https / socks5。
+  final String proxyType;
+
+  /// A-04：代理主机。
+  final String proxyHost;
+
+  /// A-04：代理端口。
+  final int proxyPort;
+
+  /// A-04：代理用户名（可选）。
+  final String proxyUser;
+
+  /// A-04：代理密码（可选）。
+  final String proxyPassword;
+
+  /// A-04：绕过代理的主机列表（逗号分隔；默认含 localhost/127.0.0.1）。
+  final String proxyBypass;
   /// 是否启用网络搜索（发送前自动搜索并注入上下文）。
   final bool webSearchEnabled;
 
@@ -117,6 +138,13 @@ class AppSettings {
     this.ttsRate = 0.5,
     this.ttsLanguage = 'zh-CN',
     this.providerKind = 'auto',
+    this.proxyEnabled = false,
+    this.proxyType = 'http',
+    this.proxyHost = '',
+    this.proxyPort = 0,
+    this.proxyUser = '',
+    this.proxyPassword = '',
+    this.proxyBypass = '',
     this.webSearchEnabled = false,
     this.webSearchEngine = 'bing',
     this.webSearchApiKey = '',
@@ -147,6 +175,13 @@ class AppSettings {
     double? ttsRate,
     String? ttsLanguage,
     String? providerKind,
+    bool? proxyEnabled,
+    String? proxyType,
+    String? proxyHost,
+    int? proxyPort,
+    String? proxyUser,
+    String? proxyPassword,
+    String? proxyBypass,
     bool? webSearchEnabled,
     String? webSearchEngine,
     String? webSearchApiKey,
@@ -177,6 +212,13 @@ class AppSettings {
       ttsRate: ttsRate ?? this.ttsRate,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       providerKind: providerKind ?? this.providerKind,
+      proxyEnabled: proxyEnabled ?? this.proxyEnabled,
+      proxyType: proxyType ?? this.proxyType,
+      proxyHost: proxyHost ?? this.proxyHost,
+      proxyPort: proxyPort ?? this.proxyPort,
+      proxyUser: proxyUser ?? this.proxyUser,
+      proxyPassword: proxyPassword ?? this.proxyPassword,
+      proxyBypass: proxyBypass ?? this.proxyBypass,
       webSearchEnabled: webSearchEnabled ?? this.webSearchEnabled,
       webSearchEngine: webSearchEngine ?? this.webSearchEngine,
       webSearchApiKey: webSearchApiKey ?? this.webSearchApiKey,
@@ -211,13 +253,20 @@ class SettingsService {
   static const _kTtsLanguage = 'tts_language';
   static const _kProviderKind = 'provider_kind';
   static const _kWebSearchEnabled = 'web_search_enabled';
+  static const _kProxyEnabled = 'proxy_enabled';
+  static const _kProxyType = 'proxy_type';
+  static const _kProxyHost = 'proxy_host';
+  static const _kProxyPort = 'proxy_port';
+  static const _kProxyUser = 'proxy_user';
+  static const _kProxyPassword = 'proxy_password';
+  static const _kProxyBypass = 'proxy_bypass';
   static const _kWebSearchEngine = 'web_search_engine';
   static const _kWebSearchApiKey = 'web_search_api_key';
   static const _kWebSearchBaseUrl = 'web_search_base_url';
 
   Future<AppSettings> load() async {
     final prefs = await SharedPreferences.getInstance();
-    return AppSettings(
+    final settings = AppSettings(
       apiKey: prefs.getString(_kApiKey) ?? '',
       baseUrl: prefs.getString(_kBaseUrl) ?? 'https://api.openai.com/v1',
       model: prefs.getString(_kModel) ?? 'gpt-4o-mini',
@@ -245,11 +294,20 @@ class SettingsService {
       ttsRate: prefs.getDouble(_kTtsRate) ?? 0.5,
       ttsLanguage: prefs.getString(_kTtsLanguage) ?? 'zh-CN',
       providerKind: prefs.getString(_kProviderKind) ?? 'auto',
+      proxyEnabled: prefs.getBool(_kProxyEnabled) ?? false,
+      proxyType: prefs.getString(_kProxyType) ?? 'http',
+      proxyHost: prefs.getString(_kProxyHost) ?? '',
+      proxyPort: prefs.getInt(_kProxyPort) ?? 0,
+      proxyUser: prefs.getString(_kProxyUser) ?? '',
+      proxyPassword: prefs.getString(_kProxyPassword) ?? '',
+      proxyBypass: prefs.getString(_kProxyBypass) ?? '',
       webSearchEnabled: prefs.getBool(_kWebSearchEnabled) ?? false,
       webSearchEngine: prefs.getString(_kWebSearchEngine) ?? 'bing',
       webSearchApiKey: prefs.getString(_kWebSearchApiKey) ?? '',
       webSearchBaseUrl: prefs.getString(_kWebSearchBaseUrl) ?? '',
     );
+    _syncProxy(settings);
+    return settings;
   }
 
   /// PC（Windows/macOS/Linux）与 Web 默认回车发送，移动端默认回车换行。
@@ -293,9 +351,22 @@ class SettingsService {
     await prefs.setDouble(_kTtsRate, settings.ttsRate);
     await prefs.setString(_kTtsLanguage, settings.ttsLanguage);
     await prefs.setString(_kProviderKind, settings.providerKind);
+    await prefs.setBool(_kProxyEnabled, settings.proxyEnabled);
+    await prefs.setString(_kProxyType, settings.proxyType);
+    await prefs.setString(_kProxyHost, settings.proxyHost);
+    await prefs.setInt(_kProxyPort, settings.proxyPort);
+    await prefs.setString(_kProxyUser, settings.proxyUser);
+    await prefs.setString(_kProxyPassword, settings.proxyPassword);
+    await prefs.setString(_kProxyBypass, settings.proxyBypass);
     await prefs.setBool(_kWebSearchEnabled, settings.webSearchEnabled);
     await prefs.setString(_kWebSearchEngine, settings.webSearchEngine);
     await prefs.setString(_kWebSearchApiKey, settings.webSearchApiKey);
     await prefs.setString(_kWebSearchBaseUrl, settings.webSearchBaseUrl);
+    _syncProxy(settings);
+  }
+
+  /// A-04：把代理设置同步到 NonaDio（http/https findProxy / socks5 adapter）。
+  void _syncProxy([AppSettings? settings]) {
+    NonaDio.updateSettings(settings);
   }
 }

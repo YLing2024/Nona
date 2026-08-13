@@ -45,6 +45,8 @@ dependencies:
   fl_chart: ^0.69.2
   drift: ^2.31.0
   drift_flutter: ^0.2.8
+  dio: ^5.11.0
+  socks5_proxy: ^2.1.1
 
 dev_dependencies:
   flutter_test:

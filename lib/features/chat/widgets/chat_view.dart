@@ -87,6 +87,19 @@ class ChatView extends StatelessWidget {
   /// F1-5：图片消息「转为文字」。
   final void Function(ChatMessage message)? onOcr;
 
+  /// B-01：消息多选模式状态与操作。
+  final bool selectionActive;
+  final Set<int> selectedIndices;
+  final int selectedCount;
+  final VoidCallback? onEnterSelection;
+  final VoidCallback? onExitSelection;
+  final VoidCallback? onSelectAll;
+  final VoidCallback? onInvertSelection;
+  final void Function(int index)? onToggleSelect;
+  final void Function(int index)? onRangeSelect;
+  final Future<void> Function()? onDeleteSelected;
+  final Future<void> Function()? onExportSelectedMarkdown;
+
   const ChatView({
     super.key,
     required this.session,
@@ -123,6 +136,17 @@ class ChatView extends StatelessWidget {
     this.onRemoveDocument = _noopDocIndex,
     required this.onAddImageUrl,
     required this.onRemoveImage,
+    this.selectionActive = false,
+    this.selectedIndices = const {},
+    this.selectedCount = 0,
+    this.onEnterSelection,
+    this.onExitSelection,
+    this.onSelectAll,
+    this.onInvertSelection,
+    this.onToggleSelect,
+    this.onRangeSelect,
+    this.onDeleteSelected,
+    this.onExportSelectedMarkdown,
     required this.speakingMessageId,
     required this.onMessageSpeak,
     this.initialScrollIndex,
@@ -187,12 +211,25 @@ class ChatView extends StatelessWidget {
                         streamMarkdown: streamMarkdown,
                         documentThreshold: documentThreshold,
                         onOcr: onOcr,
+                        // B-01：多选模式
+                        selectionActive: selectionActive,
+                        selectedIndices: selectedIndices,
+                        onToggleSelect: onToggleSelect,
+                        onRangeSelect: onRangeSelect,
                       ),
                     ),
                   ],
                 ),
         ),
-        if (session != null)
+        // B-01：多选模式底部工具栏（替换输入区）
+        if (selectionActive)
+          _SelectionToolbar(
+            count: selectedCount,
+            onDelete: onDeleteSelected,
+            onExportMarkdown: onExportSelectedMarkdown,
+            onCancel: onExitSelection,
+          )
+        else if (session != null)
           ChatComposer(
             controller: inputController,
             providers: providers,
@@ -229,6 +266,47 @@ class ChatView extends StatelessWidget {
     ColorScheme scheme,
   ) {
     final AppLocalizations l10n = context.l10n;
+    // B-01：多选模式头部（标题 = 已选 n 条 + 全选/反选/退出）
+    if (selectionActive) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Row(
+          children: [
+            if (showSidebarToggle)
+              IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                tooltip: l10n.chatSessionList,
+                onPressed: onToggleSidebar,
+              ),
+            Expanded(
+              child: Text(
+                l10n.chatSelectionTitle(selectedCount),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.select_all_rounded),
+              tooltip: l10n.chatSelectAll,
+              onPressed: onSelectAll,
+            ),
+            IconButton(
+              icon: const Icon(Icons.flip_rounded),
+              tooltip: l10n.chatInvertSelection,
+              onPressed: onInvertSelection,
+            ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              tooltip: l10n.commonCancel,
+              onPressed: onExitSelection,
+            ),
+          ],
+        ),
+      );
+    }
     final session = this.session;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -297,6 +375,13 @@ class ChatView extends StatelessWidget {
                   leadingIcon: const Icon(Icons.description_outlined, size: 17),
                   onPressed: onExportMarkdown,
                   child: Text(l10n.chatExportMarkdown,
+                      style: const TextStyle(fontSize: 13)),
+                ),
+                // B-01：进入多选模式
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.checklist_rounded, size: 17),
+                  onPressed: onEnterSelection,
+                  child: Text(l10n.chatEnterSelection,
                       style: const TextStyle(fontSize: 13)),
                 ),
                 MenuItemButton(
@@ -433,3 +518,66 @@ class _EmptyState extends StatelessWidget {
 
 void _noopDoc() {}
 void _noopDocIndex(int index) {}
+
+/// B-01：多选模式底部工具栏（删除 / 导出 Markdown / 取消）。
+class _SelectionToolbar extends StatelessWidget {
+  final int count;
+  final Future<void> Function()? onDelete;
+  final Future<void> Function()? onExportMarkdown;
+  final VoidCallback? onCancel;
+
+  const _SelectionToolbar({
+    required this.count,
+    this.onDelete,
+    this.onExportMarkdown,
+    this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    return Material(
+      elevation: 4,
+      color: scheme.surfaceContainer,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: count == 0 ? null : onDelete,
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                  label: Text(
+                    l10n.chatDeleteSelected(count),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: count == 0 ? null : onExportMarkdown,
+                  icon: const Icon(Icons.description_outlined, size: 18),
+                  label: Text(
+                    l10n.chatExportMarkdown,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.close_rounded),
+                tooltip: l10n.commonCancel,
+                onPressed: onCancel,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

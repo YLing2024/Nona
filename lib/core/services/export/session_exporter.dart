@@ -13,7 +13,12 @@ import '../storage_io_io.dart'
 /// 与 PDF 导出（[PdfExporter]）分离。
 class SessionExporter {
   /// 将会话渲染为 Markdown 文本（含系统提示词与思考内容说明）。
-  static String sessionToMarkdown(ChatSession session) {
+  ///
+  /// [messageIndices] 非空时只导出指定索引的消息（B-01 多选导出）。
+  static String sessionToMarkdown(
+    ChatSession session, {
+    Set<int>? messageIndices,
+  }) {
     final sb = StringBuffer();
     sb.writeln('# ${session.title}');
     sb.writeln();
@@ -33,7 +38,9 @@ class SessionExporter {
     }
     sb.writeln('---');
     sb.writeln();
-    for (final m in session.messages) {
+    for (var i = 0; i < session.messages.length; i++) {
+      if (messageIndices != null && !messageIndices.contains(i)) continue;
+      final m = session.messages[i];
       if (m.content.trim().isEmpty && m.images.isEmpty) continue;
       switch (m.role) {
         case 'user':
@@ -74,8 +81,13 @@ class SessionExporter {
   }
 
   /// 导出为 .md 文件（桌面端弹出保存对话框）。
-  static Future<String?> exportToFile(ChatSession session) async {
-    final data = sessionToMarkdown(session);
+  ///
+  /// [messageIndices] 非空时只导出指定消息（B-01 多选导出）。
+  static Future<String?> exportToFile(
+    ChatSession session, {
+    Set<int>? messageIndices,
+  }) async {
+    final data = sessionToMarkdown(session, messageIndices: messageIndices);
     return storage_io.saveTextFile(
       suggestedName: '${_safeFileName(session.title)}.md',
       data: data,

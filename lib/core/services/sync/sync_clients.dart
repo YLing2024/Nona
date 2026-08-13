@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show HttpDate;
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -27,6 +28,17 @@ class RemoteBackupFile {
     required this.size,
     this.modified,
   });
+}
+
+/// 解析 WebDAV 修改时间：ISO 优先，RFC1123（HTTP 日期）兜底。
+DateTime? _parseHttpDate(String raw) {
+  try {
+    return DateTime.parse(raw);
+  } catch (_) {}
+  try {
+    return HttpDate.parse(raw);
+  } catch (_) {}
+  return null;
 }
 
 /// WebDAV 客户端（Basic Auth + PUT/GET/DELETE/PROPFIND）。
@@ -152,10 +164,9 @@ class WebDavClient {
       DateTime? modified;
       try {
         if (modifiedMatch != null) {
-          modified = DateTime.parse(modifiedMatch.group(1)!.replaceFirst(
-            ' GMT',
-            'Z',
-          ));
+          final raw = modifiedMatch.group(1)!.trim();
+          // ISO 优先；RFC1123（WebDAV 常见 GMT 格式）用 HttpDate 兜底
+          modified = _parseHttpDate(raw);
         }
       } catch (_) {}
       files.add(

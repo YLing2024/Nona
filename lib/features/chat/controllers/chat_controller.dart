@@ -378,6 +378,110 @@ class ChatController {
   Future<void> deleteMessage(ChatMessage message) =>
       _messageOps.deleteMessage(message);
 
+  // ---------------- B-01：消息多选模式 ----------------
+
+  bool _selectionActive = false;
+  final Set<int> _selectedIndices = {};
+  int? _selectionAnchor;
+
+  /// 是否处于多选模式。
+  bool get selectionActive => _selectionActive;
+
+  /// 已选消息索引（会话消息数组下标）。
+  Set<int> get selectedMessageIndices => Set.unmodifiable(_selectedIndices);
+
+  /// 已选消息数。
+  int get selectedCount => _selectedIndices.length;
+
+  /// 进入多选模式。
+  void enterSelection() {
+    _selectionActive = true;
+    _selectionAnchor = null;
+    _selectedIndices.clear();
+    _notify();
+  }
+
+  /// 退出多选模式（保留选择结果，供外部读取后清理）。
+  void exitSelection() {
+    _selectionActive = false;
+    _selectionAnchor = null;
+    _selectedIndices.clear();
+    _notify();
+  }
+
+  /// 切换单条选中（首条作为 range 锚点）。
+  void toggleSelect(int index) {
+    if (!_selectionActive) return;
+    _selectionAnchor ??= index;
+    if (!_selectedIndices.remove(index)) {
+      _selectedIndices.add(index);
+    }
+    _notify();
+  }
+
+  /// Shift 连续选择：锚点到 [index] 区间全选。
+  void selectRangeTo(int index) {
+    if (!_selectionActive) return;
+    final anchor = _selectionAnchor ?? index;
+    final lo = anchor < index ? anchor : index;
+    final hi = anchor < index ? index : anchor;
+    for (var i = lo; i <= hi; i++) {
+      _selectedIndices.add(i);
+    }
+    _notify();
+  }
+
+  /// 全选（会话内全部消息）。
+  void selectAllMessages() {
+    final session = currentSession;
+    if (session == null) return;
+    _selectedIndices
+      ..clear()
+      ..addAll(List.generate(session.messages.length, (i) => i));
+    _notify();
+  }
+
+  /// 反选。
+  void invertSelection() {
+    final session = currentSession;
+    if (session == null) return;
+    final all = List.generate(session.messages.length, (i) => i).toSet();
+    final inverted = all.difference(_selectedIndices);
+    _selectedIndices
+      ..clear()
+      ..addAll(inverted);
+    _notify();
+  }
+
+  /// 批量删除已选消息（含其后所有）；返回删除的消息数。
+  ///
+  /// 与逐条删除语义一致：删除后需由宿主调用 [flushPersist] 落盘。
+  Future<int> deleteSelectedMessages() async {
+    final session = currentSession;
+    if (session == null) return 0;
+    final indices = _selectedIndices.toList()..sort();
+    if (indices.isEmpty) return 0;
+    // 被选消息含流式消息时先停止（防外键/状态残留，对齐 kelivo）
+    if (_orchestrator.isLoading()) {
+      final streaming = _orchestrator.streamingMessage();
+      if (streaming != null &&
+          indices.contains(session.messages.indexOf(streaming))) {
+        await _orchestrator.stop();
+      }
+    }
+    // 从后往前删除：每条消息删除时截断其后所有，仅保留「最后被删的
+    // 最小索引」前的部分——等价于逐条 deleteMessage 的语义
+    final oldLength = session.messages.length;
+    final removeFrom = indices.first;
+    session.truncateMessagesFrom(removeFrom);
+    _selectedIndices.clear();
+    _selectionActive = false;
+    _selectionAnchor = null;
+    _orchestrator.bumpTokenVersion();
+    _notify();
+    return oldLength - removeFrom;
+  }
+
   // ---------------- 发送 / 停止（委托 ChatRunOrchestrator） ----------------
 
   /// 发送输入框内容（附件来自待发送队列）。

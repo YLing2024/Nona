@@ -170,6 +170,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatDeleteSession => '删除会话';
 
   @override
+  String get chatDeleteSelectedTitle => '删除所选消息';
+
+  @override
+  String chatDeleteSelectedBody(int count) {
+    return '将删除所选 $count 条消息及其后的所有消息，且不可恢复。确定继续吗？';
+  }
+
+  @override
+  String get chatDelete => '删除';
+
+  @override
+  String chatDeleted(int count) {
+    return '已删除 $count 条消息';
+  }
+
+  @override
   String get chatDocument => '文档';
 
   @override
@@ -308,6 +324,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get citationSourcesTitle => '引用来源';
+
+  @override
+  String chatSelectionTitle(int count) {
+    return '已选 $count 条';
+  }
+
+  @override
+  String get chatSelectAll => '全选';
+
+  @override
+  String get chatEnterSelection => '选择消息';
+
+  @override
+  String get chatInvertSelection => '反选';
+
+  @override
+  String chatDeleteSelected(int count) {
+    return '删除所选（$count）';
+  }
 
   @override
   String get importSelectSessions => '选择要导入的会话';
