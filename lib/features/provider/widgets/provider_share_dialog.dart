@@ -2,13 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pretty_qr_code/pretty_qr_code.dart';
 
 import '../../../core/models/chat_provider.dart';
 import '../../../core/services/provider_share_codec.dart';
 import '../../../core/utils/focus_utils.dart';
 import '../../../core/utils/l10n_ext.dart';
 
-/// 服务商分享对话框：展示分享文本并可复制。
+/// 服务商分享对话框：分享文本（复制）或 G-02 二维码。
 Future<void> showProviderShareDialog(
   BuildContext context,
   ChatProvider provider,
@@ -24,38 +25,83 @@ Future<void> showProviderShareDialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              l10n.providerShareHint,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(ctx).colorScheme.outline,
+            // G-02：文本 / 二维码 双形态
+            DefaultTabController(
+              length: 2,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const TabBar(
+                    tabs: [
+                      Tab(text: 'Text'),
+                      Tab(icon: Icon(Icons.qr_code_2_rounded), text: 'QR'),
+                    ],
+                  ),
+                  SizedBox(
+                    height: 320,
+                    child: TabBarView(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                l10n.providerShareHint,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(ctx).colorScheme.outline,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(ctx).colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: SelectableText(
+                                  text,
+                                  style: const TextStyle(fontSize: 11.5),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.copy_rounded, size: 16),
+                                label: Text(l10n.commonCopy),
+                                onPressed: () async {
+                                  await Clipboard.setData(ClipboardData(text: text));
+                                  if (ctx.mounted) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(content: Text(l10n.networkLogCopiedFull)),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        // G-02：二维码
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Center(
+                            child: PrettyQrView.data(
+                              data: text,
+                              decoration: const PrettyQrDecoration(
+                                shape: PrettyQrSmoothSymbol(
+                                  color: Color(0xFF1F2430),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Theme.of(ctx).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: SelectableText(
-                text,
-                style: const TextStyle(fontSize: 11.5),
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.copy_rounded, size: 16),
-              label: Text(l10n.commonCopy),
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: text));
-                if (ctx.mounted) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text(l10n.networkLogCopiedFull)),
-                  );
-                }
-              },
             ),
           ],
         ),

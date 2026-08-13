@@ -21,7 +21,14 @@
   "addModelExample": "e.g. gpt-4o",
   "addModelFetch": "Fetch model list",
   "addModelFetchFailed": "",
-  "@addModelFetchFailed": {"description":"placeholder","placeholders":{"detail":{"type":"String"}}},
+  "@addModelFetchFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
   "addModelFetchFromList": "Fetch from list",
   "addModelFetchHint": "Calls the /models endpoint to fetch models\\nEnter the API key first",
   "addModelManual": "Manual entry",
@@ -36,7 +43,14 @@
   "agentDefaultParams": "Default params",
   "agentDefaultSystemPrompt": "You are Nona, a simple and efficient AI chat assistant. Respond in a clear and friendly tone, be accurate and well-organized; ask follow-up questions when the request is unclear, but don't overdo it. Default to the language the user is using.",
   "agentDeleteConfirm": "",
-  "@agentDeleteConfirm": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@agentDeleteConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "agentDeleteTitle": "Delete agent",
   "agentEdit": "Edit agent",
   "agentEmpty": "No agents yet, tap + to add",
@@ -50,12 +64,25 @@
   "appTitle": "Nona",
   "chatClearInput": "Clear",
   "chatContextUsage": "",
-  "@chatContextUsage": {"description":"placeholder","placeholders":{"tokens":{"type":"String"}}},
+  "@chatContextUsage": {
+    "description": "placeholder",
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
   "chatCopyMarkdown": "Copy as Markdown",
   "chatDeleteSession": "Delete session",
   "chatDeleteSelectedTitle": "Delete selected messages",
   "chatDeleteSelectedBody": "This will delete the selected {count} messages and everything after them. This cannot be undone. Continue?",
-  "@chatDeleteSelectedBody": {"placeholders": {"count": {"type": "int"}}},
+  "@chatDeleteSelectedBody": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatDelete": "Delete",
   "chatDeleted": "Deleted {count} messages",
   "tokenDetailTitle": "Token details",
@@ -77,7 +104,13 @@
   "settingsQuickPhrasesSubtitle": "Type / in the input to insert",
   "quickPhrasesDeleteTitle": "Delete quick phrase",
   "quickPhrasesDeleteBody": "Delete \"{title}\"?",
-  "@quickPhrasesDeleteBody": {"placeholders": {"title": {"type": "String"}}},
+  "@quickPhrasesDeleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "quickPhrasesDeleted": "Deleted",
   "iiTitle": "Instruction injections",
   "iiAdd": "Add instruction",
@@ -87,7 +120,13 @@
   "iiGroup": "Group (optional)",
   "iiDeleteTitle": "Delete instruction",
   "iiDeleteBody": "Delete \"{title}\"?",
-  "@iiDeleteBody": {"placeholders": {"title": {"type": "String"}}},
+  "@iiDeleteBody": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "settingsIiSubtitle": "Custom prompt snippets injected with each request",
   "updateAvailableTitle": "Update available",
   "updateVersion": "Version",
@@ -103,7 +142,13 @@
   "wfActionText": "Action (send_message text; supports cur_date variables)",
   "wfDeleteTitle": "Delete workflow",
   "wfDeleteBody": "Delete \"{name}\"?",
-  "@wfDeleteBody": {"placeholders": {"name": {"type": "String"}}},
+  "@wfDeleteBody": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "wfRunSuccess": "Workflow finished",
   "wfRunFailed": "Workflow failed, see run history",
   "wfEmpty": "No workflows yet. Tap + to create one.",
@@ -120,9 +165,24 @@
   "syncIncrementalHint": "Push local changes and pull changes from other devices",
   "syncIncrementalNow": "Sync now",
   "syncIncrementalDone": "Pushed {pushed}, pulled {pulled} changes",
-  "@syncIncrementalDone": {"placeholders": {"pushed": {"type": "int"}, "pulled": {"type": "int"}}},
+  "@syncIncrementalDone": {
+    "placeholders": {
+      "pushed": {
+        "type": "int"
+      },
+      "pulled": {
+        "type": "int"
+      }
+    }
+  },
   "syncLastAt": "Last sync: {at}",
-  "@syncLastAt": {"placeholders": {"at": {"type": "String"}}},
+  "@syncLastAt": {
+    "placeholders": {
+      "at": {
+        "type": "String"
+      }
+    }
+  },
   "syncConflicts": "{n} conflict(s) pending (local newer changes kept)",
   "privacyTitle": "Privacy & offline",
   "offlineMode": "Offline mode",
@@ -140,14 +200,40 @@
   "offlineStatusNeedsDownload": "Model download needed",
   "offlineNote": "Local embeddings are deterministic hash vectors (384-d), fully offline; upgrades automatically when an ONNX semantic model is available.",
   "settingsPrivacySubtitle": "Offline mode & local capabilities",
-  "@syncConflicts": {"placeholders": {"n": {"type": "int"}}},
+  "@syncConflicts": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
   "settingsWfSubtitle": "Scheduled / event-triggered automated actions",
-  "@chatDeleted": {"placeholders": {"count": {"type": "int"}}},
+  "@chatDeleted": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatDocument": "Document",
   "chatDocumentFailed": "{count} documents failed to parse",
-  "@chatDocumentFailed": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@chatDocumentFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatDocumentSubtitle": "{count} chars",
-  "@chatDocumentSubtitle": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@chatDocumentSubtitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatDocumentTitle": "Text Document",
   "chatDeleteMessageConfirm": "Delete this message and everything after it?",
   "chatEffortAuto": "Reasoning: Auto",
@@ -173,7 +259,14 @@
   "chatHelloTitle": "Hello, I'm Nona",
   "chatImage": "Image",
   "chatImageLoadFailed": "Failed to load image: {uri}",
-  "@chatImageLoadFailed": {"description":"placeholder","placeholders":{"uri":{"type":"Object"}}},
+  "@chatImageLoadFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "uri": {
+        "type": "Object"
+      }
+    }
+  },
   "chatInputHintEnterNewline": "Type a message, Enter for newline, Ctrl+Enter to send",
   "chatInputHintEnterSend": "Type a message, Enter to send, Shift+Enter for newline",
   "chatMermaidUnsupported": "Mermaid syntax not supported, showing source",
@@ -184,7 +277,14 @@
   "chatRegenerate": "Regenerate",
   "chatRollback": "Rollback to here",
   "chatRollbackVersion": "Roll back to previous version ({count} total)",
-  "@chatRollbackVersion": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@chatRollbackVersion": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatSelectModel": "Select model",
   "chatSessionContext": "Session context",
   "chatSessionCopySuffix": " (copy)",
@@ -192,7 +292,13 @@
   "assistantDisplayName": "Nona",
   "citationSourcesTitle": "Sources",
   "chatSelectionTitle": "{count} selected",
-  "@chatSelectionTitle": {"placeholders": {"count": {"type": "int"}}},
+  "@chatSelectionTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatSelectAll": "Select all",
   "chatEnterSelection": "Select messages",
   "dropBackupUnsupported": "Dropped backup files are not supported here",
@@ -202,42 +308,119 @@
   "dropExtractFailed": "Failed to extract document text",
   "dropRestoreTitle": "Restore backup",
   "dropRestoreBody": "Sessions from {file} will be merged into current data (duplicates skipped). Continue?",
-  "@dropRestoreBody": {"placeholders": {"file": {"type": "String"}}},
+  "@dropRestoreBody": {
+    "placeholders": {
+      "file": {
+        "type": "String"
+      }
+    }
+  },
   "dropRestoreConfirm": "Restore",
   "dropRestoreDone": "Restored {count} sessions",
-  "@dropRestoreDone": {"placeholders": {"count": {"type": "int"}}},
+  "@dropRestoreDone": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatInvertSelection": "Invert",
   "chatDeleteSelected": "Delete ({count})",
-  "@chatDeleteSelected": {"placeholders": {"count": {"type": "int"}}},
+  "@chatDeleteSelected": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "importSelectSessions": "Select sessions to import",
   "importToggleAll": "Select all / none",
   "messageProviderBadge": "({provider} · {model})",
-  "@messageProviderBadge": {"description":"消息头服务商与模型标注","placeholders":{"provider":{"type":"String"},"model":{"type":"String"}}},
+  "@messageProviderBadge": {
+    "description": "消息头服务商与模型标注",
+    "placeholders": {
+      "provider": {
+        "type": "String"
+      },
+      "model": {
+        "type": "String"
+      }
+    }
+  },
   "chatSessionNewTitle": "新对话",
   "orchestratorMemoryPrompt": "Here is long-term memory about the user and this assistant. Use it as reference:",
-  "@orchestratorMemoryPrompt": {"description":"注入 Agent 长期记忆的提示词模板","placeholders":{"content":{"type":"String"}}},
+  "@orchestratorMemoryPrompt": {
+    "description": "注入 Agent 长期记忆的提示词模板",
+    "placeholders": {
+      "content": {
+        "type": "String"
+      }
+    }
+  },
   "orchestratorKbPrompt": "Here is relevant content from the knowledge base. Prefer it when answering:",
-  "@orchestratorKbPrompt": {"description":"注入知识库检索结果的提示词模板","placeholders":{"content":{"type":"String"}}},
+  "@orchestratorKbPrompt": {
+    "description": "注入知识库检索结果的提示词模板",
+    "placeholders": {
+      "content": {
+        "type": "String"
+      }
+    }
+  },
   "orchestratorSearchFailed": "Web search failed: free engines may be unavailable in this environment. Switch to Tavily / Bocha (API Key required) or a self-hosted SearXNG server in Settings.",
-  "@orchestratorSearchFailed": {"description":"网络搜索失败时的引导文案"},
+  "@orchestratorSearchFailed": {
+    "description": "网络搜索失败时的引导文案"
+  },
   "toolApprovalTitle": "Allow the model to call tool \"{toolName}\"?",
-  "@toolApprovalTitle": {"description":"工具审批对话框标题","placeholders":{"toolName":{"type":"String"}}},
+  "@toolApprovalTitle": {
+    "description": "工具审批对话框标题",
+    "placeholders": {
+      "toolName": {
+        "type": "String"
+      }
+    }
+  },
   "toolApprovalAllowOnce": "Allow once",
-  "@toolApprovalAllowOnce": {"description":"工具审批「允许本次」"},
+  "@toolApprovalAllowOnce": {
+    "description": "工具审批「允许本次」"
+  },
   "toolApprovalAllowRemember": "Remember & allow",
-  "@toolApprovalAllowRemember": {"description":"工具审批「记住并允许」"},
+  "@toolApprovalAllowRemember": {
+    "description": "工具审批「记住并允许」"
+  },
   "toolApprovalDeny": "Deny",
-  "@toolApprovalDeny": {"description":"工具审批「拒绝」"},
+  "@toolApprovalDeny": {
+    "description": "工具审批「拒绝」"
+  },
   "toolApprovalRiskHint": "This tool comes from an external server and may read or modify your data. Review the arguments before deciding.",
-  "@toolApprovalRiskHint": {"description":"工具审批风险提示"},
+  "@toolApprovalRiskHint": {
+    "description": "工具审批风险提示"
+  },
   "toolApprovalServer": "Source: {serverName}",
-  "@toolApprovalServer": {"description":"工具审批来源服务","placeholders":{"serverName":{"type":"String"}}},
+  "@toolApprovalServer": {
+    "description": "工具审批来源服务",
+    "placeholders": {
+      "serverName": {
+        "type": "String"
+      }
+    }
+  },
   "toolApprovalArguments": "Arguments",
-  "@toolApprovalArguments": {"description":"工具审批参数标题"},
+  "@toolApprovalArguments": {
+    "description": "工具审批参数标题"
+  },
   "toolApprovalAutoHint": "This tool is remembered and will run automatically until you revoke it in MCP settings.",
-  "@toolApprovalAutoHint": {"description":"工具审批对话框标题（已记住工具自动放行提示）"},
+  "@toolApprovalAutoHint": {
+    "description": "工具审批对话框标题（已记住工具自动放行提示）"
+  },
   "chatShowFull": "View full text ({count} chars)",
-  "@chatShowFull": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@chatShowFull": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "chatSpeak": "Read aloud",
   "chatStopSpeaking": "Stop reading",
   "chatStopped": "Generation stopped",
@@ -333,7 +516,14 @@
   "devAutoUpdate": "Auto-update on startup",
   "devAutoUpdateHint": "Silently updates the table from the network on startup; failure doesn't affect usage",
   "devBuiltinVersion": "",
-  "@devBuiltinVersion": {"description":"placeholder","placeholders":{"version":{"type":"String"}}},
+  "@devBuiltinVersion": {
+    "description": "placeholder",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "devCapabilityDesc": "Built-in static table (offline fallback) + network-updated cache, auto-fills multimodal/reasoning per model id",
   "devCapabilitySection": "Model capability table",
   "devCapabilityTitle": "Model capability table",
@@ -343,12 +533,26 @@
   "devMaxLogsInvalid": "Please enter a non-negative integer",
   "devMaxLogsLabel": "Entries (empty = unlimited)",
   "devMaxLogsSubtitle": "Keep up to {count} logs (0 = unlimited)",
-  "@devMaxLogsSubtitle": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@devMaxLogsSubtitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "devMaxLogsTitle": "Max retained entries",
   "devMaxLogsUnlimited": "Unlimited, keep all records",
   "devNetworkLog": "Network logs",
   "devNetworkLogCount": "{count} logs recorded",
-  "@devNetworkLogCount": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@devNetworkLogCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "devNetworkLogDisabled": "Not enabled; requests are captured once enabled",
   "devNetworkLogEnable": "Enable network logs",
   "devNetworkLogEnableHint": "Records all network requests (chat, tests, model fetch, etc.)",
@@ -359,11 +563,25 @@
   "devTestPromptHint": "Minimal request content sent to the model during connectivity tests",
   "devTitle": "Developer options",
   "devUpdateFailed": "Update failed: {error}",
-  "@devUpdateFailed": {"description":"placeholder","placeholders":{"error":{"type":"Object"}}},
+  "@devUpdateFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
   "devUpdateFromNetwork": "Update from network",
   "devUpdated": "Capability table updated",
   "devUpdatedAt": "",
-  "@devUpdatedAt": {"description":"placeholder","placeholders":{"time":{"type":"String"}}},
+  "@devUpdatedAt": {
+    "description": "placeholder",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "devUpdating": "Updating…",
   "devUpdatingShort": "Updating",
   "devWarning": "Developer options contain high-risk settings for advanced users. Proceed with caution.",
@@ -372,9 +590,23 @@
   "homeCopiedMarkdown": "Copied as Markdown",
   "homeCopiedSession": "Session duplicated",
   "homeDeleteSessionConfirm": "",
-  "@homeDeleteSessionConfirm": {"description":"placeholder","placeholders":{"title":{"type":"String"}}},
+  "@homeDeleteSessionConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "homeExportedTo": "",
-  "@homeExportedTo": {"description":"placeholder","placeholders":{"path":{"type":"String"}}},
+  "@homeExportedTo": {
+    "description": "placeholder",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "homeImageTooLargeSkippedAll": "Image over 8MB, skipped",
   "homeImageTooLargeSkippedSome": "Some images over 8MB were skipped",
   "homeModelMismatch": "The current provider doesn't include this model; check Settings",
@@ -397,11 +629,25 @@
   "summaryEdit": "Edit summary",
   "summaryEditHint": "The edited summary will replace the compressed messages in future requests",
   "summaryClear": "Clear compression records",
-  "@homeTrimmed": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@homeTrimmed": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "kbAdd": "Add document",
   "kbAddFailed": "Nothing to add",
   "kbAdded": "Added {count} documents",
-  "@kbAdded": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@kbAdded": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "kbEmpty": "Knowledge base is empty",
   "kbEmptyHint": "Tap + to add text files (txt/md/json)",
   "kbCreateLibrary": "New library",
@@ -411,11 +657,25 @@
   "kbDeleteLibraryConfirm": "Deleting library \"{name}\" also deletes all its documents. Continue?",
   "kbHint": "Relevant content is retrieved and injected during chat",
   "kbDeleteConfirm": "",
-  "@kbDeleteConfirm": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@kbDeleteConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "kbTitle": "Knowledge Base",
   "mcpAdd": "Add server",
   "mcpDeleteConfirm": "",
-  "@mcpDeleteConfirm": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@mcpDeleteConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "mcpEdit": "Edit server",
   "mcpEmpty": "No MCP servers configured",
   "mcpEmptyHint": "Tap + in the top right to add one (MCP-compatible server URL)",
@@ -427,7 +687,7 @@
   "mcpNeedsApprovalHint": "Ask for confirmation before executing tools",
   "mcpTitle": "MCP Servers",
   "mcpUrl": "Server URL",
-  "messageEditAssistantHint":"Edit reply content…",
+  "messageEditAssistantHint": "Edit reply content…",
   "messageScrollToBottom": "Scroll to bottom",
   "messageEditAssistantLabel": "Reply content",
   "messageEditAssistantTitle": "Edit assistant reply",
@@ -459,20 +719,70 @@
   "modelConfigUnset": "Not set",
   "networkLogBasic": "Basic info",
   "networkLogBodyMeta": "",
-  "@networkLogBodyMeta": {"description":"placeholder","placeholders":{"bytes":{"type":"String"},"lines":{"type":"int"}}},
+  "@networkLogBodyMeta": {
+    "description": "placeholder",
+    "placeholders": {
+      "bytes": {
+        "type": "String"
+      },
+      "lines": {
+        "type": "int"
+      }
+    }
+  },
   "networkLogClear": "Clear logs",
   "networkLogClearConfirm": "This deletes all recorded network logs. Continue?",
   "networkLogClearTitle": "Clear network logs",
   "networkLogCopiedFull": "Copied full text",
   "networkLogCopyFull": "Copy full text",
   "networkLogCountLimited": "$count records · max {max}",
-  "@networkLogCountLimited": {"description":"placeholder","placeholders":{"count":{"type":"int"},"max":{"type":"int"}}},
+  "@networkLogCountLimited": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "max": {
+        "type": "int"
+      }
+    }
+  },
   "networkLogCountUnlimited": "{count} records · unlimited",
-  "@networkLogCountUnlimited": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@networkLogCountUnlimited": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "networkLogDateFull": "$year-$month-{day}",
-  "@networkLogDateFull": {"description":"placeholder","placeholders":{"year":{"type":"int"},"month":{"type":"int"},"day":{"type":"int"}}},
+  "@networkLogDateFull": {
+    "description": "placeholder",
+    "placeholders": {
+      "year": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "networkLogDateToday": "$month-{day}",
-  "@networkLogDateToday": {"description":"placeholder","placeholders":{"month":{"type":"int"},"day":{"type":"int"}}},
+  "@networkLogDateToday": {
+    "description": "placeholder",
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "day": {
+        "type": "int"
+      }
+    }
+  },
   "networkLogDetailTitle": "Log details",
   "networkLogDuration": "Duration",
   "networkLogEditorUnsupported": "Opening in an external editor is not supported on this platform",
@@ -482,14 +792,28 @@
   "networkLogExported": "Logs exported",
   "networkLogExternalEditor": "External editor",
   "networkLogFailed": "",
-  "@networkLogFailed": {"description":"placeholder","placeholders":{"error":{"type":"String"}}},
+  "@networkLogFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "networkLogFilterAll": "All",
   "networkLogFilterFailed": "Failed",
   "networkLogFilterSuccess": "Success",
   "networkLogFormatJson": "Format JSON",
   "networkLogFormatted": " · formatted",
   "networkLogFullTitle": "",
-  "@networkLogFullTitle": {"description":"placeholder","placeholders":{"label":{"type":"String"}}},
+  "@networkLogFullTitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
+  },
   "networkLogInvalidJson": "Content is not valid JSON, cannot format",
   "networkLogMethod": "Method",
   "networkLogRequest": "Request",
@@ -523,7 +847,14 @@
   "preferencesDocumentThresholdOff": "Disabled (render directly)",
   "preferencesDocumentThresholdTitle": "Text document threshold",
   "preferencesDocumentThresholdValue": "Messages longer than {count} chars shown as document",
-  "@preferencesDocumentThresholdValue": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@preferencesDocumentThresholdValue": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "preferencesEnterSend": "Enter to send",
   "preferencesEnterSendHint": "When off, the IME newline key inserts a newline instead of sending.",
   "preferencesEnterSendOff": "Press Enter for newline, Ctrl+Enter to send",
@@ -564,7 +895,14 @@
   "providerCustomHeadersInvalid": "Custom headers contain lines without a colon; they will be lost when leaving",
   "providerDebug": "Debug",
   "providerDeleteConfirm": "",
-  "@providerDeleteConfirm": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@providerDeleteConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "providerDeleteTitle": "Delete provider",
   "providerEdit": "Provider settings",
   "providerEmpty": "No providers yet, tap + to add",
@@ -578,7 +916,14 @@
   "providerModel": "Model",
   "providerModelSettings": "Models",
   "providerModelsCount": "{count} models",
-  "@providerModelsCount": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@providerModelsCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "providerModelsEmpty": "No models yet. Tap \"Add model\"\\nto enter a model ID manually or fetch from /models",
   "providerMultimodal": "Multimodal",
   "providerMultimodalHint": "Supports images, files and other non-text input",
@@ -594,34 +939,76 @@
   "providerReasoning": "Reasoning",
   "providerReasoningHint": "Enables deep reasoning (e.g. o1, o3 series)",
   "providerRemoveModelConfirm": "",
-  "@providerRemoveModelConfirm": {"description":"placeholder","placeholders":{"id":{"type":"String"}}},
+  "@providerRemoveModelConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
   "providerRemoveModelTitle": "Remove model",
   "providerShareHint": "Copy the text below to share this provider config (includes API key):",
   "providerShareTitle": "Share provider",
   "providerTest": "Test",
   "providerTestAgain": "Retest",
   "providerTestFailedDetail": "",
-  "@providerTestFailedDetail": {"description":"placeholder","placeholders":{"error":{"type":"String"}}},
+  "@providerTestFailedDetail": {
+    "description": "placeholder",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
   "providerTesting": "Testing…",
   "providerTitle": "Providers",
   "providerUnconfiguredModel": "No model configured",
   "searchHint": "Type keywords to search all sessions",
   "searchNoResult": "",
-  "@searchNoResult": {"description":"placeholder","placeholders":{"query":{"type":"String"}}},
+  "@searchNoResult": {
+    "description": "placeholder",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "searchTitle": "Search sessions & messages…",
   "searchTitleHit": "Title match",
   "settingsAbout": "About Nona",
   "settingsAboutSubtitle": "Version / GitHub / License",
   "settingsAgents": "Agents",
   "settingsAgentsSubtitle": "{count} agents",
-  "@settingsAgentsSubtitle": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@settingsAgentsSubtitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsAllExist": "All sessions already exist, nothing added",
   "settingsClearAll": "Clear all sessions",
   "settingsClearAllSubtitle": "Will delete all {count} sessions",
-  "@settingsClearAllSubtitle": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@settingsClearAllSubtitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsClearAllSubtitleEmpty": "No saved sessions",
   "settingsClearConfirmContent": "This will delete all {count} sessions and cannot be undone.",
-  "@settingsClearConfirmContent": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@settingsClearConfirmContent": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsClearConfirmTitle": "Clear all sessions",
   "settingsCleared": "All sessions cleared",
   "settingsCompareSubtitle": "Compare multiple models on one question",
@@ -630,15 +1017,36 @@
   "settingsExportAll": "Export all sessions",
   "settingsExportAllSubtitle": "Back up as JSON, restorable anytime",
   "settingsExportFailed": "Export failed: {error}",
-  "@settingsExportFailed": {"description":"placeholder","placeholders":{"error":{"type":"Object"}}},
+  "@settingsExportFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "error": {
+        "type": "Object"
+      }
+    }
+  },
   "settingsExportedAll": "",
-  "@settingsExportedAll": {"description":"placeholder","placeholders":{"path":{"type":"String"}}},
+  "@settingsExportedAll": {
+    "description": "placeholder",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
   "settingsFooter": "Nona · Local first, all data stays on this device",
   "settingsImport": "Import sessions",
   "settingsImportFailed": "Import failed: invalid file format",
-  "settingsImportSubtitle": "Restore sessions from a backup file",
+  "settingsImportSubtitle": "Import from Nona / Chatbox / Cherry / NextChat / ChatGPT / RikkaHub / Kelivo",
   "settingsImported": "Imported {count} sessions",
-  "@settingsImported": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@settingsImported": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "settingsKbSubtitle": "Local knowledge base, auto-retrieved",
   "settingsMcpSubtitle": "MCP tool servers",
   "settingsModelConfig": "Model config",
@@ -649,7 +1057,17 @@
   "settingsPreferencesEnterSend": "Enter to send, Shift+Enter for newline",
   "settingsProviders": "Providers",
   "settingsProvidersSubtitle": "$providers providers · {models} models",
-  "@settingsProvidersSubtitle": {"description":"placeholder","placeholders":{"providers":{"type":"int"},"models":{"type":"int"}}},
+  "@settingsProvidersSubtitle": {
+    "description": "placeholder",
+    "placeholders": {
+      "providers": {
+        "type": "int"
+      },
+      "models": {
+        "type": "int"
+      }
+    }
+  },
   "settingsProvidersSubtitleEmpty": "Not configured, add a provider and fetch models",
   "settingsSectionAbout": "About",
   "settingsSectionAppearance": "Appearance",
@@ -682,10 +1100,24 @@
   "syncBackupList": "Cloud backups",
   "syncEmpty": "No backups yet. Tap Upload to create one",
   "syncRestoreConfirm": "",
-  "@syncRestoreConfirm": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@syncRestoreConfirm": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "syncRestoreTitle": "Restore backup",
   "syncRestored": "Restored {count} new sessions",
-  "@syncRestored": {"description":"placeholder","placeholders":{"count":{"type":"int"}}},
+  "@syncRestored": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "syncS3Access": "Access Key",
   "syncS3Bucket": "Bucket",
   "syncS3Endpoint": "S3 Endpoint",
@@ -707,7 +1139,6 @@
   "memoryPin": "Pin",
   "settingsWbSubtitle": "World book: keyword-triggered lore injection",
   "importTitle": "Import Data",
-  "settingsImportSubtitle": "Import from Nona / Chatbox / Cherry / NextChat / ChatGPT / RikkaHub / Kelivo",
   "imgGenTitle": "Image Generation",
   "settingsImgGenSubtitle": "Generate images with AI (image-gen capable provider)",
   "ocrAction": "Extract text",
@@ -770,7 +1201,14 @@
   "syncErrorStorage": "Storage service error. Check your configuration",
   "syncUpload": "Upload backup",
   "syncUploaded": "",
-  "@syncUploaded": {"description":"placeholder","placeholders":{"name":{"type":"String"}}},
+  "@syncUploaded": {
+    "description": "placeholder",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "syncWebDavPass": "Password",
   "syncWebDavUrl": "WebDAV URL",
   "syncWebDavUser": "Username",
@@ -806,8 +1244,493 @@
   "translatorLangEs": "Español",
   "translatorLangRu": "Русский",
   "translatorPrompt": "Translate the following into {target}. Output only the translation:\n\n{source}",
-  "@translatorPrompt": {"description":"翻译提示词模板","placeholders":{"target":{"type":"String"},"source":{"type":"String"}}},
+  "@translatorPrompt": {
+    "description": "翻译提示词模板",
+    "placeholders": {
+      "target": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
   "translatorTitle": "AI Translator",
   "translatorTranslate": "Translate",
-  "translatorTranslating": "Translating…"
+  "translatorTranslating": "Translating…",
+  "chatSuggestionTitle": "You can start with",
+  "chatSuggestionStart": "Introduce yourself, including capabilities and limits",
+  "chatSuggestionFiles": "How do I upload documents and get summaries?",
+  "chatSuggestionMcp": "What configuration is needed to connect external tools?",
+  "chatMoreActions": "More actions",
+  "chatSelectCopy": "Select & copy",
+  "chatExportImage": "Export image",
+  "chatExportSelectedImage": "Export as image",
+  "chatExportJsonl": "Export JSONL",
+  "chatLongImageCapturing": "Rendering long image…",
+  "chatLongImageDone": "Long image exported",
+  "chatSelectCopyHint": "Select text then copy; optionally send with context",
+  "chatCopyWithContext": "Copy & send with context",
+  "chatNoSelection": "No text selected",
+  "contextManageTitle": "Context management",
+  "contextSegments": "Injected segments",
+  "contextSegmentTokens": "{tokens} tokens",
+  "@contextSegmentTokens": {
+    "description": "placeholder",
+    "placeholders": {
+      "tokens": {
+        "type": "String"
+      }
+    }
+  },
+  "contextSegmentSystem": "System prompt",
+  "contextSegmentMemory": "Memory",
+  "contextSegmentKnowledge": "Knowledge base",
+  "contextSegmentSearch": "Search results",
+  "contextSegmentWorldBook": "World book",
+  "contextSegmentHistory": "History",
+  "contextSegmentSummary": "Session summary",
+  "contextSegmentInjection": "Instruction injections",
+  "contextSegmentAgent": "Agent prompt",
+  "contextUsedTokens": "Used {used} / limit {limit}",
+  "@contextUsedTokens": {
+    "description": "placeholder",
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      },
+      "used": {
+        "type": "String"
+      }
+    }
+  },
+  "contextNoLimit": "No limit set",
+  "contextCompress": "Compress context",
+  "contextCompressHint": "Summarize and fold history",
+  "contextClear": "Clear context",
+  "contextClearHint": "Mark truncation point; history is recoverable",
+  "contextRestore": "Restore cleared context",
+  "contextCompressing": "Compressing…",
+  "contextCompressDone": "Context compressed; new messages start with the summary",
+  "contextToggleOffHint": "Segment disabled for next request only",
+  "contextEnabled": "Enabled",
+  "contextDisabled": "Disabled",
+  "providerUseResponseApi": "Use Responses API",
+  "providerUseResponseApiHint": "For o1/o3/o4/gpt-5 series; keep off for ChatCompletions-compatible providers",
+  "providerAuthMode": "Auth mode",
+  "providerAuthApiKey": "API Key",
+  "providerAuthServiceAccount": "Service Account (Vertex)",
+  "providerSaProjectId": "Project ID",
+  "providerSaRegion": "Region",
+  "providerSaEmail": "Service Account email",
+  "providerSaKeyFile": "Select SA JSON key file",
+  "providerSaKeyPaste": "Paste SA JSON",
+  "providerSaInvalid": "Invalid SA JSON: missing client_email/private_key/project_id",
+  "providerVertexHint": "Bearer token is used when baseUrl contains aiplatform",
+  "providerGroupUngrouped": "Ungrouped",
+  "providerGroupAll": "All",
+  "providerGroupAdd": "New group",
+  "providerGroupName": "Group name",
+  "providerGroupRename": "Rename",
+  "providerGroupDelete": "Delete group",
+  "providerGroupEmpty": "No groups yet",
+  "providerKeysTitle": "API Keys",
+  "providerKeysBatchAdd": "Add keys (one per line)",
+  "providerKeysTest": "Test",
+  "providerKeysTesting": "Testing…",
+  "providerKeysStatusActive": "Active",
+  "providerKeysStatusCooling": "Cooling down",
+  "providerKeysStatusError": "Failed {count} times",
+  "@providerKeysStatusError": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "providerKeysStatusDisabled": "Disabled (consecutive failures)",
+  "providerKeysEnable": "Enable",
+  "providerKeysDisable": "Disable",
+  "providerKeysNone": "No keys yet",
+  "providerKeysCopied": "Copied (may expose to clipboard)",
+  "providerKeysTestOk": "Test passed",
+  "providerKeysTestFail": "Test failed: {detail}",
+  "@providerKeysTestFail": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "providerKeysRemoved": "Key removed",
+  "imggenSize": "Size",
+  "imggenQuality": "Quality",
+  "imggenCount": "Count",
+  "imggenSendToChat": "Send to chat",
+  "imggenHistory": "History",
+  "imggenHistoryEmpty": "No generation history",
+  "modelSearch": "Search models",
+  "modelFilterMultimodal": "Multimodal",
+  "modelFilterReasoning": "Reasoning",
+  "modelContextWindow": "Context {window}",
+  "@modelContextWindow": {
+    "description": "placeholder",
+    "placeholders": {
+      "window": {
+        "type": "String"
+      }
+    }
+  },
+  "modelPrice": "${price}/M",
+  "@modelPrice": {
+    "description": "placeholder",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "modelNoCapability": "Unknown capabilities",
+  "searchServicesTitle": "Search services",
+  "searchServiceEnabled": "Enabled",
+  "searchServiceKey": "API Key",
+  "searchServiceTest": "Test",
+  "searchServiceTesting": "Testing…",
+  "searchServiceTestOk": "Got {count} results",
+  "@searchServiceTestOk": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "searchServiceTestFail": "Test failed: {detail}",
+  "@searchServiceTestFail": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "searchServiceNeedKey": "API key required",
+  "searchServiceNoKey": "No key required",
+  "searchServiceSelected": "In use",
+  "searchServiceUsageTitle": "Search usage",
+  "searchServiceCalls": "{count} calls",
+  "@searchServiceCalls": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoKeyFallback": "No key configured; falling back to Bing free engine",
+  "searchFilterTime": "Time range",
+  "searchFilterProvider": "Provider",
+  "searchFilterModel": "Model",
+  "searchFilterAll": "All",
+  "searchFilterToday": "Today",
+  "searchFilterWeek": "Last 7 days",
+  "searchFilterMonth": "Last 30 days",
+  "searchFilterYear": "Last year",
+  "searchExportResults": "Export results",
+  "searchExported": "Exported {count} results",
+  "@searchExported": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugTitle": "Retrieval test bench",
+  "kbDebugQuery": "Query",
+  "kbDebugTopK": "Top K",
+  "kbDebugSimilarity": "Similarity threshold",
+  "kbDebugChunkSize": "Chunk size (override, not persisted)",
+  "kbDebugVectorHits": "Vector hits {count}",
+  "@kbDebugVectorHits": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugBigramHits": "Bigram hits {count}",
+  "@kbDebugBigramHits": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugNoHits": "No hits",
+  "kbDebugScore": "Score {score}",
+  "@kbDebugScore": {
+    "description": "placeholder",
+    "placeholders": {
+      "score": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugSource": "Source: {source}",
+  "@kbDebugSource": {
+    "description": "placeholder",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugDocId": "Document {id}",
+  "@kbDebugDocId": {
+    "description": "placeholder",
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "kbDebugRank": "Rank #{rank}",
+  "@kbDebugRank": {
+    "description": "placeholder",
+    "placeholders": {
+      "rank": {
+        "type": "String"
+      }
+    }
+  },
+  "worldBookNewBook": "New world book",
+  "worldBookName": "Name",
+  "worldBookDescription": "Description",
+  "worldBookActive": "Active",
+  "worldBookActivateForAgent": "Activate for agent",
+  "worldBookHitTest": "Hit test",
+  "worldBookHitTestInput": "Type text to test matching",
+  "worldBookHitTestNoHit": "No entries matched",
+  "worldBookHitTestHit": "Matched {count} entries, {chars} chars injected",
+  "@worldBookHitTestHit": {
+    "description": "placeholder",
+    "placeholders": {
+      "chars": {
+        "type": "String"
+      },
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "worldBookGlobal": "Global",
+  "voiceServicesTitle": "Voice services",
+  "voiceTtsSystem": "System TTS",
+  "voiceTtsProviders": "Network TTS",
+  "voiceTtsProviderName": "Provider",
+  "voiceTtsVoice": "Voice",
+  "voiceTtsRate": "Rate",
+  "voiceTtsModel": "Model",
+  "voiceTtsPreview": "Preview",
+  "voiceTtsPreviewing": "Previewing…",
+  "voiceTtsAddProvider": "Add TTS provider",
+  "voiceTtsTestOk": "Preview finished",
+  "voiceTtsTestFail": "Preview failed: {detail}",
+  "@voiceTtsTestFail": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceTtsFallbackSystem": "Falling back to system TTS",
+  "voiceAsrTitle": "Speech input (ASR)",
+  "voiceAsrSystem": "System speech recognition",
+  "voiceAsrCloud": "Cloud ASR",
+  "voiceAsrLocal": "Local offline ASR",
+  "voiceAsrListening": "Listening…",
+  "voiceAsrDone": "Recognition done",
+  "voiceAsrCancelled": "Cancelled",
+  "voiceAsrNoPermission": "Microphone permission denied",
+  "voiceAsrError": "Recognition failed: {detail}",
+  "@voiceAsrError": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceAsrUnavailable": "Speech input unavailable on this platform",
+  "voiceAsrTapToSpeak": "Tap to speak",
+  "voiceModelDownload": "Download model",
+  "voiceModelDownloading": "Downloading {percent}%",
+  "@voiceModelDownloading": {
+    "description": "placeholder",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "voiceModelInstalled": "Installed",
+  "voiceModelDelete": "Delete model",
+  "voiceModelSize": "{size}",
+  "@voiceModelSize": {
+    "description": "placeholder",
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpTransport": "Transport",
+  "mcpTransportHttp": "Streamable HTTP",
+  "mcpTransportSse": "SSE",
+  "mcpTransportStdio": "STDIO (local process)",
+  "mcpStdioCommand": "Command",
+  "mcpStdioArgs": "Arguments (one per line)",
+  "mcpStdioEnv": "Environment (KEY=VALUE per line)",
+  "mcpStdioCwd": "Working directory (optional)",
+  "mcpCommandNotFound": "Command {command} not found. Check PATH",
+  "@mcpCommandNotFound": {
+    "description": "placeholder",
+    "placeholders": {
+      "command": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpStdioStderr": "stderr: {line}",
+  "@mcpStdioStderr": {
+    "description": "placeholder",
+    "placeholders": {
+      "line": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpAuthorize": "Authorize",
+  "mcpReauthorize": "Re-authorize",
+  "mcpAuthorized": "Authorized",
+  "mcpNotAuthorized": "Not authorized",
+  "mcpOAuthInProgress": "Opening authorization page…",
+  "mcpOAuthDone": "Authorization succeeded",
+  "mcpOAuthFailed": "Authorization failed: {detail}",
+  "@mcpOAuthFailed": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "mcpOAuthServerFound": "Authorization server discovered",
+  "mcpOAuthTokenRefreshed": "Token refreshed",
+  "approvalWhitelist": "No-approval whitelist (tool names, one per line)",
+  "approvalBlacklist": "Force-approval blacklist (tool names, one per line)",
+  "approvalTimeout": "Approval timeout (seconds)",
+  "approvalRememberSession": "Remember for this session",
+  "toolExecuting": "Running",
+  "toolDone": "Done",
+  "toolError": "Failed",
+  "toolDetail": "Tool details",
+  "toolArguments": "Arguments",
+  "toolResult": "Result",
+  "toolResultTruncated": "(result truncated)",
+  "toolApprove": "Approve",
+  "toolReject": "Reject",
+  "toolWaitingApproval": "Awaiting approval",
+  "toolShowDetail": "View details",
+  "toolHideDetail": "Hide details",
+  "restoreModeTitle": "Restore mode",
+  "restoreModeOverwrite": "Overwrite (recommended)",
+  "restoreModeMerge": "Merge (keep existing)",
+  "restoreModeHint": "Overwrite replaces all local data; merge keeps existing sessions and providers",
+  "restorePreparing": "Restoring…",
+  "restoreDone": "Restore completed",
+  "restoreRolledBack": "Restore failed; original data restored",
+  "restoreCorrupt": "Backup corrupt or verification failed",
+  "restoreResume": "Unfinished restore detected; finalizing…",
+  "shareQrTab": "QR code",
+  "scanQrTitle": "Scan QR code",
+  "scanQrCameraPermission": "Camera permission needed to scan QR codes",
+  "scanQrInvalid": "Unrecognized QR code content",
+  "scanQrProviderImported": "Provider imported",
+  "tagsTitle": "Tags",
+  "tagsAdd": "New tag",
+  "tagsName": "Tag name",
+  "tagsColor": "Color",
+  "tagsApply": "Add tag",
+  "tagsFilter": "Filter by tag",
+  "tagsNone": "No tags",
+  "tagsManage": "Manage tags",
+  "statsHeatmapTitle": "Activity heatmap",
+  "statsHeatmapLegend": "Less → More",
+  "statsTrendTitle": "Trend",
+  "statsRankProviders": "Provider ranking",
+  "statsRankModels": "Model ranking",
+  "statsRankSessions": "Session ranking",
+  "statsViewAll": "View all",
+  "statsRangeAllTime": "All time",
+  "statsRangeLast30": "Last 30 days",
+  "statsRangePrevMonth": "Previous month",
+  "statsRangeCustom": "Custom",
+  "statsMessages": "{count} messages",
+  "@statsMessages": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "displayFontFamily": "UI font",
+  "displayFontSystem": "System default",
+  "displayCodeFont": "Code font",
+  "displayUiDensity": "UI density",
+  "densityCompact": "Compact",
+  "densityStandard": "Standard",
+  "densityComfortable": "Comfortable",
+  "displayChatFontScale": "Chat font size",
+  "fontImportLocal": "Import local font file",
+  "fontImported": "Font imported",
+  "androidBackgroundMode": "Background generation",
+  "androidBackgroundOff": "Off",
+  "androidBackgroundOn": "On",
+  "androidBackgroundOnNotify": "On + notify",
+  "androidBackgroundHint": "Keep generating when screen is locked or app is in background",
+  "notificationChatCompleted": "Generation finished",
+  "notificationChatFailed": "Generation failed",
+  "desktopAutostart": "Launch at startup",
+  "desktopAutostartHint": "Start Nona when you sign in",
+  "desktopAutostartError": "Failed to set autostart: {detail}",
+  "@desktopAutostartError": {
+    "description": "placeholder",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "deeplinkChatTitle": "From external link",
+  "devColdStartTiming": "Cold start timings (ms)",
+  "chatOpenDocument": "Open document",
+  "contextSummaryPrompt": "Summarize the key points of the following conversation concisely, keeping conclusions, decisions and todos, within 300 words:\n\n{source}",
+  "@contextSummaryPrompt": {
+    "description": "placeholder",
+    "placeholders": {
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "providerAuthorized": "Imported (credentials stored encrypted)",
+  "commonAuto": "Auto"
 }

@@ -12,11 +12,14 @@ import '../../../core/models/chat_options.dart';
 import '../../../core/models/chat_provider.dart';
 import '../../../core/models/chat_session.dart';
 import '../../../core/models/citation_source.dart';
+import '../../../core/models/tool_step.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/checkpoint_service.dart';
 import '../../../core/services/instruction_injection_service.dart';
 import '../../../core/services/document_extractor.dart';
 import '../../../../shared/workflow_event_bus.dart';
+import '../../../features/platform/android_background.dart';
+import '../../../features/platform/notification_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';import '../../../core/services/mcp/mcp_client.dart';
 import '../../../core/services/mcp/mcp_service.dart';
@@ -35,6 +38,22 @@ import 'message_ops.dart';
 import '../../../core/services/session_manager.dart';
 import '../../../core/services/title_generator.dart';
 import '../../../core/services/world_book_service.dart';
+
+/// B-08：清除上下文（truncateIndex）后可见的消息子集；
+/// 截断点后的首条强制为 user（协议要求），否则补一条占位。
+List<ChatMessage> _visibleMessages(ChatSession session) {
+  final truncate = session.truncateIndex;
+  if (truncate == null || truncate <= 0) return session.messages;
+  final from = truncate.clamp(0, session.messages.length);
+  var list = session.messages.skip(from).toList();
+  if (list.isNotEmpty && list.first.role != 'user') {
+    list = [
+      ChatMessage(role: 'user', content: '…'),
+      ...list,
+    ];
+  }
+  return list;
+}
 
 /// 聊天发送管线编排器：前置校验 → 上下文裁剪 → 服务商解析 →
 /// 提示词组装（变量/记忆/知识库/搜索）→ 流式请求 → 帧级合并刷新 →
@@ -275,7 +294,19 @@ class ChatRunOrchestrator {
         baseUrl: provider.baseUrl,
         model: modelId,
         providerKind: provider.kind.name,
+        // C-01：服务商开启 Responses API 时请求走 /responses
+        useResponseApi: provider.useResponseApi,
+        // C-02：Vertex Service Account 认证字段（仅 Gemini/Vertex 生效）
+        useVertex: provider.authMode == 'serviceAccount' &&
+            provider.saJson.isNotEmpty &&
+            provider.vertexProject.isNotEmpty,
+        vertexProject: provider.vertexProject,
+        vertexRegion: provider.vertexRegion,
+        saJson: provider.saJson,
       );
+
+      // I-01：Android 后台生成保活（on/onNotify 模式开启前台服务）
+      _startBackgroundKeepalive();
 
       // F2-3 多 Key 轮换：配置了多个 Key 时本请求轮换选取
       _keyRoulette = null;
@@ -566,6 +597,7 @@ class ChatRunOrchestrator {
             content: assistantMessage.content,
             reasoning: assistantMessage.reasoningContent,
             toolCallsJson: assistantMessage.toolCallsJson,
+            toolStepsJson: assistantMessage.toolStepsJson,
           ),
         );
       }
@@ -650,10 +682,13 @@ class ChatRunOrchestrator {
       // MCP 工具：启用服务的工具列表（带内存缓存，避免每次发送都请求服务器）
       final mcpTools = await _resolveMcpTools();
 
+      // B-08：清除上下文（truncateIndex）后，请求只发截断点之后的消息
+      final visibleMessages = _visibleMessages(session);
+
       final handle = mcpTools == null
           ? chatService.sendChat(
               settings: effectiveSettings,
-              messages: session.messages,
+              messages: visibleMessages,
               options: options,
               customHeaders:
                   provider.customHeaders.isEmpty ? null : provider.customHeaders,
@@ -669,7 +704,7 @@ class ChatRunOrchestrator {
             )
           : chatService.sendChatWithTools(
               settings: effectiveSettings,
-              messages: session.messages,
+              messages: visibleMessages,
               options: options,
               tools: mcpTools.$1,
               customHeaders:
@@ -827,7 +862,35 @@ class ChatRunOrchestrator {
       unawaited(sessionManager.persist());
       onSnack?.call(localized.homeNetworkError);
     }
+    // I-01：后台保活收尾（全部路径汇聚于此：成功/失败/取消）
+    _finishBackgroundKeepalive();
     onScrollToBottom?.call();
+  }
+
+  /// I-01：后台生成保活（Android 前台服务 + 完成通知）。
+  bool _backgroundEnabled = false;
+
+  void _startBackgroundKeepalive() {
+    final mode = settings().androidBackgroundMode;
+    if (mode == 'off') return;
+    if (!AndroidBackground.supported) return;
+    _backgroundEnabled = true;
+    unawaited(AndroidBackground.enable());
+  }
+
+  void _finishBackgroundKeepalive() {
+    if (!_backgroundEnabled) return;
+    _backgroundEnabled = false;
+    unawaited(AndroidBackground.disable());
+    final mode = settings().androidBackgroundMode;
+    if (mode == 'onNotify') {
+      unawaited(
+        NotificationService.showChatCompleted(
+          title: l10n()?.notificationChatCompleted ?? 'Nona',
+          body: l10n()?.notificationChatCompleted ?? '生成完成',
+        ),
+      );
+    }
   }
 
   /// 停止当前生成；句柄尚未建立时记录待取消标记。
@@ -859,20 +922,97 @@ class ChatRunOrchestrator {
   }
 
   /// 工具执行分派：本地内置工具优先，其余走 MCP 服务。
+  ///
+  /// F-04：记录执行步骤到 assistant 消息的 toolStepsJson（流式期间
+  /// 增量序列化 + checkpoint，终态保留可回看）。
   Future<McpToolResult> _dispatchTool(
     (List<Map<String, dynamic>>, List<McpServerConfig>,
     Map<String, McpToolDefinition>) mcpTools,
     ToolCallData call,
   ) async {
-    final local = LocalTools.find(call.name);
-    if (local != null) {
-      return local.handler(decodeArguments(call.arguments));
+    final assistantMessage = streamingMessage();
+    _appendToolStep(assistantMessage, call, status: 'executing');
+    final started = DateTime.now();
+    try {
+      final local = LocalTools.find(call.name);
+      final result = local != null
+          ? await local.handler(decodeArguments(call.arguments))
+          : await mcpService.callTool(
+              mcpTools.$2,
+              mcpTools.$3,
+              call.name,
+              decodeArguments(call.arguments),
+            );
+      _appendToolStep(
+        assistantMessage,
+        call,
+        status: result.isError ? 'error' : 'done',
+        resultText: result.content,
+        startedAt: started,
+      );
+      return result;
+    } catch (e) {
+      _appendToolStep(
+        assistantMessage,
+        call,
+        status: 'error',
+        resultText: e.toString(),
+        startedAt: started,
+      );
+      rethrow;
     }
-    return mcpService.callTool(
-      mcpTools.$2,
-      mcpTools.$3,
-      call.name,
-      decodeArguments(call.arguments),
+  }
+
+  /// F-04：更新流式消息的工具步骤（latest-wins 序列化 + checkpoint）。
+  void _appendToolStep(
+    ChatMessage? message,
+    ToolCallData call, {
+    required String status,
+    String resultText = '',
+    DateTime? startedAt,
+  }) {
+    if (message == null) return;
+    final steps = ToolStepsCodec.decode(message.toolStepsJson);
+    final index = steps.indexWhere((s) => s.callId == call.id);
+    if (index >= 0) {
+      steps[index] = steps[index].copyWith(
+        status: status,
+        resultText: resultText.isEmpty ? steps[index].resultText : resultText,
+      );
+    } else {
+      steps.add(
+        ToolStep(
+          callId: call.id,
+          name: call.name,
+          argumentsJson: call.arguments,
+          status: status,
+          resultText: resultText,
+          startedAt: startedAt ?? DateTime.now(),
+        ),
+      );
+    }
+    message.toolStepsJson = ToolStepsCodec.encode(steps);
+    checkpointNow();
+    notify();
+  }
+
+  /// 当前流式消息快照提交（B-06；F-04 步骤更新复用）。
+  void checkpointNow() {
+    final message = streamingMessage();
+    if (message == null) return;
+    final session = sessionManager.currentSession;
+    if (session == null) return;
+    final idx = session.messages.indexOf(message);
+    if (idx < 0) return;
+    checkpointService.checkpoint(
+      MessageCheckpoint(
+        sessionId: session.id,
+        messageIndex: idx,
+        content: message.content,
+        reasoning: message.reasoningContent,
+        toolCallsJson: message.toolCallsJson,
+        toolStepsJson: message.toolStepsJson,
+      ),
     );
   }
 
@@ -925,8 +1065,10 @@ class ChatRunOrchestrator {
     ).then((d) {
       if (!completer.isCompleted) completer.complete(d);
     }));
+    // F-03：审批超时按服务策略配置（默认 60s）
+    final timeoutSeconds = await ApprovalPolicy.timeout(serverId);
     final decision = await completer.future.timeout(
-      const Duration(seconds: 60),
+      Duration(seconds: timeoutSeconds),
       onTimeout: () => const ApprovalDecision(allowed: false),
     );
     _pendingApproval = null;

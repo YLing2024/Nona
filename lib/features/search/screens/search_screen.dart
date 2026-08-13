@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/models/chat_session.dart';
 import '../../../core/services/search_service.dart';
+import '../../../core/services/storage_io_io.dart'
+    if (dart.library.js_interop) '../../../core/services/storage_io_stub.dart'
+    as storage_io;
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/l10n_ext.dart';
 
 /// 搜索结果点击后的跳转目标。
@@ -41,6 +45,66 @@ class _SearchScreenState extends State<SearchScreen> {
   final _focusNode = FocusNode();
   Timer? _debounce;
   List<MessageSearchHit> _results = const [];
+
+  /// D-03：时间范围筛选（null = 全部）。
+  DateTime? _since;
+
+  /// D-03：服务商筛选（null = 全部）。
+  String? _providerFilter;
+
+  List<MessageSearchHit> get _filteredResults {
+    final since = _since;
+    if (since == null && _providerFilter == null) return _results;
+    return [
+      for (final h in _results)
+        if ((since == null ||
+                (h.message.sentAt ?? h.session.updatedAt)
+                    .isAfter(since)) &&
+            (_providerFilter == null ||
+                h.message.providerName == _providerFilter ||
+                h.session.providerId == _providerFilter))
+          h,
+    ];
+  }
+
+  /// D-03：结果中的服务商列表（筛选条用）。
+  List<String> get _availableProviders {
+    final set = <String>{
+      for (final h in _results)
+        if ((h.message.providerName ?? '').isNotEmpty)
+          h.message.providerName!,
+    };
+    return set.toList()..sort();
+  }
+
+  /// D-03：导出当前筛选结果（Markdown）。
+  Future<void> _exportResults() async {
+    final hits = _filteredResults;
+    if (hits.isEmpty) return;
+    final sb = StringBuffer();
+    sb.writeln('# Search Results: ${_controller.text.trim()}');
+    sb.writeln();
+    for (final h in hits) {
+      final time = h.message.sentAt ?? h.session.updatedAt;
+      sb.writeln(
+        '## [${h.session.title}] ${time.toLocal()} '
+        '(${h.message.role})',
+      );
+      sb.writeln();
+      sb.writeln(h.message.content);
+      sb.writeln();
+    }
+    final path = await storage_io.saveTextFile(
+      suggestedName: 'search-results-${DateTime.now().millisecondsSinceEpoch}.md',
+      data: sb.toString(),
+      extension: 'md',
+      mimeType: 'text/markdown',
+    );
+    if (!mounted) return;
+    if (path != null) {
+      showAppSnack(context, context.l10n.searchExported(''));
+    }
+  }
 
   @override
   void initState() {
@@ -117,14 +181,84 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
           ),
         ),
+        actions: [
+          if (_results.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.ios_share_rounded, size: 20),
+              tooltip: l10n.searchExportResults,
+              onPressed: _exportResults,
+            ),
+        ],
       ),
       body: SafeArea(
         top: false,
-        child: query.isEmpty
-            ? _buildHint(context)
-            : _results.isEmpty
-                ? _buildNoResult(context, query)
-                : _buildResults(context),
+        child: Column(
+          children: [
+            // D-03：筛选条（时间范围 + 服务商）
+            if (query.isNotEmpty && _results.isNotEmpty) _buildFilters(l10n),
+            Expanded(
+              child: query.isEmpty
+                  ? _buildHint(context)
+                  : _filteredResults.isEmpty
+                      ? _buildNoResult(context, query)
+                      : _buildResults(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// D-03：筛选条。
+  Widget _buildFilters(AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+    final providers = _availableProviders;
+    DateTime? rangeFor(int value) {
+      final now = DateTime.now();
+      return switch (value) {
+        0 => DateTime(now.year, now.month, now.day),
+        1 => now.subtract(const Duration(days: 7)),
+        2 => now.subtract(const Duration(days: 30)),
+        3 => DateTime(now.year - 1, now.month, now.day),
+        _ => null,
+      };
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          _FilterChip(
+            label: l10n.searchFilterAll,
+            selected: _since == null,
+            onSelected: () => setState(() => _since = null),
+          ),
+          for (final (value, label) in [
+            (0, l10n.searchFilterToday),
+            (1, l10n.searchFilterWeek),
+            (2, l10n.searchFilterMonth),
+            (3, l10n.searchFilterYear),
+          ])
+            _FilterChip(
+              label: label,
+              selected: _since == rangeFor(value),
+              onSelected: () => setState(() => _since = rangeFor(value)),
+            ),
+          if (providers.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Container(width: 1, height: 18, color: scheme.outlineVariant),
+            const SizedBox(width: 8),
+            for (final p in providers)
+              _FilterChip(
+                label: p,
+                selected: _providerFilter == p,
+                onSelected: () => setState(
+                  () => _providerFilter = _providerFilter == p ? null : p,
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }
@@ -266,6 +400,50 @@ class _HighlightText extends StatelessWidget {
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+/// D-03：筛选小胶囊。
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: Material(
+        color: selected
+            ? scheme.primaryContainer
+            : scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onSelected,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected
+                    ? scheme.onPrimaryContainer
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

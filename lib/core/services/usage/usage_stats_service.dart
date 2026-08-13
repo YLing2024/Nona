@@ -119,6 +119,61 @@ class UsageStatsService {
     );
   }
 
+  /// D-02：搜索用量统计（search_daily 表，按日/引擎聚合）。
+  Future<void> recordSearch({
+    required String engine,
+    int calls = 1,
+    int tokens = 0,
+  }) async {
+    final db = await _db;
+    if (db == null) return;
+    try {
+      await db.customStatement(
+        'CREATE TABLE IF NOT EXISTS search_daily '
+        '(engine TEXT NOT NULL, date TEXT NOT NULL, '
+        'calls INTEGER NOT NULL DEFAULT 0, tokens INTEGER NOT NULL DEFAULT 0, '
+        'PRIMARY KEY (engine, date))',
+      );
+      await db.customStatement(
+        'INSERT INTO search_daily (engine, date, calls, tokens) '
+        'VALUES (?, ?, ?, ?) '
+        'ON CONFLICT(engine, date) DO UPDATE SET '
+        'calls = calls + excluded.calls, '
+        'tokens = tokens + excluded.tokens',
+        [engine, _dateOf(DateTime.now()), calls, tokens],
+      );
+    } catch (_) {}
+  }
+
+  /// D-02：搜索用量（近 [days] 天按引擎聚合）。
+  Future<List<({String engine, String date, int calls, int tokens})>>
+  searchDaily({int days = 30}) async {
+    final db = await _db;
+    if (db == null) return [];
+    try {
+      final rows = await db.customSelect(
+        'SELECT engine, date, calls, tokens FROM search_daily '
+        'WHERE date >= ? ORDER BY date DESC, calls DESC',
+        variables: [
+          Variable.withString(
+            _dateOf(DateTime.now().subtract(Duration(days: days - 1))),
+          ),
+        ],
+      ).get();
+      return [
+        for (final r in rows)
+          (
+            engine: r.data['engine'] as String? ?? '',
+            date: r.data['date'] as String? ?? '',
+            calls: r.data['calls'] as int? ?? 0,
+            tokens: r.data['tokens'] as int? ?? 0,
+          ),
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// 每日用量（近 [days] 天，含今天）。
   Future<List<DailyUsage>> daily({int days = 30}) async {
     final db = await _db;
@@ -178,6 +233,69 @@ class UsageStatsService {
     } catch (_) {
       return false;
     }
+  }
+
+  /// H-01：活跃热力图——近 [days] 天每日消息数（自然日，今天往前）。
+  Future<Map<String, int>> heatmap({int days = 365}) async {
+    final db = await _db;
+    if (db != null) {
+      try {
+        final since = _dateOf(
+          DateTime.now().subtract(Duration(days: days - 1)),
+        );
+        final rows = await db.customSelect(
+          'SELECT date, COUNT(*) AS n FROM messages '
+          'WHERE sent_at IS NOT NULL AND date(sent_at / 1000, \'unixepoch\') >= ? '
+          'GROUP BY date',
+          variables: [Variable.withString(since)],
+        ).get();
+        return {
+          for (final r in rows)
+            r.data['date'] as String: (r.data['n'] as int? ?? 0),
+        };
+      } catch (_) {
+        // 表结构/时间列不可用时回退会话内存扫描
+      }
+    }
+    final result = <String, int>{};
+    for (final s in await _loadSessions()) {
+      for (final m in s.messages) {
+        final t = m.sentAt ?? s.updatedAt;
+        if (t.isBefore(DateTime.now().subtract(Duration(days: days - 1)))) {
+          continue;
+        }
+        final d = _dateOf(t);
+        result[d] = (result[d] ?? 0) + 1;
+      }
+    }
+    return result;
+  }
+
+  /// H-01：服务商用量排行（近 [days] 天）。
+  Future<List<({String provider, int tokens, int calls})>> rankProviders({
+    int days = 30,
+  }) async {
+    final db = await _db;
+    if (db != null && await _usageTableHasData(db)) {
+      try {
+        final since = _dateOf(DateTime.now().subtract(Duration(days: days - 1)));
+        final rows = await db.customSelect(
+          'SELECT provider_name, SUM(prompt_tokens + completion_tokens) AS t, '
+          'SUM(calls) AS n FROM usage_daily WHERE date >= ? '
+          'GROUP BY provider_name ORDER BY t DESC',
+          variables: [Variable.withString(since)],
+        ).get();
+        return [
+          for (final r in rows)
+            (
+              provider: r.data['provider_name'] as String? ?? '',
+              tokens: r.data['t'] as int? ?? 0,
+              calls: r.data['n'] as int? ?? 0,
+            ),
+        ];
+      } catch (_) {}
+    }
+    return [];
   }
 
   /// 模型 TopN。

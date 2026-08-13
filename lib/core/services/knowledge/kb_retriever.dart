@@ -54,7 +54,44 @@ class KbRetriever {
     return result;
   }
 
-  // ---------------- 关键词路 ----------------
+  /// D-04：检索调试——返回逐命中明细（来源/分数/是否向量路/排名）。
+  Future<List<RetrievalDebugHit>> searchDebug({
+    required Set<String> queryBigrams,
+    int topK = 8,
+    double similarityThreshold = 0.3,
+  }) async {
+    _thresholdOverride = similarityThreshold;
+    try {
+      final keywordHits = await _keywordSearch(queryBigrams, topK: topK * 3);
+      final vectorHits = queryVector.isEmpty
+          ? <_Hit>[]
+          : await _vectorSearch(topK: topK * 3);
+      final fused = _rrfFuse(keywordHits, vectorHits);
+      final keywordIds = {for (final h in keywordHits) h.chunkId};
+      final vectorIds = {for (final h in vectorHits) h.chunkId};
+      return [
+        for (var rank = 0; rank < fused.length && rank < topK; rank++)
+          RetrievalDebugHit(
+            chunk: KnowledgeChunk(
+              docName: fused[rank].docName,
+              text: fused[rank].text,
+              chunkId: fused[rank].chunkId,
+              score: fused[rank].fusedScore,
+            ),
+            score: fused[rank].score,
+            isVector: fused[rank].isVector,
+            rank: rank + 1,
+            fromKeyword: keywordIds.contains(fused[rank].chunkId),
+            fromVector: vectorIds.contains(fused[rank].chunkId),
+          ),
+      ];
+    } finally {
+      _thresholdOverride = null;
+    }
+  }
+
+  /// D-04：相似度阈值运行时覆盖（null = 默认 0.3）。
+  double? _thresholdOverride;
 
   Future<List<_Hit>> _keywordSearch(
     Set<String> bigrams, {
@@ -118,8 +155,9 @@ class KbRetriever {
       final vec = _decodeVec(r.data['vec'] as Uint8List);
       if (vec.length != queryVector.length) continue;
       final sim = cosineSimilarity(vec, queryVector);
-      // 相似度过滤：< 0.3 视为不相关
-      if (sim < 0.3) continue;
+      // 相似度过滤：< 阈值视为不相关（默认 0.3，测试台可覆盖）
+      final threshold = _thresholdOverride ?? 0.3;
+      if (sim < threshold) continue;
       hits.add(
         _Hit(
           chunkId: r.data['chunk_id'] as String,
@@ -205,5 +243,32 @@ class _Hit {
     required this.score,
     this.isVector = false,
     this.fusedScore,
+  });
+}
+
+/// D-04：检索调试命中（测试台展示用）。
+class RetrievalDebugHit {
+  final KnowledgeChunk chunk;
+
+  /// 原始分（关键词=命中率，向量=余弦相似度）。
+  final double score;
+
+  /// 是否来自向量路。
+  final bool isVector;
+
+  /// RRF 融合排名（1 起）。
+  final int rank;
+
+  /// 双路贡献分解。
+  final bool fromKeyword;
+  final bool fromVector;
+
+  const RetrievalDebugHit({
+    required this.chunk,
+    required this.score,
+    required this.isVector,
+    required this.rank,
+    required this.fromKeyword,
+    required this.fromVector,
   });
 }

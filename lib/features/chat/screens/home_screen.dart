@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +14,7 @@ import '../../../core/models/agent.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/chat_provider.dart';
 import '../../../core/models/chat_session.dart';
+import '../../imggen/services/imggen_share.dart';
 import '../../settings/screens/context_settings_screen.dart';
 import '../../search/screens/search_screen.dart';
 import '../../../shared/widgets/desktop_drop_zone.dart';
@@ -19,8 +22,11 @@ import '../../../shared/desktop_event_bus.dart';
 import '../../../shared/widgets/desktop_window_title_bar.dart';
 import '../../../core/services/agent_service.dart';
 import '../../../core/services/chat_service.dart';
-import '../../../core/services/export/backup_archive.dart';
+import '../../../core/services/deep_link_service.dart';
+import '../../../core/services/share_text_receiver.dart';
+import '../../../core/services/export/restore_service.dart';
 import '../../../core/services/export_service.dart';
+import '../../../features/platform/desktop_launcher.dart';
 import '../../../core/services/quick_phrase_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';
@@ -31,7 +37,12 @@ import '../../../core/services/network_log_service.dart';
 import '../../../core/services/provider_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/settings_service.dart';
-import '../../../core/services/tts_service.dart';
+import '../../../core/services/storage_io_io.dart'
+    if (dart.library.js_interop) '../../../core/services/storage_io_stub.dart'
+    as storage_io;
+import '../../../core/services/tts_service.dart' show FlutterTtsEngine;
+import '../../../core/services/tts/tts_provider.dart';
+import '../../../core/services/tts/voice_controller.dart';
 import '../../../core/services/web_search/web_search_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/l10n_ext.dart';
@@ -40,6 +51,10 @@ import '../../../core/utils/logger.dart';
 import '../widgets/chat_view.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/session_sidebar.dart';
+import '../../../shared/widgets/tag_picker.dart';
+import '../widgets/context_management_sheet.dart';
+import '../widgets/message_more_sheet.dart';
+import '../widgets/voice_input_sheet.dart';
 import '../widgets/tool_approval_dialog.dart';
 
 /// 应用主界面：自适应布局（宽屏侧边栏 / 窄屏抽屉）+ UI 组装。
@@ -123,7 +138,13 @@ class _HomeScreenState extends State<HomeScreen>
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   /// TTS 朗读控制（使用系统 TTS）。
-  final _ttsController = TtsController(FlutterTtsEngine());
+  /// E-01/E-02：语音控制器（网络 TTS 预取优先，回退系统 TTS）。
+  final VoiceController _ttsController = VoiceController(
+    providerResolver: () => TtsProviderRegistry.effective(
+      systemEngine: FlutterTtsEngine(),
+    ),
+    legacy: LegacySystemTts(SystemTtsProvider(FlutterTtsEngine())),
+  );
 
   /// 搜索结果跳转：进入会话后滚动定位到的消息索引（一次性，用后清除）。
   int? _pendingScrollIndex;
@@ -228,7 +249,88 @@ class _HomeScreenState extends State<HomeScreen>
     _ttsController.addListener(_onTtsChanged);
     // A-03：桌面托盘/热键动作（新建会话/打开设置等）
     _desktopSub = DesktopEventBus.instance.actions.listen(_onDesktopAction);
+    // C-05：图片生成页「发送到对话」投递
+    ImggenShare.channel.addListener(_onImggenShared);
+    _initPlatformEntries();
     _loadData();
+  }
+
+  /// I-06/I-02/I-03：平台入口初始化（deep-link / 分享文本 / 命令行备份）。
+  void _initPlatformEntries() {
+    // I-06：deep-link 订阅（热链接；冷启动链接在数据加载完成后处理）
+    unawaited(
+      DeepLinkService.instance.init(onHandle: (uri) {
+        final action = DeepLinkService.parse(uri);
+        if (action == null || !mounted) return;
+        _handleDeepLinkAction(action);
+      }),
+    );
+    // I-02：Android 系统分享文本 → 新会话预填
+    unawaited(
+      ShareTextReceiver.instance.init(onText: (text) {
+        if (!mounted) return;
+        _openSharedText(text);
+      }),
+    );
+    // I-03：首实例唤起（托盘/单实例）
+    DesktopLauncher.setFocusHandler(() {
+      if (mounted) {
+        DesktopEventBus.instance.emit(DesktopAction.toggleAppVisibility);
+      }
+    });
+    // I-03：命令行 .nona 备份文件（双击打开 → 恢复确认）
+    unawaited(_handleBackupFileArgs());
+  }
+
+  /// I-06：deep-link 动作路由。
+  Future<void> _handleDeepLinkAction((String?, String?, String?) action) async {
+    final (providerId, modelId, text) = action;
+    await controller.newSession();
+    if (providerId != null && modelId != null) {
+      controller.onModelChanged(providerId, modelId);
+    }
+    if (text != null && text.isNotEmpty && mounted) {
+      _restoreInput(text);
+    }
+    _onControllerChanged();
+  }
+
+  /// I-02：系统分享文本 → 新会话并预填输入框。
+  void _openSharedText(String text) {
+    unawaited(_handleSharedText(text));
+  }
+
+  Future<void> _handleSharedText(String text) async {
+    await controller.newSession();
+    if (!mounted) return;
+    _restoreInput(text);
+    _closeDrawer();
+    _onControllerChanged();
+  }
+
+  /// I-03：处理命令行传入的备份文件（.nona/.zip → 恢复流程）。
+  Future<void> _handleBackupFileArgs() async {
+    if (kIsWeb) return;
+    final path = await DesktopLauncher.backupFileFromArgs(
+      Platform.environment['NONA_OPEN_BACKUP'] != null
+          ? [Platform.environment['NONA_OPEN_BACKUP']!]
+          : const [],
+    );
+    if (path == null) return;
+    final file = File(path);
+    if (!await file.exists()) return;
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+    await _onDroppedBackup(bytes, file.uri.pathSegments.last);
+  }
+
+  /// C-05：接收图片生成页投递的图片 → 附加到当前输入区。
+  void _onImggenShared() {
+    final image = ImggenShare.channel.value;
+    if (image == null || !mounted) return;
+    controller.addImageUrl(image);
+    _closeDrawer();
+    _onControllerChanged();
   }
 
   StreamSubscription<DesktopAction>? _desktopSub;
@@ -247,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  /// A-03：拖入备份文件 → 恢复确认。
+  /// A-03：拖入备份文件 → 事务化恢复确认（G-01）。
   Future<void> _onDroppedBackup(Uint8List bytes, String fileName) async {
     final confirmed = await _confirmDialog(
       title: context.l10n.dropRestoreTitle,
@@ -256,26 +358,33 @@ class _HomeScreenState extends State<HomeScreen>
       danger: true,
     );
     if (!confirmed || !mounted) return;
-    final result = BackupArchive.importFromZipBytes(bytes);
-    if (result == null || result.sessions.isEmpty) {
-      showAppSnack(context, context.l10n.importFailed);
-      return;
+    try {
+      // G-01：staging 校验 → 旧数据快照 → 安装 → 回读校验 → 提交
+      final count = await RestoreService.restoreTransactional(
+        bytes,
+        onInstall: (sessions) async {
+          final existing = await SessionService().load();
+          final byId = {for (final s in existing) s.id: s};
+          for (final s in sessions) {
+            if (byId.containsKey(s.id)) continue;
+            existing.add(s);
+            byId[s.id] = s;
+          }
+          await SessionService().saveAll(existing);
+          return sessions.length;
+        },
+      );
+      if (!mounted) return;
+      await controller.loadSessions(
+        defaultTitle: context.l10n.chatSessionNewTitle,
+        defaultAgentPrompt: context.l10n.agentDefaultSystemPrompt,
+      );
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.dropRestoreDone(count));
+    } catch (_) {
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.restoreCorrupt);
     }
-    final existing = await SessionService().load();
-    final byId = {for (final s in existing) s.id: s};
-    for (final s in result.sessions) {
-      if (byId.containsKey(s.id)) continue;
-      existing.add(s);
-      byId[s.id] = s;
-    }
-    await SessionService().saveAll(existing);
-    if (!mounted) return;
-    await controller.loadSessions(
-      defaultTitle: context.l10n.chatSessionNewTitle,
-      defaultAgentPrompt: context.l10n.agentDefaultSystemPrompt,
-    );
-    if (!mounted) return;
-    showAppSnack(context, context.l10n.dropRestoreDone(result.sessions.length));
   }
 
   void _onTtsChanged() {
@@ -298,6 +407,7 @@ class _HomeScreenState extends State<HomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _desktopSub?.cancel();
     _ttsController.removeListener(_onTtsChanged);
+    ImggenShare.channel.removeListener(_onImggenShared);
     _ttsController.dispose();
     controller.dispose();
     _inputController.dispose();
@@ -400,6 +510,15 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _pinSession(ChatSession session) => controller.pinSession(session);
+
+  /// G-06：会话打标签（对话框多选 + 新建，结果写回会话并持久化）。
+  Future<void> _tagSession(ChatSession session) async {
+    final tags = await showTagPicker(context, session);
+    if (!mounted) return;
+    session.tags = tags;
+    await controller.persist();
+    if (mounted) setState(() {});
+  }
 
   Future<void> _duplicateSession(ChatSession session) =>
       controller.duplicateSession(
@@ -519,6 +638,124 @@ class _HomeScreenState extends State<HomeScreen>
     } else {
       showAppSnack(context, context.l10n.settingsExportFailed(''));
     }
+  }
+
+  // ---------------- B-07：消息「更多」统一菜单 ----------------
+
+  /// 统一菜单分发：复制/编辑/回滚/重生成/删除/朗读/选择复制/导出图片/多选。
+  Future<void> _onMessageMore(ChatMessage message) async {
+    final session = _currentSession;
+    if (session == null || !mounted) return;
+    final isLastAssistant = message.role == 'assistant' &&
+        session.messages.isNotEmpty &&
+        identical(session.messages.last, message);
+    final action = await showMessageMoreSheet(
+      context,
+      message: message,
+      isUser: message.role == 'user',
+      isLastAssistant: isLastAssistant,
+      canRegenerate: !controller.isLoading && isLastAssistant,
+      isStreaming: controller.streamingMessage == message,
+      longDocument: message.content.length >
+          (controller.settings.documentThreshold > 0
+              ? controller.settings.documentThreshold
+              : 0) ||
+          false,
+      speaking: _speakingMessageId == identityHashCode(message),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case MessageMoreAction.copy:
+        _copyMessage(message);
+      case MessageMoreAction.edit:
+        await _editMessage(message);
+      case MessageMoreAction.rollback:
+        await _rollbackToMessage(message);
+      case MessageMoreAction.regenerate:
+        _regenerateMessage(message);
+      case MessageMoreAction.delete:
+        await _deleteMessage(message);
+      case MessageMoreAction.speak:
+        _onMessageSpeak(message);
+      case MessageMoreAction.multiSelect:
+        controller.enterSelection();
+      case MessageMoreAction.ocr:
+        await _onOcr(message);
+      case MessageMoreAction.openDocument:
+        await _openMessageDocument(message);
+      case MessageMoreAction.selectCopy:
+        await _onSelectCopy(message);
+      case MessageMoreAction.exportImage:
+        await _onExportMessageImage(message);
+    }
+  }
+
+  /// 选择复制：弹出可选中文本对话框，复制或附带上下文发送。
+  Future<void> _onSelectCopy(ChatMessage message) async {
+    final text = message.content.trim();
+    if (text.isEmpty) return;
+    final result = await showSelectCopySheet(context, text: text);
+    if (result == null || !mounted) return;
+    await Clipboard.setData(ClipboardData(text: result));
+    if (!mounted) return;
+    showAppSnack(context, context.l10n.homeCopied);
+  }
+
+  /// 导出单条消息为 PNG 图片。
+  Future<void> _onExportMessageImage(ChatMessage message) async {
+    final bytes = await showMessageExportImageDialog(
+      context,
+      message: message,
+      isUser: message.role == 'user',
+    );
+    if (bytes == null || !mounted) return;
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final path = await storage_io.saveBytesFile(
+      suggestedName: 'message-$ts.png',
+      data: bytes,
+      extension: 'png',
+      mimeType: 'image/png',
+    );
+    if (!mounted) return;
+    showAppSnack(
+      context,
+      path == null
+          ? context.l10n.settingsExportFailed('')
+          : context.l10n.homeExportedTo(path),
+    );
+  }
+
+  // ---------------- B-08：上下文管理 ----------------
+
+  /// 打开上下文管理面板：分段报告 + 压缩/清除。
+  Future<void> _onManageContext() async {
+    final session = _currentSession;
+    if (session == null || !mounted) return;
+    await ContextManagementSheet.show(
+      context,
+      segments: controller.buildContextReport(session),
+      usedTokens: controller.estimateTokens(session),
+      limitTokens: controller.contextLimitFor(session),
+      session: session,
+      onCompress: () => controller.compressContext(session),
+      onSetTruncated: (clear) =>
+          controller.setContextTruncated(session, clear: clear),
+    );
+  }
+
+  // ---------------- E-03：语音输入 ----------------
+
+  /// 打开语音输入浮层：识别结果填入输入框。
+  Future<void> _openVoiceInput() async {
+    await showVoiceInputSheet(
+      context,
+      onResult: (text) {
+        if (!mounted) return;
+        final existing = _inputController.text;
+        final base = existing.trim().isEmpty ? '' : '$existing ';
+        _restoreInput('$base$text');
+      },
+    );
   }
 
   // ---------------- 发送 ----------------
@@ -676,6 +913,21 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  /// G-03：导出 JSONL（OpenAI fine-tune 格式）。
+  Future<void> _exportJsonl() async {
+    final session = _currentSession;
+    if (session == null) return;
+    try {
+      final path = await ExportService.exportJsonlToFile(session);
+      if (path == null) return;
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.homeExportedTo(path));
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.settingsExportFailed(e));
+    }
+  }
+
   Future<void> _exportHtml() async {
     final session = _currentSession;
     if (session == null) return;
@@ -794,6 +1046,8 @@ class _HomeScreenState extends State<HomeScreen>
       onRenameSession: _renameSession,
       onPinSession: _pinSession,
       onDuplicateSession: _duplicateSession,
+      // G-06：会话打标签
+      onTagSession: _tagSession,
       onToggleAnonymous: _toggleAnonymous,
       onOpenSettings: _openSettings,
     );
@@ -867,8 +1121,32 @@ class _HomeScreenState extends State<HomeScreen>
       onRangeSelect: controller.selectRangeTo,
       onDeleteSelected: _deleteSelectedMessages,
       onExportSelectedMarkdown: _exportSelectedMarkdown,
+      // G-03：JSONL 导出（OpenAI fine-tune 格式）
+      onExportJsonl: _exportJsonl,
+      // E-03：语音输入
+      onVoiceInput: _openVoiceInput,
+      // E-05：批量朗读所选消息
+      onSpeakSelected: () {
+        final session = _currentSession;
+        if (session == null) return;
+        final items = <(String, String)>[
+          for (final m in session.messages)
+            if (controller.selectedMessageIndices.contains(
+              session.messages.indexOf(m),
+            ))
+              ('${identityHashCode(m)}', m.content),
+        ];
+        unawaited(_ttsController.queueSpeak(items));
+      },
       quickPhrasesLoader: (agentId) => QuickPhraseService().list(agentId: agentId),
       agentId: session?.agentId,
+      // B-04：空态建议气泡（点击即发送）
+      suggestions: null,
+      onSuggestionTap: (text) => controller.sendText(text),
+      // B-07：统一「更多」菜单
+      onMessageMore: _onMessageMore,
+      // B-08：上下文管理面板
+      onManageContext: _onManageContext,
     );
 
     return CallbackShortcuts(

@@ -49,6 +49,10 @@ class ChatOptions {
   /// 摘要压缩时保留最近多少条消息全文。
   final int keepRecentMessages;
 
+  /// B-08：会话级临时停用的注入分段（memory/injection/knowledge/search/
+  /// worldBook），仅影响下次请求；空集合表示全部启用。
+  final List<String> disabledContextSegments;
+
   const ChatOptions({
     this.systemPrompt = '',
     this.temperature = 1.0,
@@ -66,6 +70,7 @@ class ChatOptions {
     this.autoTrim = true,
     this.summaryRatio = 0.2,
     this.keepRecentMessages = 40,
+    this.disabledContextSegments = const [],
   });
 
   static const _unset = Object();
@@ -87,6 +92,7 @@ class ChatOptions {
     bool? autoTrim,
     double? summaryRatio,
     int? keepRecentMessages,
+    List<String>? disabledContextSegments,
   }) {
     return ChatOptions(
       systemPrompt: systemPrompt ?? this.systemPrompt,
@@ -111,6 +117,8 @@ class ChatOptions {
       autoTrim: autoTrim ?? this.autoTrim,
       summaryRatio: summaryRatio ?? this.summaryRatio,
       keepRecentMessages: keepRecentMessages ?? this.keepRecentMessages,
+      disabledContextSegments:
+          disabledContextSegments ?? this.disabledContextSegments,
     );
   }
 
@@ -133,6 +141,7 @@ class ChatOptions {
       autoTrim: json['autoTrim'] as bool? ?? true,
       summaryRatio: (json['summaryRatio'] as num?)?.toDouble() ?? 0.2,
       keepRecentMessages: json['keepRecentMessages'] as int? ?? 40,
+      disabledContextSegments: (json['disabledContextSegments'] as List<dynamic>? ?? const []).cast<String>(),
     );
   }
 
@@ -153,5 +162,7 @@ class ChatOptions {
     'autoTrim': autoTrim,
     'summaryRatio': summaryRatio,
     'keepRecentMessages': keepRecentMessages,
+    if (disabledContextSegments.isNotEmpty)
+      'disabledContextSegments': disabledContextSegments,
   };
 }

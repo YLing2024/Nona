@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/mcp/mcp_client.dart';
 import '../../../core/services/mcp/mcp_service.dart';
 import '../../../core/utils/l10n_ext.dart';
 import '../../../core/utils/load_guarded.dart';
@@ -260,11 +261,31 @@ class _McpServerEditDialogState extends State<_McpServerEditDialog> {
   );
   late bool _needsApproval = widget.existing?.needsApproval ?? false;
 
+  // F-01：传输类型与 stdio 配置
+  late String _transport = widget.existing?.transport ?? 'http';
+  late final TextEditingController _commandController =
+      TextEditingController(text: widget.existing?.stdio?.command ?? '');
+  late final TextEditingController _argsController = TextEditingController(
+    text: (widget.existing?.stdio?.args ?? const []).join('\n'),
+  );
+  late final TextEditingController _envController = TextEditingController(
+    text: (widget.existing?.stdio?.env ?? const {})
+        .entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('\n'),
+  );
+  late final TextEditingController _cwdController =
+      TextEditingController(text: widget.existing?.stdio?.cwd ?? '');
+
   @override
   void dispose() {
     _nameController.dispose();
     _urlController.dispose();
     _headersController.dispose();
+    _commandController.dispose();
+    _argsController.dispose();
+    _envController.dispose();
+    _cwdController.dispose();
     super.dispose();
   }
 
@@ -276,12 +297,25 @@ class _McpServerEditDialogState extends State<_McpServerEditDialog> {
       );
       return;
     }
+    if (_transport == 'stdio' && _commandController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.l10n.mcpCommandNotFound(''))),
+      );
+      return;
+    }
     final headers = <String, String>{};
     for (final line in _headersController.text.split('\n')) {
       final colon = line.indexOf(':');
       if (colon > 0) {
         headers[line.substring(0, colon).trim()] =
             line.substring(colon + 1).trim();
+      }
+    }
+    final env = <String, String>{};
+    for (final line in _envController.text.split('\n')) {
+      final eq = line.indexOf('=');
+      if (eq > 0) {
+        env[line.substring(0, eq).trim()] = line.substring(eq + 1).trim();
       }
     }
     Navigator.of(context).pop(
@@ -293,6 +327,20 @@ class _McpServerEditDialogState extends State<_McpServerEditDialog> {
         headers: headers,
         enabled: widget.existing?.enabled ?? true,
         needsApproval: _needsApproval,
+        transport: _transport,
+        stdio: _transport == 'stdio'
+            ? StdioConfig(
+                command: _commandController.text.trim(),
+                args: [
+                  for (final a in _argsController.text.split('\n'))
+                    if (a.trim().isNotEmpty) a.trim(),
+                ],
+                env: env,
+                cwd: _cwdController.text.trim().isEmpty
+                    ? null
+                    : _cwdController.text.trim(),
+              )
+            : null,
       ),
     );
   }
@@ -300,6 +348,7 @@ class _McpServerEditDialogState extends State<_McpServerEditDialog> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final isWeb = const bool.fromEnvironment('dart.library.js_interop');
     return AlertDialog(
       title: Text(
         widget.existing == null ? l10n.mcpAdd : l10n.mcpEdit,
@@ -320,27 +369,106 @@ class _McpServerEditDialogState extends State<_McpServerEditDialog> {
                 ),
               ),
               const SizedBox(height: 12),
+              // F-01：传输类型（Web 隐藏 stdio）
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.mcpTransport,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  DropdownButton<String>(
+                    value: _transport,
+                    onChanged: (v) {
+                      if (v != null) setState(() => _transport = v);
+                    },
+                    items: [
+                      DropdownMenuItem(
+                        value: 'http',
+                        child: Text(l10n.mcpTransportHttp),
+                      ),
+                      if (!isWeb)
+                        DropdownMenuItem(
+                          value: 'stdio',
+                          child: Text(l10n.mcpTransportStdio),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: _urlController,
                 autocorrect: false,
                 decoration: InputDecoration(
-                  labelText: l10n.mcpUrl,
-                  hintText: 'https://example.com/mcp',
+                  labelText: _transport == 'stdio'
+                      ? l10n.mcpUrl
+                      : l10n.mcpUrl,
+                  hintText: _transport == 'stdio'
+                      ? 'stdio://server-id'
+                      : 'https://example.com/mcp',
                   border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _headersController,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: l10n.mcpHeaders,
-                  hintText: 'Authorization: Bearer xxx',
-                  border: const OutlineInputBorder(),
-                  isDense: true,
+              if (_transport == 'stdio') ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _commandController,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.mcpStdioCommand,
+                    hintText: 'npx / node / python',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _argsController,
+                  maxLines: 3,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.mcpStdioArgs,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _envController,
+                  maxLines: 3,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.mcpStdioEnv,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cwdController,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.mcpStdioCwd,
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ] else ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _headersController,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: l10n.mcpHeaders,
+                    hintText: 'Authorization: Bearer xxx',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

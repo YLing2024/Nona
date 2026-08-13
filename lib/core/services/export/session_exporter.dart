@@ -181,6 +181,62 @@ class SessionExporter {
     );
   }
 
+  /// G-03：JSONL（OpenAI fine-tune 格式）——每轮对话一行
+  /// `{"messages":[{"role","content"}...]}`，工具消息折叠为文本。
+  static String sessionToJsonl(ChatSession session) {
+    final sb = StringBuffer();
+    final messages = <Map<String, String>>[];
+    for (final m in session.messages) {
+      if (m.content.trim().isEmpty && m.toolCallsJson == null) continue;
+      var role = m.role;
+      // 工具消息折叠：并入其前的 assistant 工具调用文本
+      if (role == 'tool') {
+        final text = 'tool result: ${m.content.trim()}';
+        if (messages.isNotEmpty &&
+            messages.last['role'] == 'assistant') {
+          messages.last['content'] =
+              '${messages.last['content']}\n$text'.trim();
+        } else {
+          messages.add({'role': 'assistant', 'content': text});
+        }
+        continue;
+      }
+      if (role == 'system') role = 'system';
+      final content = StringBuffer(m.content.trim());
+      if (m.toolCallsJson != null && m.toolCallsJson!.isNotEmpty) {
+        content.write('\n[tool calls] ${m.toolCallsJson}');
+      }
+      messages.add({'role': role, 'content': content.toString()});
+    }
+    // 首条必须是 user（fine-tune 格式要求）
+    var i = 0;
+    while (i < messages.length && messages[i]['role'] != 'user') {
+      i++;
+    }
+    if (i < messages.length && i > 0) {
+      final lead = messages.sublist(0, i);
+      messages.removeRange(0, i);
+      messages.insertAll(0, lead);
+    }
+    // 结尾必须 user（格式要求；不足补空）
+    if (messages.isNotEmpty && messages.last['role'] != 'user') {
+      messages.add({'role': 'user', 'content': ''});
+    }
+    sb.writeln(jsonEncode({'messages': messages}));
+    return sb.toString();
+  }
+
+  /// G-03：导出 JSONL 文件。
+  static Future<String?> exportJsonlToFile(ChatSession session) async {
+    final data = sessionToJsonl(session);
+    return storage_io.saveTextFile(
+      suggestedName: '${_safeFileName(session.title)}.jsonl',
+      data: data,
+      extension: 'jsonl',
+      mimeType: 'application/jsonl',
+    );
+  }
+
   /// 将会话复制为 Markdown 到剪贴板。
   static Future<void> copyAsMarkdown(ChatSession session) async {
     await Clipboard.setData(ClipboardData(text: sessionToMarkdown(session)));

@@ -16,6 +16,9 @@ class SessionGroupSection extends StatelessWidget {
   final void Function(ChatSession session) onPinSession;
   final void Function(ChatSession session) onDuplicateSession;
 
+  /// G-06：会话打标签。
+  final void Function(ChatSession session)? onTagSession;
+
   const SessionGroupSection({
     super.key,
     required this.label,
@@ -26,6 +29,7 @@ class SessionGroupSection extends StatelessWidget {
     required this.onRenameSession,
     required this.onPinSession,
     required this.onDuplicateSession,
+    this.onTagSession,
   });
 
   @override
@@ -54,6 +58,7 @@ class SessionGroupSection extends StatelessWidget {
             onRenameSession: onRenameSession,
             onPinSession: onPinSession,
             onDuplicateSession: onDuplicateSession,
+            onTagSession: onTagSession,
           ),
       ],
     );
@@ -71,6 +76,9 @@ class SessionListItem extends StatelessWidget {
   final void Function(ChatSession session) onPinSession;
   final void Function(ChatSession session) onDuplicateSession;
 
+  /// G-06：会话打标签。
+  final void Function(ChatSession session)? onTagSession;
+
   const SessionListItem({
     super.key,
     required this.session,
@@ -80,6 +88,7 @@ class SessionListItem extends StatelessWidget {
     required this.onRenameSession,
     required this.onPinSession,
     required this.onDuplicateSession,
+    this.onTagSession,
   });
 
   @override
@@ -148,6 +157,9 @@ class SessionListItem extends StatelessWidget {
                   onRename: () => onRenameSession(session),
                   onPin: () => onPinSession(session),
                   onDuplicate: () => onDuplicateSession(session),
+                  onTag: onTagSession == null
+                      ? null
+                      : () => onTagSession!(session),
                   onDelete: () => onDeleteSession(session),
                 ),
               ],
@@ -166,6 +178,7 @@ class _SessionMenuButton extends StatelessWidget {
   final VoidCallback onRename;
   final VoidCallback onPin;
   final VoidCallback onDuplicate;
+  final VoidCallback? onTag;
   final VoidCallback onDelete;
 
   const _SessionMenuButton({
@@ -174,6 +187,7 @@ class _SessionMenuButton extends StatelessWidget {
     required this.onRename,
     required this.onPin,
     required this.onDuplicate,
+    this.onTag,
     required this.onDelete,
   });
 
@@ -207,6 +221,15 @@ class _SessionMenuButton extends StatelessWidget {
           child: Text(context.l10n.sidebarDuplicate,
               style: const TextStyle(fontSize: 13)),
         ),
+        if (onTag != null) ...[
+          const PopupMenuDivider(),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.sell_outlined, size: 17),
+            onPressed: onTag,
+            child: Text(context.l10n.tagsApply,
+                style: const TextStyle(fontSize: 13)),
+          ),
+        ],
         const PopupMenuDivider(),
         MenuItemButton(
           leadingIcon: Icon(Icons.delete_outline_rounded,

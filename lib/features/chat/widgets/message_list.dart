@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../../../core/utils/l10n_ext.dart';
 
@@ -40,6 +41,9 @@ class MessageList extends StatefulWidget {
   /// 打开超长文本消息的文档详情页。
   final void Function(ChatMessage message)? onOpenDocument;
 
+  /// B-07：统一「更多」菜单入口。
+  final void Function(ChatMessage message)? onMore;
+
   /// 流式生成期间是否实时渲染 Markdown（设置项，默认开）。
   final bool streamMarkdown;
 
@@ -69,6 +73,7 @@ class MessageList extends StatefulWidget {
     required this.onSpeak,
     this.onOcr,
     this.onOpenDocument,
+    this.onMore,
     this.streamMarkdown = true,
     this.documentThreshold = 40000,
     this.speakingMessageId,
@@ -89,6 +94,9 @@ class _MessageListState extends State<MessageList> {
 
   /// 搜索结果跳转定位的目标消息 key（命中项构建后 ensureVisible）。
   final GlobalKey _targetKey = GlobalKey();
+
+  /// B-02：列表控制器——按索引精确定位（jumpToItem）。
+  final ListController _listController = ListController();
 
   bool get _isNearBottom {
     if (!widget.controller.hasClients) return true;
@@ -124,6 +132,7 @@ class _MessageListState extends State<MessageList> {
   @override
   void dispose() {
     widget.controller.removeListener(_onScroll);
+    _listController.dispose();
     super.dispose();
   }
 
@@ -184,33 +193,45 @@ class _MessageListState extends State<MessageList> {
     });
   }
 
-  /// 定位到指定消息索引：先按估算高度跳近以触发目标项构建，
-  /// 再 ensureVisible 精确对齐（消息高度不定，直接 jumpTo 无法精确）。
+  /// 定位到指定消息索引：jumpToItem 就近定位触发目标项构建，
+  /// 再 ensureVisible 精确对齐（super_sliver_list 增量布局下
+  /// 目标项可能未构建，按帧重试最多 3 轮）。
   void _scrollToIndex(int index) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.controller.hasClients) return;
-      final max = widget.controller.position.maxScrollExtent;
-      final estimated = index * 96.0;
-      widget.controller.jumpTo(estimated.clamp(0.0, max));
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final ctx = _targetKey.currentContext;
-        if (ctx != null) {
-          Scrollable.ensureVisible(
-            ctx,
-            alignment: 0.12,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-          );
-        } else if (widget.controller.hasClients) {
-          widget.controller.animateTo(
-            widget.controller.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-          );
-        }
-        widget.onScrollTargetHandled?.call();
-      });
+      _revealItem(index, attempt: 0);
+    });
+  }
+
+  void _revealItem(int index, {required int attempt}) {
+    if (!mounted || !widget.controller.hasClients) return;
+    _listController.jumpToItem(
+      index: index,
+      scrollController: widget.controller,
+      alignment: 0.45,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _targetKey.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          alignment: 0.12,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      } else if (attempt < 3) {
+        // 目标项尚未构建：下一帧重试
+        _revealItem(index, attempt: attempt + 1);
+        return;
+      } else if (widget.controller.hasClients) {
+        widget.controller.animateTo(
+          widget.controller.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+      widget.onScrollTargetHandled?.call();
     });
   }
 
@@ -219,8 +240,10 @@ class _MessageListState extends State<MessageList> {
     final scheme = Theme.of(context).colorScheme;
     return Stack(
       children: [
-        ListView.builder(
+        // B-02：super_sliver_list 增量虚拟化 + 按索引定位
+        SuperListView.builder(
           controller: widget.controller,
+          listController: _listController,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           itemCount: widget.messages.length,
           itemBuilder: (context, index) {
@@ -251,6 +274,7 @@ class _MessageListState extends State<MessageList> {
                     onSpeak: () => widget.onSpeak(message),
                     onOcr: () => widget.onOcr?.call(message),
                     onOpenDocument: () => widget.onOpenDocument?.call(message),
+                    onMore: () => widget.onMore?.call(message),
                   )
                 : _MemoizedBubble(
                     message: message,
@@ -272,6 +296,7 @@ class _MessageListState extends State<MessageList> {
                     onSpeak: () => widget.onSpeak(message),
                     onOcr: () => widget.onOcr?.call(message),
                     onOpenDocument: () => widget.onOpenDocument?.call(message),
+                    onMore: () => widget.onMore?.call(message),
                   );
             Widget item = RepaintBoundary(
               child: _AnimatedEntry(
@@ -357,6 +382,7 @@ class _MemoizedBubble extends StatefulWidget {
   final VoidCallback? onSpeak;
   final VoidCallback? onOcr;
   final VoidCallback? onOpenDocument;
+  final VoidCallback? onMore;
 
   const _MemoizedBubble({
     required this.message,
@@ -374,6 +400,7 @@ class _MemoizedBubble extends StatefulWidget {
     this.onSpeak,
     this.onOcr,
     this.onOpenDocument,
+    this.onMore,
   });
 
   @override
@@ -428,6 +455,7 @@ class _MemoizedBubbleState extends State<_MemoizedBubble> {
       onSpeak: widget.onSpeak,
       onOcr: widget.onOcr,
       onOpenDocument: widget.onOpenDocument,
+      onMore: widget.onMore,
     );
   }
 }

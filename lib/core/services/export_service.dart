@@ -54,6 +54,13 @@ class ExportService {
   static Future<String?> exportJsonToFile(ChatSession session) =>
       SessionExporter.exportJsonToFile(session);
 
+  /// G-03：导出 JSONL（OpenAI fine-tune 格式）。
+  static String sessionToJsonl(ChatSession session) =>
+      SessionExporter.sessionToJsonl(session);
+
+  static Future<String?> exportJsonlToFile(ChatSession session) =>
+      SessionExporter.exportJsonlToFile(session);
+
   /// 从 JSON 文件恢复会话；解析失败返回 null。
   static Future<ChatSession?> importFromFile() =>
       ImportService.importFromFile();

@@ -82,6 +82,7 @@ class NonaAppDatabase extends _$NonaAppDatabase {
       await m.addColumn(messages, messages.streamingState);
       await m.addColumn(worldBookEntries, worldBookEntries.useRegex);
       await m.addColumn(worldBookEntries, worldBookEntries.bookId);
+      await m.addColumn(worldBookEntries, worldBookEntries.injectDepth);
       await m.createTable(worldBooks);
       // 旧版索引兜底修复（旧库可能缺索引）
       await customStatement(

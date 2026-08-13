@@ -34,6 +34,22 @@ class ChatProvider {
   /// 模型级能力配置（多模态 / 推理），key 为模型 id。
   Map<String, ModelConfig> modelConfigs;
 
+  /// C-01：是否使用 OpenAI Responses API（/responses，面向 o1/o3/o4/gpt-5）。
+  final bool useResponseApi;
+
+  /// C-03：服务商分组 id（null = 未分组）。
+  String? groupId;
+
+  /// C-02：认证方式（apiKey / serviceAccount）。
+  final String authMode;
+
+  /// C-02：Service Account JSON（粘贴或选文件导入）。
+  final String saJson;
+
+  /// C-02：Vertex Project ID / Region。
+  final String vertexProject;
+  final String vertexRegion;
+
   ChatProvider({
     required this.id,
     required this.name,
@@ -47,6 +63,12 @@ class ChatProvider {
     this.balanceResultPath = '',
     this.modelIds = const [],
     this.modelConfigs = const {},
+    this.useResponseApi = false,
+    this.groupId,
+    this.authMode = 'apiKey',
+    this.saJson = '',
+    this.vertexProject = '',
+    this.vertexRegion = 'us-central1',
   });
 
   factory ChatProvider.fromJson(Map<String, dynamic> json) {
@@ -72,6 +94,12 @@ class ChatProvider {
       modelConfigs: rawConfigs.map(
         (k, v) => MapEntry(k, ModelConfig.fromJson(v as Map<String, dynamic>)),
       ),
+      useResponseApi: json['useResponseApi'] as bool? ?? false,
+      groupId: json['groupId'] as String?,
+      authMode: json['authMode'] as String? ?? 'apiKey',
+      saJson: json['saJson'] as String? ?? '',
+      vertexProject: json['vertexProject'] as String? ?? '',
+      vertexRegion: json['vertexRegion'] as String? ?? 'us-central1',
     );
   }
 
@@ -88,6 +116,12 @@ class ChatProvider {
     'balanceResultPath': balanceResultPath,
     'modelIds': modelIds,
     'modelConfigs': modelConfigs.map((k, v) => MapEntry(k, v.toJson())),
+    'useResponseApi': useResponseApi,
+    if (groupId != null) 'groupId': groupId,
+    'authMode': authMode,
+    if (saJson.isNotEmpty) 'saJson': saJson,
+    'vertexProject': vertexProject,
+    'vertexRegion': vertexRegion,
   };
 }
 

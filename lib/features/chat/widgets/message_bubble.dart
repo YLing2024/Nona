@@ -39,6 +39,9 @@ class MessageBubble extends StatefulWidget {
   /// 打开超长文本消息的文档详情页（气泡内文档占位卡点击）。
   final VoidCallback? onOpenDocument;
 
+  /// B-07：统一「更多」菜单入口。
+  final VoidCallback? onMore;
+
   /// 流式生成期间是否实时渲染 Markdown（设置项，默认开）。
   final bool streamMarkdown;
 
@@ -61,6 +64,7 @@ class MessageBubble extends StatefulWidget {
     this.onSpeak,
     this.onOcr,
     this.onOpenDocument,
+    this.onMore,
     this.streamMarkdown = true,
     this.documentThreshold = MarkdownView.kDefaultMaxRenderChars,
   });
@@ -162,6 +166,7 @@ class _MessageBubbleState extends State<MessageBubble> {
           onDelete: widget.onDelete,
           onSpeak: widget.onSpeak,
           onOcr: widget.onOcr,
+          onMore: widget.onMore,
         ),
       ],
     );

@@ -344,3 +344,465 @@ class SearxngSearchEngine implements SearchEngine {
     return list.take(maxResults).toList();
   }
 }
+
+/// 公共：Bearer JSON 请求辅助（D-01 多引擎共用）。
+Future<Map<String, dynamic>?> _postJson(
+  Uri uri, {
+  String? bearer,
+  Map<String, String>? headers,
+  Map<String, dynamic>? body,
+  bool get = false,
+}) async {
+  final response = await AppHttpClient.instance.send(
+    method: get ? 'GET' : 'POST',
+    uri: uri,
+    headers: {
+      'Content-Type': 'application/json',
+      if (bearer != null && bearer.isNotEmpty)
+        'Authorization': 'Bearer $bearer',
+      ...?headers,
+    },
+    body: body == null ? '' : jsonEncode(body),
+    type: NetworkLogType.other,
+    timeout: const Duration(seconds: 20),
+  );
+  if (response.statusCode != 200) return null;
+  try {
+    return jsonDecode(response.body) as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Brave Search API：X-Subscription-Token 头，需 API Key。
+class BraveSearchEngine implements SearchEngine {
+  final String apiKey;
+  BraveSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Brave';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final uri = Uri.parse('https://api.search.brave.com/res/v1/web/search')
+        .replace(queryParameters: {'q': query, 'count': '$maxResults'});
+    final response = await AppHttpClient.instance.send(
+      method: 'GET',
+      uri: uri,
+      headers: {'X-Subscription-Token': apiKey, 'Accept': 'application/json'},
+      type: NetworkLogType.other,
+      timeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode != 200) return const [];
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final results = data['web']?['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['description'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Exa：api.exa.ai/search，需 API Key。
+class ExaSearchEngine implements SearchEngine {
+  final String apiKey;
+  ExaSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Exa';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://api.exa.ai/search'),
+      bearer: apiKey,
+      body: {'query': query, 'numResults': maxResults.clamp(1, 10)},
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['text'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Grok（x.ai）：/v1/responses + web_search 内置工具，解析 url_citation。
+class GrokSearchEngine implements SearchEngine {
+  final String apiKey;
+  GrokSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Grok';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://api.x.ai/v1/responses'),
+      bearer: apiKey,
+      body: {
+        'model': 'grok-2',
+        'tools': [
+          {'type': 'web_search'},
+        ],
+        'input': [
+          {'role': 'user', 'content': query},
+        ],
+        'max_output_tokens': 512,
+      },
+    );
+    if (data == null) return const [];
+    final output = data['output'] as List<dynamic>? ?? const [];
+    final items = <SearchResultItem>[];
+    var index = 0;
+    for (final o in output) {
+      if (o is! Map<String, dynamic>) continue;
+      final content = o['content'];
+      if (content is! List) continue;
+      for (final part in content) {
+        if (part is! Map<String, dynamic>) continue;
+        final url = part['url'] as String?;
+        final title = part['title'] as String?;
+        final text = part['text'] as String?;
+        if (url != null && url.isNotEmpty) {
+          items.add(
+            SearchResultItem(
+              title: title ?? 'Result ${index + 1}',
+              url: url,
+              snippet: text ?? '',
+            ),
+          );
+          index++;
+          if (index >= maxResults) break;
+        }
+      }
+    }
+    return items;
+  }
+}
+
+/// Jina Reader / Search：s.jina.ai，需 API Key（可选）。
+class JinaSearchEngine implements SearchEngine {
+  final String apiKey;
+  JinaSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Jina';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final uri = Uri.parse('https://s.jina.ai/$query');
+    final response = await AppHttpClient.instance.send(
+      method: 'GET',
+      uri: uri,
+      headers: {
+        'X-Return-Format': 'markdown',
+        if (apiKey.isNotEmpty) 'Authorization': 'Bearer $apiKey',
+      },
+      type: NetworkLogType.other,
+      timeout: const Duration(seconds: 25),
+    );
+    if (response.statusCode != 200) return const [];
+    final body = response.body;
+    final items = <SearchResultItem>[];
+    final links = RegExp(r'\[([^\]]+)\]\((https?://[^)\s]+)\)').allMatches(body);
+    for (final m in links) {
+      final title = m.group(1)!.trim();
+      final url = m.group(2)!;
+      if (title.isEmpty || title.startsWith('!')) continue;
+      items.add(SearchResultItem(title: title, url: url, snippet: ''));
+      if (items.length >= maxResults) break;
+    }
+    return items;
+  }
+}
+
+/// LinkUp：api.linkup.so/v1/search，需 API Key。
+class LinkUpSearchEngine implements SearchEngine {
+  final String apiKey;
+  LinkUpSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'LinkUp';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://api.linkup.so/v1/search'),
+      bearer: apiKey,
+      body: {
+        'q': query,
+        'limit': maxResults.clamp(1, 20),
+        'depth': 'standard',
+      },
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['name'] as String? ?? r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['content'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Metaso：metaso.cn/api/v1/search，需 API Key。
+class MetasoSearchEngine implements SearchEngine {
+  final String apiKey;
+  MetasoSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Metaso';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://metaso.cn/api/v1/search'),
+      bearer: apiKey,
+      body: {'q': query, 'limit': maxResults.clamp(1, 10)},
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['content'] as String? ?? r['snippet'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Ollama Web Search：ollama.com/api/web_search，需 API Key。
+class OllamaSearchEngine implements SearchEngine {
+  final String apiKey;
+  OllamaSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Ollama';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://ollama.com/api/web_search'),
+      bearer: apiKey,
+      body: {'query': query, 'limit': maxResults.clamp(1, 10)},
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['snippet'] as String? ?? r['content'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Perplexity：api.perplexity.ai/search，需 API Key。
+class PerplexitySearchEngine implements SearchEngine {
+  final String apiKey;
+  PerplexitySearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Perplexity';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://api.perplexity.ai/search'),
+      bearer: apiKey,
+      body: {
+        'query': query,
+        'max_results': maxResults.clamp(1, 10),
+      },
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['content'] as String? ?? r['snippet'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Querit：api.querit.ai/v1/search，需 API Key。
+class QueritSearchEngine implements SearchEngine {
+  final String apiKey;
+  QueritSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Querit';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://api.querit.ai/v1/search'),
+      bearer: apiKey,
+      body: {'query': query, 'limit': maxResults.clamp(1, 10)},
+    );
+    if (data == null) return const [];
+    final results = data['results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['url'] as String? ?? '',
+            snippet: r['content'] as String? ?? r['snippet'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// Serper（Google）：google.serper.dev/search，X-API-KEY 头。
+class SerperSearchEngine implements SearchEngine {
+  final String apiKey;
+  SerperSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Serper';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://google.serper.dev/search'),
+      headers: {'X-API-KEY': apiKey},
+      body: {'q': query, 'num': maxResults.clamp(1, 10)},
+    );
+    if (data == null) return const [];
+    final results = data['organic'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['link'] as String? ?? '',
+            snippet: r['snippet'] as String? ?? '',
+          ),
+    ];
+  }
+}
+
+/// 智谱（Zhipu）：open.bigmodel.cn/api/paas/v4/web_search，需 API Key。
+class ZhipuSearchEngine implements SearchEngine {
+  final String apiKey;
+  ZhipuSearchEngine(this.apiKey);
+
+  @override
+  String get name => 'Zhipu';
+
+  @override
+  bool get needsApiKey => true;
+
+  @override
+  Future<List<SearchResultItem>> search(
+    String query, {
+    int maxResults = 5,
+  }) async {
+    final data = await _postJson(
+      Uri.parse('https://open.bigmodel.cn/api/paas/v4/web_search'),
+      bearer: apiKey,
+      body: {
+        'search_query': query,
+        'search_enable': true,
+        'max_search_results': maxResults.clamp(1, 10),
+      },
+    );
+    if (data == null) return const [];
+    final results = data['search_results'] as List<dynamic>? ?? const [];
+    return [
+      for (final r in results)
+        if (r is Map<String, dynamic>)
+          SearchResultItem(
+            title: r['title'] as String? ?? '',
+            url: r['link'] as String? ?? r['url'] as String? ?? '',
+            snippet: r['content'] as String? ?? r['snippet'] as String? ?? '',
+          ),
+    ];
+  }
+}

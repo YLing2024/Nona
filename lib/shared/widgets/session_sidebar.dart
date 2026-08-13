@@ -23,6 +23,9 @@ class SessionSidebar extends StatefulWidget {
   final void Function(ChatSession session) onRenameSession;
   final void Function(ChatSession session) onPinSession;
   final void Function(ChatSession session) onDuplicateSession;
+
+  /// G-06：会话打标签。
+  final void Function(ChatSession session)? onTagSession;
   final VoidCallback onToggleAnonymous;
   final VoidCallback onOpenSettings;
 
@@ -39,6 +42,7 @@ class SessionSidebar extends StatefulWidget {
     required this.onRenameSession,
     required this.onPinSession,
     required this.onDuplicateSession,
+    this.onTagSession,
     required this.onToggleAnonymous,
     required this.onOpenSettings,
   });
@@ -306,6 +310,7 @@ class SessionSidebarState extends State<SessionSidebar> {
             onRenameSession: widget.onRenameSession,
             onPinSession: widget.onPinSession,
             onDuplicateSession: widget.onDuplicateSession,
+            onTagSession: widget.onTagSession,
           ),
         for (final group in grouped.groups)
           SessionGroupSection(
@@ -321,6 +326,7 @@ class SessionSidebarState extends State<SessionSidebar> {
             onRenameSession: widget.onRenameSession,
             onPinSession: widget.onPinSession,
             onDuplicateSession: widget.onDuplicateSession,
+            onTagSession: widget.onTagSession,
           ),
       ],
     );

@@ -3,14 +3,19 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
+  audioplayers_windows
   desktop_drop
   dynamic_color
   file_selector_windows
   flutter_secure_storage_windows
   flutter_tts
   hotkey_manager_windows
+  permission_handler_windows
+  record_windows
   screen_retriever_windows
   sentry_flutter
+  speech_to_text_windows
   sqlite3_flutter_libs
   tray_manager
   url_launcher_windows
@@ -18,6 +23,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  flutter_local_notifications_windows
   jni
   pdfium_flutter
 )

@@ -351,6 +351,28 @@ class KnowledgeBaseService {
   /// embedding 提供者（F4-2，未配置自动回退纯 bigram）。
   EmbeddingProvider get embeddingProvider => _embeddingProvider;
 
+  /// D-04：测试台——加载嵌入（离线用本地嵌入，否则云端配置）。
+  Future<void> loadEmbeddingIfNeeded() async {
+    if (offlineMode) {
+      await _localEmbedding.load();
+    } else {
+      await _embeddingProvider.load();
+    }
+  }
+
+  /// D-04：测试台——查询向量（不可用返回空列表，检索回退纯 bigram）。
+  Future<List<double>> embedQueryIfPossible(String query) async {
+    try {
+      if (offlineMode) {
+        return _localEmbedding.embed(query);
+      }
+      if (_embeddingProvider.configured) {
+        return await _embeddingProvider.embed(query);
+      }
+    } catch (_) {}
+    return const [];
+  }
+
   /// 混合检索（F4-2）：bigram 关键词路 + 向量语义路，RRF 融合。
   ///
   /// [libraryIds] 为检索域（Agent 绑定库）；为空时检索全部启用库。

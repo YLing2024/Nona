@@ -1,12 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../core/models/chat_message.dart' show ChatImage;
 import '../../../core/models/chat_provider.dart';
 import '../services/images_adapter.dart';
+import '../services/imggen_share.dart';
 import '../../../core/services/provider_service.dart';
 import '../../../core/utils/app_snackbar.dart';
+import '../../../core/utils/l10n_ext.dart';
 import '../../../core/utils/load_guarded.dart';
 import '../../../shared/widgets/chat_image_view.dart';
 
@@ -22,6 +27,7 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
   late final ProviderService _providers = context.read<ProviderService>();
   final _promptController = TextEditingController();
   String _size = '1024x1024';
+  String? _quality;
   int _n = 1;
   bool _busy = false;
   List<ChatProvider> _providerList = [];
@@ -29,10 +35,45 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
   final List<_GenHistoryItem> _history = [];
   final ImagesAdapter _adapter = ImagesAdapter();
 
+  static const _kHistoryPrefs = 'imggen_history_v1';
+
   @override
   void initState() {
     super.initState();
     _load();
+    _loadHistory();
+  }
+
+  /// C-05：历史回看（prefs JSON，最多 50 条，仅存元数据与 URL）。
+  Future<void> _loadHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kHistoryPrefs);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _history.addAll([
+          for (final e in decoded)
+            if (e is Map<String, dynamic>)
+              _GenHistoryItem.fromJson(e),
+        ]);
+      });
+    } catch (_) {
+      // 历史损坏：忽略
+    }
+  }
+
+  Future<void> _persistHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kHistoryPrefs,
+        jsonEncode(_history.take(50).map((h) => h.toJson()).toList()),
+      );
+    } catch (_) {
+      // 忽略
+    }
   }
 
   Future<void> _load() async {
@@ -58,6 +99,7 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
         prompt: prompt,
         size: _size,
         n: _n,
+        quality: _quality,
       );
       if (!mounted) return;
       setState(() {
@@ -78,11 +120,22 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
         );
         _busy = false;
       });
+      await _persistHistory();
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
       showAppSnack(context, '$e');
     }
+  }
+
+  /// C-05：发送到对话（经 ImggenShare 通道投递到首页输入区）。
+  void _sendToChat(_GenHistoryItem item) {
+    final image = ChatImage(
+      url: item.b64 != null ? 'data:image/png;base64,${item.b64}' : item.url,
+      mimeType: item.b64 != null ? 'image/png' : 'image/*',
+    );
+    ImggenShare.sendToChat(image);
+    showAppSnack(context, context.l10n.imggenSendToChat);
   }
 
   @override
@@ -153,6 +206,30 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
+                    // C-05：质量参数（standard/hd）
+                    Expanded(
+                      child: DropdownButtonFormField<String?>(
+                        initialValue: _quality,
+                        decoration: InputDecoration(
+                          labelText: l10n.imggenQuality,
+                          border: const OutlineInputBorder(),
+                        ),
+                        items: [
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text(l10n.commonAuto),
+                          ),
+                          const DropdownMenuItem(value: 'standard', child: Text('Standard')),
+                          const DropdownMenuItem(value: 'hd', child: Text('HD')),
+                        ],
+                        onChanged: (v) => setState(() => _quality = v),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
                         initialValue: _n,
@@ -169,19 +246,23 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
                         onChanged: (v) => setState(() => _n = v ?? _n),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _busy ? null : _generate,
+                        icon: _busy
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.auto_awesome_rounded, size: 18),
+                        label: Text(
+                          _busy ? l10n.imgGenGenerating : l10n.imgGenGenerate,
+                        ),
+                      ),
+                    ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _generate,
-                  icon: _busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.auto_awesome_rounded, size: 18),
-                  label: Text(_busy ? l10n.imgGenGenerating : l10n.imgGenGenerate),
                 ),
               ],
             ),
@@ -229,11 +310,26 @@ class _ImgGenScreenState extends State<ImgGenScreen> {
                                 ),
                               ),
                               const SizedBox(height: 6),
-                              Text(
-                                '${item.model} · ${item.createdAt.toLocal()}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scheme.outline,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      '${item.model} · ${item.createdAt.toLocal()}',
+                                      style: theme.textTheme.labelSmall?.copyWith(
+                                        color: scheme.outline,
+                                      ),
+                                    ),
+                                  ),
+                                  // C-05：发送到对话
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.send_rounded,
+                                      size: 17,
+                                    ),
+                                    tooltip: l10n.imggenSendToChat,
+                                    onPressed: () => _sendToChat(item),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -262,4 +358,22 @@ class _GenHistoryItem {
     required this.model,
     required this.createdAt,
   });
+
+  factory _GenHistoryItem.fromJson(Map<String, dynamic> json) =>
+      _GenHistoryItem(
+        prompt: json['prompt'] as String? ?? '',
+        url: json['url'] as String? ?? '',
+        b64: json['b64'] as String?,
+        model: json['model'] as String? ?? '',
+        createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+      );
+
+  Map<String, dynamic> toJson() => {
+    'prompt': prompt,
+    'url': url,
+    if (b64 != null) 'b64': b64,
+    'model': model,
+    'createdAt': createdAt.toIso8601String(),
+  };
 }

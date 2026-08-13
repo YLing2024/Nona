@@ -1,6 +1,7 @@
 import 'anthropic_adapter.dart';
 import 'gemini_adapter.dart';
 import 'openai_adapter.dart';
+import 'openai_responses_adapter.dart';
 import 'protocol_adapter.dart';
 
 /// 服务商协议类型。
@@ -66,7 +67,16 @@ class ProtocolFactory {
   ///
   /// Anthropic/Gemini 适配器持有流式工具块缓冲状态（每次请求独立实例，
   /// 避免并发请求共享缓存实例导致块状态串扰）；OpenAI 无状态走缓存。
-  static ProtocolAdapter resolve(String? kindName, String baseUrl) {
+  /// [useResponseApi] 为 true 且协议为 OpenAI 时返回 Responses 适配器
+  /// （C-01：o1/o3/o4/gpt-5 系列）。[vertexProject] 非空且协议为 Gemini
+  /// 时返回 Vertex 模式适配器（C-02）。
+  static ProtocolAdapter resolve(
+    String? kindName,
+    String baseUrl, {
+    bool useResponseApi = false,
+    String? vertexProject,
+    String? vertexRegion,
+  }) {
     final kind = ProviderKind.fromName(kindName);
     final resolved = kind == ProviderKind.auto
         ? detectProviderKind(baseUrl)
@@ -75,7 +85,13 @@ class ProtocolFactory {
       return AnthropicAdapter();
     }
     if (resolved == ProviderKind.gemini) {
-      return GeminiAdapter();
+      return GeminiAdapter(
+        vertexProject: vertexProject,
+        vertexRegion: vertexRegion,
+      );
+    }
+    if (useResponseApi) {
+      return const OpenAiResponsesAdapter();
     }
     return forKind(resolved);
   }

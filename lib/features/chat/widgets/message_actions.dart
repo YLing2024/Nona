@@ -27,6 +27,9 @@ class MessageActionBar extends StatefulWidget {
   /// F1-5：图片消息「转为文字」（OCR）。
   final VoidCallback? onOcr;
 
+  /// B-07：「更多」统一菜单入口。
+  final VoidCallback? onMore;
+
   const MessageActionBar({
     super.key,
     required this.message,
@@ -43,6 +46,7 @@ class MessageActionBar extends StatefulWidget {
     this.onDelete,
     this.onSpeak,
     this.onOcr,
+    this.onMore,
   });
 
   @override
@@ -68,6 +72,7 @@ class _MessageActionBarState extends State<MessageActionBar> {
     final onDelete = widget.onDelete;
     final onSpeak = widget.onSpeak;
     final onOcr = widget.onOcr;
+    final onMore = widget.onMore;
     final actions = <Widget>[
       _ActionIcon(
         icon: Icons.copy_rounded,
@@ -130,6 +135,13 @@ class _MessageActionBarState extends State<MessageActionBar> {
           icon: Icons.document_scanner_outlined,
           tooltip: context.l10n.ocrAction,
           onTap: onOcr,
+        ),
+      // B-07：统一「更多」菜单（选择复制/导出图片/进入多选等）
+      if (onMore != null)
+        _ActionIcon(
+          icon: Icons.more_horiz_rounded,
+          tooltip: context.l10n.chatMoreActions,
+          onTap: onMore,
         ),
     ];
 

@@ -2483,4 +2483,832 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get translatorTranslating => 'Translating…';
+
+  @override
+  String get chatSuggestionTitle => 'You can start with';
+
+  @override
+  String get chatSuggestionStart =>
+      'Introduce yourself, including capabilities and limits';
+
+  @override
+  String get chatSuggestionFiles =>
+      'How do I upload documents and get summaries?';
+
+  @override
+  String get chatSuggestionMcp =>
+      'What configuration is needed to connect external tools?';
+
+  @override
+  String get chatMoreActions => 'More actions';
+
+  @override
+  String get chatSelectCopy => 'Select & copy';
+
+  @override
+  String get chatExportImage => 'Export image';
+
+  @override
+  String get chatExportSelectedImage => 'Export as image';
+
+  @override
+  String get chatExportJsonl => 'Export JSONL';
+
+  @override
+  String get chatLongImageCapturing => 'Rendering long image…';
+
+  @override
+  String get chatLongImageDone => 'Long image exported';
+
+  @override
+  String get chatSelectCopyHint =>
+      'Select text then copy; optionally send with context';
+
+  @override
+  String get chatCopyWithContext => 'Copy & send with context';
+
+  @override
+  String get chatNoSelection => 'No text selected';
+
+  @override
+  String get contextManageTitle => 'Context management';
+
+  @override
+  String get contextSegments => 'Injected segments';
+
+  @override
+  String contextSegmentTokens(String tokens) {
+    return '$tokens tokens';
+  }
+
+  @override
+  String get contextSegmentSystem => 'System prompt';
+
+  @override
+  String get contextSegmentMemory => 'Memory';
+
+  @override
+  String get contextSegmentKnowledge => 'Knowledge base';
+
+  @override
+  String get contextSegmentSearch => 'Search results';
+
+  @override
+  String get contextSegmentWorldBook => 'World book';
+
+  @override
+  String get contextSegmentHistory => 'History';
+
+  @override
+  String get contextSegmentSummary => 'Session summary';
+
+  @override
+  String get contextSegmentInjection => 'Instruction injections';
+
+  @override
+  String get contextSegmentAgent => 'Agent prompt';
+
+  @override
+  String contextUsedTokens(String limit, String used) {
+    return 'Used $used / limit $limit';
+  }
+
+  @override
+  String get contextNoLimit => 'No limit set';
+
+  @override
+  String get contextCompress => 'Compress context';
+
+  @override
+  String get contextCompressHint => 'Summarize and fold history';
+
+  @override
+  String get contextClear => 'Clear context';
+
+  @override
+  String get contextClearHint =>
+      'Mark truncation point; history is recoverable';
+
+  @override
+  String get contextRestore => 'Restore cleared context';
+
+  @override
+  String get contextCompressing => 'Compressing…';
+
+  @override
+  String get contextCompressDone =>
+      'Context compressed; new messages start with the summary';
+
+  @override
+  String get contextToggleOffHint => 'Segment disabled for next request only';
+
+  @override
+  String get contextEnabled => 'Enabled';
+
+  @override
+  String get contextDisabled => 'Disabled';
+
+  @override
+  String get providerUseResponseApi => 'Use Responses API';
+
+  @override
+  String get providerUseResponseApiHint =>
+      'For o1/o3/o4/gpt-5 series; keep off for ChatCompletions-compatible providers';
+
+  @override
+  String get providerAuthMode => 'Auth mode';
+
+  @override
+  String get providerAuthApiKey => 'API Key';
+
+  @override
+  String get providerAuthServiceAccount => 'Service Account (Vertex)';
+
+  @override
+  String get providerSaProjectId => 'Project ID';
+
+  @override
+  String get providerSaRegion => 'Region';
+
+  @override
+  String get providerSaEmail => 'Service Account email';
+
+  @override
+  String get providerSaKeyFile => 'Select SA JSON key file';
+
+  @override
+  String get providerSaKeyPaste => 'Paste SA JSON';
+
+  @override
+  String get providerSaInvalid =>
+      'Invalid SA JSON: missing client_email/private_key/project_id';
+
+  @override
+  String get providerVertexHint =>
+      'Bearer token is used when baseUrl contains aiplatform';
+
+  @override
+  String get providerGroupUngrouped => 'Ungrouped';
+
+  @override
+  String get providerGroupAll => 'All';
+
+  @override
+  String get providerGroupAdd => 'New group';
+
+  @override
+  String get providerGroupName => 'Group name';
+
+  @override
+  String get providerGroupRename => 'Rename';
+
+  @override
+  String get providerGroupDelete => 'Delete group';
+
+  @override
+  String get providerGroupEmpty => 'No groups yet';
+
+  @override
+  String get providerKeysTitle => 'API Keys';
+
+  @override
+  String get providerKeysBatchAdd => 'Add keys (one per line)';
+
+  @override
+  String get providerKeysTest => 'Test';
+
+  @override
+  String get providerKeysTesting => 'Testing…';
+
+  @override
+  String get providerKeysStatusActive => 'Active';
+
+  @override
+  String get providerKeysStatusCooling => 'Cooling down';
+
+  @override
+  String providerKeysStatusError(String count) {
+    return 'Failed $count times';
+  }
+
+  @override
+  String get providerKeysStatusDisabled => 'Disabled (consecutive failures)';
+
+  @override
+  String get providerKeysEnable => 'Enable';
+
+  @override
+  String get providerKeysDisable => 'Disable';
+
+  @override
+  String get providerKeysNone => 'No keys yet';
+
+  @override
+  String get providerKeysCopied => 'Copied (may expose to clipboard)';
+
+  @override
+  String get providerKeysTestOk => 'Test passed';
+
+  @override
+  String providerKeysTestFail(String detail) {
+    return 'Test failed: $detail';
+  }
+
+  @override
+  String get providerKeysRemoved => 'Key removed';
+
+  @override
+  String get imggenSize => 'Size';
+
+  @override
+  String get imggenQuality => 'Quality';
+
+  @override
+  String get imggenCount => 'Count';
+
+  @override
+  String get imggenSendToChat => 'Send to chat';
+
+  @override
+  String get imggenHistory => 'History';
+
+  @override
+  String get imggenHistoryEmpty => 'No generation history';
+
+  @override
+  String get modelSearch => 'Search models';
+
+  @override
+  String get modelFilterMultimodal => 'Multimodal';
+
+  @override
+  String get modelFilterReasoning => 'Reasoning';
+
+  @override
+  String modelContextWindow(String window) {
+    return 'Context $window';
+  }
+
+  @override
+  String modelPrice(String price) {
+    return '\$$price/M';
+  }
+
+  @override
+  String get modelNoCapability => 'Unknown capabilities';
+
+  @override
+  String get searchServicesTitle => 'Search services';
+
+  @override
+  String get searchServiceEnabled => 'Enabled';
+
+  @override
+  String get searchServiceKey => 'API Key';
+
+  @override
+  String get searchServiceTest => 'Test';
+
+  @override
+  String get searchServiceTesting => 'Testing…';
+
+  @override
+  String searchServiceTestOk(String count) {
+    return 'Got $count results';
+  }
+
+  @override
+  String searchServiceTestFail(String detail) {
+    return 'Test failed: $detail';
+  }
+
+  @override
+  String get searchServiceNeedKey => 'API key required';
+
+  @override
+  String get searchServiceNoKey => 'No key required';
+
+  @override
+  String get searchServiceSelected => 'In use';
+
+  @override
+  String get searchServiceUsageTitle => 'Search usage';
+
+  @override
+  String searchServiceCalls(String count) {
+    return '$count calls';
+  }
+
+  @override
+  String get searchNoKeyFallback =>
+      'No key configured; falling back to Bing free engine';
+
+  @override
+  String get searchFilterTime => 'Time range';
+
+  @override
+  String get searchFilterProvider => 'Provider';
+
+  @override
+  String get searchFilterModel => 'Model';
+
+  @override
+  String get searchFilterAll => 'All';
+
+  @override
+  String get searchFilterToday => 'Today';
+
+  @override
+  String get searchFilterWeek => 'Last 7 days';
+
+  @override
+  String get searchFilterMonth => 'Last 30 days';
+
+  @override
+  String get searchFilterYear => 'Last year';
+
+  @override
+  String get searchExportResults => 'Export results';
+
+  @override
+  String searchExported(String count) {
+    return 'Exported $count results';
+  }
+
+  @override
+  String get kbDebugTitle => 'Retrieval test bench';
+
+  @override
+  String get kbDebugQuery => 'Query';
+
+  @override
+  String get kbDebugTopK => 'Top K';
+
+  @override
+  String get kbDebugSimilarity => 'Similarity threshold';
+
+  @override
+  String get kbDebugChunkSize => 'Chunk size (override, not persisted)';
+
+  @override
+  String kbDebugVectorHits(String count) {
+    return 'Vector hits $count';
+  }
+
+  @override
+  String kbDebugBigramHits(String count) {
+    return 'Bigram hits $count';
+  }
+
+  @override
+  String get kbDebugNoHits => 'No hits';
+
+  @override
+  String kbDebugScore(String score) {
+    return 'Score $score';
+  }
+
+  @override
+  String kbDebugSource(String source) {
+    return 'Source: $source';
+  }
+
+  @override
+  String kbDebugDocId(String id) {
+    return 'Document $id';
+  }
+
+  @override
+  String kbDebugRank(String rank) {
+    return 'Rank #$rank';
+  }
+
+  @override
+  String get worldBookNewBook => 'New world book';
+
+  @override
+  String get worldBookName => 'Name';
+
+  @override
+  String get worldBookDescription => 'Description';
+
+  @override
+  String get worldBookActive => 'Active';
+
+  @override
+  String get worldBookActivateForAgent => 'Activate for agent';
+
+  @override
+  String get worldBookHitTest => 'Hit test';
+
+  @override
+  String get worldBookHitTestInput => 'Type text to test matching';
+
+  @override
+  String get worldBookHitTestNoHit => 'No entries matched';
+
+  @override
+  String worldBookHitTestHit(String chars, String count) {
+    return 'Matched $count entries, $chars chars injected';
+  }
+
+  @override
+  String get worldBookGlobal => 'Global';
+
+  @override
+  String get voiceServicesTitle => 'Voice services';
+
+  @override
+  String get voiceTtsSystem => 'System TTS';
+
+  @override
+  String get voiceTtsProviders => 'Network TTS';
+
+  @override
+  String get voiceTtsProviderName => 'Provider';
+
+  @override
+  String get voiceTtsVoice => 'Voice';
+
+  @override
+  String get voiceTtsRate => 'Rate';
+
+  @override
+  String get voiceTtsModel => 'Model';
+
+  @override
+  String get voiceTtsPreview => 'Preview';
+
+  @override
+  String get voiceTtsPreviewing => 'Previewing…';
+
+  @override
+  String get voiceTtsAddProvider => 'Add TTS provider';
+
+  @override
+  String get voiceTtsTestOk => 'Preview finished';
+
+  @override
+  String voiceTtsTestFail(String detail) {
+    return 'Preview failed: $detail';
+  }
+
+  @override
+  String get voiceTtsFallbackSystem => 'Falling back to system TTS';
+
+  @override
+  String get voiceAsrTitle => 'Speech input (ASR)';
+
+  @override
+  String get voiceAsrSystem => 'System speech recognition';
+
+  @override
+  String get voiceAsrCloud => 'Cloud ASR';
+
+  @override
+  String get voiceAsrLocal => 'Local offline ASR';
+
+  @override
+  String get voiceAsrListening => 'Listening…';
+
+  @override
+  String get voiceAsrDone => 'Recognition done';
+
+  @override
+  String get voiceAsrCancelled => 'Cancelled';
+
+  @override
+  String get voiceAsrNoPermission => 'Microphone permission denied';
+
+  @override
+  String voiceAsrError(String detail) {
+    return 'Recognition failed: $detail';
+  }
+
+  @override
+  String get voiceAsrUnavailable => 'Speech input unavailable on this platform';
+
+  @override
+  String get voiceAsrTapToSpeak => 'Tap to speak';
+
+  @override
+  String get voiceModelDownload => 'Download model';
+
+  @override
+  String voiceModelDownloading(String percent) {
+    return 'Downloading $percent%';
+  }
+
+  @override
+  String get voiceModelInstalled => 'Installed';
+
+  @override
+  String get voiceModelDelete => 'Delete model';
+
+  @override
+  String voiceModelSize(String size) {
+    return '$size';
+  }
+
+  @override
+  String get mcpTransport => 'Transport';
+
+  @override
+  String get mcpTransportHttp => 'Streamable HTTP';
+
+  @override
+  String get mcpTransportSse => 'SSE';
+
+  @override
+  String get mcpTransportStdio => 'STDIO (local process)';
+
+  @override
+  String get mcpStdioCommand => 'Command';
+
+  @override
+  String get mcpStdioArgs => 'Arguments (one per line)';
+
+  @override
+  String get mcpStdioEnv => 'Environment (KEY=VALUE per line)';
+
+  @override
+  String get mcpStdioCwd => 'Working directory (optional)';
+
+  @override
+  String mcpCommandNotFound(String command) {
+    return 'Command $command not found. Check PATH';
+  }
+
+  @override
+  String mcpStdioStderr(String line) {
+    return 'stderr: $line';
+  }
+
+  @override
+  String get mcpAuthorize => 'Authorize';
+
+  @override
+  String get mcpReauthorize => 'Re-authorize';
+
+  @override
+  String get mcpAuthorized => 'Authorized';
+
+  @override
+  String get mcpNotAuthorized => 'Not authorized';
+
+  @override
+  String get mcpOAuthInProgress => 'Opening authorization page…';
+
+  @override
+  String get mcpOAuthDone => 'Authorization succeeded';
+
+  @override
+  String mcpOAuthFailed(String detail) {
+    return 'Authorization failed: $detail';
+  }
+
+  @override
+  String get mcpOAuthServerFound => 'Authorization server discovered';
+
+  @override
+  String get mcpOAuthTokenRefreshed => 'Token refreshed';
+
+  @override
+  String get approvalWhitelist =>
+      'No-approval whitelist (tool names, one per line)';
+
+  @override
+  String get approvalBlacklist =>
+      'Force-approval blacklist (tool names, one per line)';
+
+  @override
+  String get approvalTimeout => 'Approval timeout (seconds)';
+
+  @override
+  String get approvalRememberSession => 'Remember for this session';
+
+  @override
+  String get toolExecuting => 'Running';
+
+  @override
+  String get toolDone => 'Done';
+
+  @override
+  String get toolError => 'Failed';
+
+  @override
+  String get toolDetail => 'Tool details';
+
+  @override
+  String get toolArguments => 'Arguments';
+
+  @override
+  String get toolResult => 'Result';
+
+  @override
+  String get toolResultTruncated => '(result truncated)';
+
+  @override
+  String get toolApprove => 'Approve';
+
+  @override
+  String get toolReject => 'Reject';
+
+  @override
+  String get toolWaitingApproval => 'Awaiting approval';
+
+  @override
+  String get toolShowDetail => 'View details';
+
+  @override
+  String get toolHideDetail => 'Hide details';
+
+  @override
+  String get restoreModeTitle => 'Restore mode';
+
+  @override
+  String get restoreModeOverwrite => 'Overwrite (recommended)';
+
+  @override
+  String get restoreModeMerge => 'Merge (keep existing)';
+
+  @override
+  String get restoreModeHint =>
+      'Overwrite replaces all local data; merge keeps existing sessions and providers';
+
+  @override
+  String get restorePreparing => 'Restoring…';
+
+  @override
+  String get restoreDone => 'Restore completed';
+
+  @override
+  String get restoreRolledBack => 'Restore failed; original data restored';
+
+  @override
+  String get restoreCorrupt => 'Backup corrupt or verification failed';
+
+  @override
+  String get restoreResume => 'Unfinished restore detected; finalizing…';
+
+  @override
+  String get shareQrTab => 'QR code';
+
+  @override
+  String get scanQrTitle => 'Scan QR code';
+
+  @override
+  String get scanQrCameraPermission =>
+      'Camera permission needed to scan QR codes';
+
+  @override
+  String get scanQrInvalid => 'Unrecognized QR code content';
+
+  @override
+  String get scanQrProviderImported => 'Provider imported';
+
+  @override
+  String get tagsTitle => 'Tags';
+
+  @override
+  String get tagsAdd => 'New tag';
+
+  @override
+  String get tagsName => 'Tag name';
+
+  @override
+  String get tagsColor => 'Color';
+
+  @override
+  String get tagsApply => 'Add tag';
+
+  @override
+  String get tagsFilter => 'Filter by tag';
+
+  @override
+  String get tagsNone => 'No tags';
+
+  @override
+  String get tagsManage => 'Manage tags';
+
+  @override
+  String get statsHeatmapTitle => 'Activity heatmap';
+
+  @override
+  String get statsHeatmapLegend => 'Less → More';
+
+  @override
+  String get statsTrendTitle => 'Trend';
+
+  @override
+  String get statsRankProviders => 'Provider ranking';
+
+  @override
+  String get statsRankModels => 'Model ranking';
+
+  @override
+  String get statsRankSessions => 'Session ranking';
+
+  @override
+  String get statsViewAll => 'View all';
+
+  @override
+  String get statsRangeAllTime => 'All time';
+
+  @override
+  String get statsRangeLast30 => 'Last 30 days';
+
+  @override
+  String get statsRangePrevMonth => 'Previous month';
+
+  @override
+  String get statsRangeCustom => 'Custom';
+
+  @override
+  String statsMessages(String count) {
+    return '$count messages';
+  }
+
+  @override
+  String get displayFontFamily => 'UI font';
+
+  @override
+  String get displayFontSystem => 'System default';
+
+  @override
+  String get displayCodeFont => 'Code font';
+
+  @override
+  String get displayUiDensity => 'UI density';
+
+  @override
+  String get densityCompact => 'Compact';
+
+  @override
+  String get densityStandard => 'Standard';
+
+  @override
+  String get densityComfortable => 'Comfortable';
+
+  @override
+  String get displayChatFontScale => 'Chat font size';
+
+  @override
+  String get fontImportLocal => 'Import local font file';
+
+  @override
+  String get fontImported => 'Font imported';
+
+  @override
+  String get androidBackgroundMode => 'Background generation';
+
+  @override
+  String get androidBackgroundOff => 'Off';
+
+  @override
+  String get androidBackgroundOn => 'On';
+
+  @override
+  String get androidBackgroundOnNotify => 'On + notify';
+
+  @override
+  String get androidBackgroundHint =>
+      'Keep generating when screen is locked or app is in background';
+
+  @override
+  String get notificationChatCompleted => 'Generation finished';
+
+  @override
+  String get notificationChatFailed => 'Generation failed';
+
+  @override
+  String get desktopAutostart => 'Launch at startup';
+
+  @override
+  String get desktopAutostartHint => 'Start Nona when you sign in';
+
+  @override
+  String desktopAutostartError(String detail) {
+    return 'Failed to set autostart: $detail';
+  }
+
+  @override
+  String get deeplinkChatTitle => 'From external link';
+
+  @override
+  String get devColdStartTiming => 'Cold start timings (ms)';
+
+  @override
+  String get chatOpenDocument => 'Open document';
+
+  @override
+  String contextSummaryPrompt(String source) {
+    return 'Summarize the key points of the following conversation concisely, keeping conclusions, decisions and todos, within 300 words:\n\n$source';
+  }
+
+  @override
+  String get providerAuthorized => 'Imported (credentials stored encrypted)';
+
+  @override
+  String get commonAuto => 'Auto';
 }

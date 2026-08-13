@@ -3,11 +3,14 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  audioplayers_linux
   desktop_drop
   dynamic_color
   file_selector_linux
   flutter_secure_storage_linux
+  gtk
   hotkey_manager_linux
+  record_linux
   screen_retriever_linux
   sentry_flutter
   sqlite3_flutter_libs

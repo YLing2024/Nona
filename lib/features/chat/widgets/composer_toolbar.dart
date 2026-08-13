@@ -5,6 +5,7 @@ import '../../../core/utils/l10n_ext.dart';
 import '../../../core/models/chat_options.dart';
 import '../../../core/models/chat_provider.dart';
 import '../../../core/services/model_resolver.dart';
+import 'model_selector_dialog.dart';
 
 /// 工具条：模型选择（含服务商分组菜单）、思考强度、流式开关、图片/文档附件入口。
 class ComposerToolbar extends StatelessWidget {
@@ -25,6 +26,9 @@ class ComposerToolbar extends StatelessWidget {
   final VoidCallback onPickImages;
   final VoidCallback onPickDocuments;
 
+  /// E-03：语音输入。
+  final VoidCallback? onVoiceInput;
+
   const ComposerToolbar({
     super.key,
     required this.providers,
@@ -39,6 +43,7 @@ class ComposerToolbar extends StatelessWidget {
     required this.onStreamChanged,
     required this.onPickImages,
     required this.onPickDocuments,
+    this.onVoiceInput,
     this.autoSelectModel = true,
   });
 
@@ -77,7 +82,7 @@ class ComposerToolbar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 模型选择
+          // 模型选择（C-06：增强选择器——搜索/能力过滤/上下文窗口/价格）
           if (!hasModels)
             ToolbarChip(
               icon: Icons.model_training,
@@ -85,48 +90,20 @@ class ComposerToolbar extends StatelessWidget {
               onTap: null,
             )
           else
-            MenuAnchor(
-              alignmentOffset: const Offset(0, 6),
-              menuChildren: [
-                for (final p in providers) ...[
-                  if (p.modelIds.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-                      child: Text(
-                        p.name,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.outline,
-                        ),
-                      ),
-                    ),
-                  for (final m in p.modelIds)
-                    MenuItemButton(
-                      leadingIcon: Icon(
-                        p.id == provider?.id && m == model
-                            ? Icons.check_rounded
-                            : Icons.circle_outlined,
-                        size: 16,
-                        color: p.id == provider?.id && m == model
-                            ? scheme.primary
-                            : scheme.outline,
-                      ),
-                      child: Text(m, style: const TextStyle(fontSize: 13)),
-                      onPressed: () => onModelChanged(p.id, m),
-                    ),
-                ],
-              ],
-              builder: (context, controller, child) => ModelChip(
-                modelName: model ?? context.l10n.chatSelectModel,
-                onTap: () {
-                  if (controller.isOpen) {
-                    controller.close();
-                  } else {
-                    controller.open();
-                  }
-                },
-              ),
+            ToolbarChip(
+              icon: Icons.model_training,
+              label: model ?? context.l10n.chatSelectModel,
+              onTap: () async {
+                final selection = await showModelSelector(
+                  context,
+                  providers: providers,
+                  currentProviderId: provider?.id,
+                  currentModelId: model,
+                );
+                if (selection != null && context.mounted) {
+                  onModelChanged(selection.$1, selection.$2);
+                }
+              },
             ),
           const SizedBox(width: 6),
           // 思考强度（仅推理模型显示）
@@ -189,6 +166,15 @@ class ComposerToolbar extends StatelessWidget {
             showExpand: false,
             onTap: isLoading ? null : onPickDocuments,
           ),
+          if (onVoiceInput != null) ...[
+            const SizedBox(width: 8),
+            ToolbarChip(
+              icon: Icons.mic_rounded,
+              label: context.l10n.voiceAsrTitle,
+              showExpand: false,
+              onTap: isLoading ? null : onVoiceInput,
+            ),
+          ],
         ],
       ),
     );

@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/logger.dart';
 import 'mcp_client.dart';
-
 /// 一个 MCP 服务配置。
 class McpServerConfig {
   final String id;
@@ -22,6 +22,12 @@ class McpServerConfig {
   /// 工具是否需要人工确认（默认 false 自动执行）。
   bool needsApproval;
 
+  /// F-01：传输类型（http/sse/stdio）。
+  String transport;
+
+  /// F-01：stdio 配置（transport=stdio 时生效）。
+  StdioConfig? stdio;
+
   McpServerConfig({
     required this.id,
     required this.name,
@@ -29,6 +35,8 @@ class McpServerConfig {
     this.headers = const {},
     this.enabled = true,
     this.needsApproval = false,
+    this.transport = 'http',
+    this.stdio,
   });
 
   factory McpServerConfig.fromJson(Map<String, dynamic> json) =>
@@ -39,6 +47,10 @@ class McpServerConfig {
         headers: _stringMap(json['headers']),
         enabled: json['enabled'] as bool? ?? true,
         needsApproval: json['needsApproval'] as bool? ?? false,
+        transport: json['transport'] as String? ?? 'http',
+        stdio: json['stdio'] is Map<String, dynamic>
+            ? StdioConfig.fromJson(json['stdio'] as Map<String, dynamic>)
+            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -48,6 +60,8 @@ class McpServerConfig {
     'headers': headers,
     'enabled': enabled,
     'needsApproval': needsApproval,
+    'transport': transport,
+    if (stdio != null) 'stdio': stdio!.toJson(),
   };
 
   static Map<String, String> _stringMap(Object? v) {
@@ -88,17 +102,19 @@ class McpService {
   }
 
   /// 收集全部启用服务的工具（跳过失败的服务器）。
+  ///
+  /// F-01：stdio 服务器在首次访问时启动进程并保持连接，
+  /// 服务器配置变更（id 变化）时旧连接关闭。
   Future<Map<String, McpToolDefinition>> collectTools(
     List<McpServerConfig> servers,
   ) async {
     final tools = <String, McpToolDefinition>{};
+    final aliveIds = <String>{};
     for (final server in servers) {
       if (!server.enabled) continue;
       try {
-        final client = McpClient(
-          baseUrl: server.url,
-          headers: server.headers,
-        );
+        final client = _clientFor(server);
+        aliveIds.add(server.id);
         final list = await client.listTools();
         for (final tool in list) {
           if (tool.name.isEmpty) continue;
@@ -109,7 +125,45 @@ class McpService {
         Logger.error('mcp', 'tools/list failed', e);
       }
     }
+    // 关闭已不在配置中的 stdio 连接
+    final stale = _clients.keys
+        .where((id) => !aliveIds.contains(id))
+        .toList();
+    for (final id in stale) {
+      unawaited(_clients.remove(id)?.close());
+    }
     return tools;
+  }
+
+  /// F-01：按配置创建客户端（stdio/http），并缓存 stdio 连接。
+  McpClient _clientFor(McpServerConfig server) {
+    if (server.transport == 'stdio') {
+      if (server.stdio == null || server.stdio!.command.isEmpty) {
+        throw McpException('stdio 配置不完整');
+      }
+      return _clients.putIfAbsent(
+        server.id,
+        () => McpClient(
+          baseUrl: 'stdio://${server.id}',
+          stdio: server.stdio,
+        ),
+      );
+    }
+    return McpClient(
+      baseUrl: server.url,
+      headers: server.headers,
+    );
+  }
+
+  /// F-01：stdio 连接池（按 serverId）。
+  final Map<String, McpClient> _clients = {};
+
+  /// F-01：应用退出前关闭全部 stdio 连接。
+  Future<void> closeAll() async {
+    for (final client in _clients.values) {
+      await client.close();
+    }
+    _clients.clear();
   }
 
   /// 按工具原始名定位所属服务并调用。
@@ -132,7 +186,7 @@ class McpService {
       final serverId = entry.key.substring(0, separator);
       final server = servers.where((s) => s.id == serverId).firstOrNull;
       if (server == null) throw McpException('server not found: $serverId');
-      final client = McpClient(baseUrl: server.url, headers: server.headers);
+      final client = _clientFor(server);
       return client.callTool(toolName, arguments);
     }
     throw McpException('tool not found: $toolName');

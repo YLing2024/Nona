@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../../core/models/chat_message.dart';
+import '../../../core/models/tool_step.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/l10n_ext.dart';
 import '../../../shared/widgets/chat_image_view.dart';
 import '../../../shared/widgets/markdown_view.dart';
 import 'citation_sources_sheet.dart';
+import 'tool_step_card.dart';
 
 /// 流式实时 Markdown 渲染的正文长度上限：超过后流式期间降级纯文本
 /// （每帧全量解析超长文档会阻塞主线程）；生成完成后仍按文档阈值
@@ -110,6 +112,8 @@ class MessageContent extends StatelessWidget {
         isStreaming ||
         message.interrupted ||
         message.failed;
+    // F-04：工具执行步骤（tool_steps_json 解析，空=无）
+    final toolSteps = ToolStepsCodec.decode(message.toolStepsJson);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,6 +158,11 @@ class MessageContent extends StatelessWidget {
             isStreaming: isStreaming,
           ),
         if (showReasoning && hasContent) const SizedBox(height: 8),
+        // F-04：工具执行步骤卡（流式期间实时更新，终态保留可回看）
+        if (toolSteps.isNotEmpty) ...[
+          for (final step in toolSteps) ToolStepCard(step: step),
+          if (hasContent) const SizedBox(height: 8),
+        ],
         if (hasContent)
           Container(
             width: double.infinity,

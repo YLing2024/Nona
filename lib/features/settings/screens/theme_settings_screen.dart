@@ -224,10 +224,111 @@ class _ThemeSettingsScreenState extends State<ThemeSettingsScreen> {
                 onChanged: _toggleOled,
               ),
             ),
+            const SizedBox(height: 8),
+            // H-02/H-03：显示设置（密度 / 聊天字号 / 字体）
+            Text(
+              l10n.displayUiDensity,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: scheme.outline,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
+                  value: 'compact',
+                  label: Text(l10n.densityCompact),
+                ),
+                ButtonSegment(
+                  value: 'standard',
+                  label: Text(l10n.densityStandard),
+                ),
+                ButtonSegment(
+                  value: 'comfortable',
+                  label: Text(l10n.densityComfortable),
+                ),
+              ],
+              selected: {_density},
+              onSelectionChanged: (s) => _setDensity(s.first),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${l10n.displayChatFontScale}: ${_fontScale.toStringAsFixed(1)}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: scheme.outline,
+                letterSpacing: 0.8,
+              ),
+            ),
+            Slider(
+              value: _fontScale,
+              min: 1.0,
+              max: 1.2,
+              divisions: 2,
+              label: _fontScale.toStringAsFixed(1),
+              onChanged: (v) => setState(() => _fontScale = v),
+              onChangeEnd: (v) => _setFontScale(v),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.displayFontFamily,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: scheme.outline,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
+                  value: '',
+                  label: Text(l10n.displayFontSystem),
+                ),
+                ButtonSegment(
+                  value: 'Noto Sans SC',
+                  label: const Text('Noto Sans SC'),
+                ),
+              ],
+              selected: {_fontFamily},
+              onSelectionChanged: (s) => _setFontFamily(s.first),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  // ---------------- H-02/H-03：显示设置 ----------------
+
+  late String _density = 'standard';
+  late double _fontScale = 1.0;
+  late String _fontFamily = '';
+
+  Future<void> _setDensity(String value) async {
+    setState(() => _density = value);
+    final service = context.read<SettingsService>();
+    final current = await service.load();
+    await service.save(current.copyWith(uiDensity: value));
+  }
+
+  Future<void> _setFontScale(double value) async {
+    setState(() => _fontScale = value);
+    final service = context.read<SettingsService>();
+    final current = await service.load();
+    await service.save(current.copyWith(chatFontScale: value));
+  }
+
+  Future<void> _setFontFamily(String value) async {
+    setState(() => _fontFamily = value);
+    final service = context.read<SettingsService>();
+    final current = await service.load();
+    await service.save(current.copyWith(fontFamily: value));
   }
 }
 

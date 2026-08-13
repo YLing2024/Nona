@@ -83,6 +83,15 @@ class AppSettings {
   /// 服务商协议类型（auto/openai/anthropic/gemini），请求时按此分发。
   final String providerKind;
 
+  /// C-01：请求是否走 OpenAI Responses API（/responses）。
+  final bool useResponseApi;
+
+  /// C-02：Google Vertex（Service Account 认证）字段。
+  final bool useVertex;
+  final String vertexProject;
+  final String vertexRegion;
+  final String saJson;
+
   /// A-04：全局网络代理开关（设置 → 网络）。
   final bool proxyEnabled;
 
@@ -127,6 +136,24 @@ class AppSettings {
   /// SearXNG 自托管地址。
   final String webSearchBaseUrl;
 
+  /// H-02：界面字体（null/空 = 系统）。
+  final String fontFamily;
+
+  /// H-03：界面密度（compact/standard/comfortable）。
+  final String uiDensity;
+
+  /// H-03：聊天字号倍率（1.0/1.1/1.2）。
+  final double chatFontScale;
+
+  /// I-01：Android 后台生成模式（off/on/onNotify）。
+  final String androidBackgroundMode;
+
+  /// D-01：各引擎 API Key（engineId → key 的 JSON 映射）。
+  final Map<String, String> webSearchApiKeys;
+
+  /// D-02：搜索用量开关。
+  final bool searchUsageEnabled;
+
   const AppSettings({
     this.apiKey = '',
     this.baseUrl = 'https://api.openai.com/v1',
@@ -151,6 +178,11 @@ class AppSettings {
     this.ttsRate = 0.5,
     this.ttsLanguage = 'zh-CN',
     this.providerKind = 'auto',
+    this.useResponseApi = false,
+    this.useVertex = false,
+    this.vertexProject = '',
+    this.vertexRegion = 'us-central1',
+    this.saJson = '',
     this.offlineMode = false,
     this.autoModelRouting = false,
     this.checkUpdatesOnStart = false,
@@ -166,6 +198,12 @@ class AppSettings {
     this.webSearchEngine = 'bing',
     this.webSearchApiKey = '',
     this.webSearchBaseUrl = '',
+    this.webSearchApiKeys = const {},
+    this.searchUsageEnabled = true,
+    this.fontFamily = '',
+    this.uiDensity = 'standard',
+    this.chatFontScale = 1.0,
+    this.androidBackgroundMode = 'off',
   });
 
   AppSettings copyWith({
@@ -192,6 +230,11 @@ class AppSettings {
     double? ttsRate,
     String? ttsLanguage,
     String? providerKind,
+    bool? useResponseApi,
+    bool? useVertex,
+    String? vertexProject,
+    String? vertexRegion,
+    String? saJson,
     bool? offlineMode,
     bool? autoModelRouting,
     bool? checkUpdatesOnStart,
@@ -207,6 +250,12 @@ class AppSettings {
     String? webSearchEngine,
     String? webSearchApiKey,
     String? webSearchBaseUrl,
+    Map<String, String>? webSearchApiKeys,
+    bool? searchUsageEnabled,
+    String? fontFamily,
+    String? uiDensity,
+    double? chatFontScale,
+    String? androidBackgroundMode,
   }) {
     return AppSettings(
       apiKey: apiKey ?? this.apiKey,
@@ -233,6 +282,11 @@ class AppSettings {
       ttsRate: ttsRate ?? this.ttsRate,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       providerKind: providerKind ?? this.providerKind,
+      useResponseApi: useResponseApi ?? this.useResponseApi,
+      useVertex: useVertex ?? this.useVertex,
+      vertexProject: vertexProject ?? this.vertexProject,
+      vertexRegion: vertexRegion ?? this.vertexRegion,
+      saJson: saJson ?? this.saJson,
       offlineMode: offlineMode ?? this.offlineMode,
       autoModelRouting: autoModelRouting ?? this.autoModelRouting,
       checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
@@ -248,6 +302,13 @@ class AppSettings {
       webSearchEngine: webSearchEngine ?? this.webSearchEngine,
       webSearchApiKey: webSearchApiKey ?? this.webSearchApiKey,
       webSearchBaseUrl: webSearchBaseUrl ?? this.webSearchBaseUrl,
+      webSearchApiKeys: webSearchApiKeys ?? this.webSearchApiKeys,
+      searchUsageEnabled: searchUsageEnabled ?? this.searchUsageEnabled,
+      fontFamily: fontFamily ?? this.fontFamily,
+      uiDensity: uiDensity ?? this.uiDensity,
+      chatFontScale: chatFontScale ?? this.chatFontScale,
+      androidBackgroundMode:
+          androidBackgroundMode ?? this.androidBackgroundMode,
     );
   }
 }

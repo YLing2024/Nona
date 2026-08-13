@@ -16,12 +16,13 @@ class ImageGenResult {
 
 /// 图片生成适配器（F1-4）：OpenAI 兼容 `/images/generations` / `/images/edits`。
 class ImagesAdapter {
-  /// 生成图片；[size] 如 1024x1024；[n] 1-4。
+  /// 生成图片；[size] 如 1024x1024；[n] 1-4；[quality] standard/hd（可选）。
   Future<List<ImageGenResult>> generateImage(
     ChatProvider provider, {
     required String prompt,
     String size = '1024x1024',
     int n = 1,
+    String? quality,
   }) async {
     final base = provider.baseUrl.replaceAll(RegExp(r'/+$'), '');
     final uri = Uri.parse('$base/images/generations');
@@ -34,6 +35,7 @@ class ImagesAdapter {
         'prompt': prompt,
         'size': size,
         'n': n.clamp(1, 4),
+        if (quality != null && quality.isNotEmpty) 'quality': quality,
       }),
       type: NetworkLogType.other,
       timeout: const Duration(seconds: 120),

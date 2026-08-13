@@ -6259,6 +6259,18 @@ class $WorldBookEntriesTable extends WorldBookEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _injectDepthMeta = const VerificationMeta(
+    'injectDepth',
+  );
+  @override
+  late final GeneratedColumn<int> injectDepth = GeneratedColumn<int>(
+    'inject_depth',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6276,6 +6288,7 @@ class $WorldBookEntriesTable extends WorldBookEntries
     enabled,
     useRegex,
     bookId,
+    injectDepth,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6394,6 +6407,15 @@ class $WorldBookEntriesTable extends WorldBookEntries
         bookId.isAcceptableOrUnknown(data['book_id']!, _bookIdMeta),
       );
     }
+    if (data.containsKey('inject_depth')) {
+      context.handle(
+        _injectDepthMeta,
+        injectDepth.isAcceptableOrUnknown(
+          data['inject_depth']!,
+          _injectDepthMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6463,6 +6485,10 @@ class $WorldBookEntriesTable extends WorldBookEntries
         DriftSqlType.string,
         data['${effectivePrefix}book_id'],
       ),
+      injectDepth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}inject_depth'],
+      )!,
     );
   }
 
@@ -6493,6 +6519,9 @@ class WorldBookEntryRow extends DataClass
 
   /// v6：所属书 id（D-06；null = 默认书）。
   final String? bookId;
+
+  /// D-06：深度注入——第 N 轮用户消息后才注入（at_depth 位置配合）。
+  final int injectDepth;
   const WorldBookEntryRow({
     required this.id,
     required this.title,
@@ -6509,6 +6538,7 @@ class WorldBookEntryRow extends DataClass
     required this.enabled,
     required this.useRegex,
     this.bookId,
+    required this.injectDepth,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6532,6 +6562,7 @@ class WorldBookEntryRow extends DataClass
     if (!nullToAbsent || bookId != null) {
       map['book_id'] = Variable<String>(bookId);
     }
+    map['inject_depth'] = Variable<int>(injectDepth);
     return map;
   }
 
@@ -6556,6 +6587,7 @@ class WorldBookEntryRow extends DataClass
       bookId: bookId == null && nullToAbsent
           ? const Value.absent()
           : Value(bookId),
+      injectDepth: Value(injectDepth),
     );
   }
 
@@ -6580,6 +6612,7 @@ class WorldBookEntryRow extends DataClass
       enabled: serializer.fromJson<bool>(json['enabled']),
       useRegex: serializer.fromJson<bool>(json['useRegex']),
       bookId: serializer.fromJson<String?>(json['bookId']),
+      injectDepth: serializer.fromJson<int>(json['injectDepth']),
     );
   }
   @override
@@ -6601,6 +6634,7 @@ class WorldBookEntryRow extends DataClass
       'enabled': serializer.toJson<bool>(enabled),
       'useRegex': serializer.toJson<bool>(useRegex),
       'bookId': serializer.toJson<String?>(bookId),
+      'injectDepth': serializer.toJson<int>(injectDepth),
     };
   }
 
@@ -6620,6 +6654,7 @@ class WorldBookEntryRow extends DataClass
     bool? enabled,
     bool? useRegex,
     Value<String?> bookId = const Value.absent(),
+    int? injectDepth,
   }) => WorldBookEntryRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -6636,6 +6671,7 @@ class WorldBookEntryRow extends DataClass
     enabled: enabled ?? this.enabled,
     useRegex: useRegex ?? this.useRegex,
     bookId: bookId.present ? bookId.value : this.bookId,
+    injectDepth: injectDepth ?? this.injectDepth,
   );
   WorldBookEntryRow copyWithCompanion(WorldBookEntriesCompanion data) {
     return WorldBookEntryRow(
@@ -6662,6 +6698,9 @@ class WorldBookEntryRow extends DataClass
       enabled: data.enabled.present ? data.enabled.value : this.enabled,
       useRegex: data.useRegex.present ? data.useRegex.value : this.useRegex,
       bookId: data.bookId.present ? data.bookId.value : this.bookId,
+      injectDepth: data.injectDepth.present
+          ? data.injectDepth.value
+          : this.injectDepth,
     );
   }
 
@@ -6682,7 +6721,8 @@ class WorldBookEntryRow extends DataClass
           ..write('scopeRef: $scopeRef, ')
           ..write('enabled: $enabled, ')
           ..write('useRegex: $useRegex, ')
-          ..write('bookId: $bookId')
+          ..write('bookId: $bookId, ')
+          ..write('injectDepth: $injectDepth')
           ..write(')'))
         .toString();
   }
@@ -6704,6 +6744,7 @@ class WorldBookEntryRow extends DataClass
     enabled,
     useRegex,
     bookId,
+    injectDepth,
   );
   @override
   bool operator ==(Object other) =>
@@ -6723,7 +6764,8 @@ class WorldBookEntryRow extends DataClass
           other.scopeRef == this.scopeRef &&
           other.enabled == this.enabled &&
           other.useRegex == this.useRegex &&
-          other.bookId == this.bookId);
+          other.bookId == this.bookId &&
+          other.injectDepth == this.injectDepth);
 }
 
 class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
@@ -6742,6 +6784,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
   final Value<bool> enabled;
   final Value<bool> useRegex;
   final Value<String?> bookId;
+  final Value<int> injectDepth;
   final Value<int> rowid;
   const WorldBookEntriesCompanion({
     this.id = const Value.absent(),
@@ -6759,6 +6802,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
     this.enabled = const Value.absent(),
     this.useRegex = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.injectDepth = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   WorldBookEntriesCompanion.insert({
@@ -6777,6 +6821,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
     this.enabled = const Value.absent(),
     this.useRegex = const Value.absent(),
     this.bookId = const Value.absent(),
+    this.injectDepth = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -6797,6 +6842,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
     Expression<bool>? enabled,
     Expression<bool>? useRegex,
     Expression<String>? bookId,
+    Expression<int>? injectDepth,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6815,6 +6861,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
       if (enabled != null) 'enabled': enabled,
       if (useRegex != null) 'use_regex': useRegex,
       if (bookId != null) 'book_id': bookId,
+      if (injectDepth != null) 'inject_depth': injectDepth,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6835,6 +6882,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
     Value<bool>? enabled,
     Value<bool>? useRegex,
     Value<String?>? bookId,
+    Value<int>? injectDepth,
     Value<int>? rowid,
   }) {
     return WorldBookEntriesCompanion(
@@ -6853,6 +6901,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
       enabled: enabled ?? this.enabled,
       useRegex: useRegex ?? this.useRegex,
       bookId: bookId ?? this.bookId,
+      injectDepth: injectDepth ?? this.injectDepth,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6905,6 +6954,9 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
     if (bookId.present) {
       map['book_id'] = Variable<String>(bookId.value);
     }
+    if (injectDepth.present) {
+      map['inject_depth'] = Variable<int>(injectDepth.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6929,6 +6981,7 @@ class WorldBookEntriesCompanion extends UpdateCompanion<WorldBookEntryRow> {
           ..write('enabled: $enabled, ')
           ..write('useRegex: $useRegex, ')
           ..write('bookId: $bookId, ')
+          ..write('injectDepth: $injectDepth, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15827,6 +15880,7 @@ typedef $$WorldBookEntriesTableCreateCompanionBuilder =
       Value<bool> enabled,
       Value<bool> useRegex,
       Value<String?> bookId,
+      Value<int> injectDepth,
       Value<int> rowid,
     });
 typedef $$WorldBookEntriesTableUpdateCompanionBuilder =
@@ -15846,6 +15900,7 @@ typedef $$WorldBookEntriesTableUpdateCompanionBuilder =
       Value<bool> enabled,
       Value<bool> useRegex,
       Value<String?> bookId,
+      Value<int> injectDepth,
       Value<int> rowid,
     });
 
@@ -15930,6 +15985,11 @@ class $$WorldBookEntriesTableFilterComposer
 
   ColumnFilters<String> get bookId => $composableBuilder(
     column: $table.bookId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get injectDepth => $composableBuilder(
+    column: $table.injectDepth,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16017,6 +16077,11 @@ class $$WorldBookEntriesTableOrderingComposer
     column: $table.bookId,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get injectDepth => $composableBuilder(
+    column: $table.injectDepth,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WorldBookEntriesTableAnnotationComposer
@@ -16080,6 +16145,11 @@ class $$WorldBookEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get bookId =>
       $composableBuilder(column: $table.bookId, builder: (column) => column);
+
+  GeneratedColumn<int> get injectDepth => $composableBuilder(
+    column: $table.injectDepth,
+    builder: (column) => column,
+  );
 }
 
 class $$WorldBookEntriesTableTableManager
@@ -16134,6 +16204,7 @@ class $$WorldBookEntriesTableTableManager
                 Value<bool> enabled = const Value.absent(),
                 Value<bool> useRegex = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<int> injectDepth = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorldBookEntriesCompanion(
                 id: id,
@@ -16151,6 +16222,7 @@ class $$WorldBookEntriesTableTableManager
                 enabled: enabled,
                 useRegex: useRegex,
                 bookId: bookId,
+                injectDepth: injectDepth,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16170,6 +16242,7 @@ class $$WorldBookEntriesTableTableManager
                 Value<bool> enabled = const Value.absent(),
                 Value<bool> useRegex = const Value.absent(),
                 Value<String?> bookId = const Value.absent(),
+                Value<int> injectDepth = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WorldBookEntriesCompanion.insert(
                 id: id,
@@ -16187,6 +16260,7 @@ class $$WorldBookEntriesTableTableManager
                 enabled: enabled,
                 useRegex: useRegex,
                 bookId: bookId,
+                injectDepth: injectDepth,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -11,6 +11,7 @@ import '../../../core/services/model_resolver.dart';
 import '../../../core/theme/app_theme.dart';
 import 'chat_composer.dart';
 import 'message_list.dart';
+import 'suggestion_bubbles.dart';
 import 'summary_card.dart';
 
 /// 聊天主视图：页头 + 消息流 + 输入区。
@@ -38,6 +39,9 @@ class ChatView extends StatelessWidget {
   final VoidCallback onDelete;
   final Future<void> Function() onExportMarkdown;
   final Future<void> Function() onExportJson;
+
+  /// G-03：导出 JSONL（OpenAI fine-tune 格式）。
+  final Future<void> Function()? onExportJsonl;
   final Future<void> Function() onExportHtml;
   final Future<void> Function() onExportPdf;
   final Future<void> Function() onCopyMarkdown;
@@ -53,6 +57,9 @@ class ChatView extends StatelessWidget {
   final VoidCallback onPickImages;
   final List<ChatDocument> pendingDocuments;
   final VoidCallback onPickDocuments;
+
+  /// E-03：语音输入。
+  final VoidCallback? onVoiceInput;
   final void Function(int index) onRemoveDocument;
   final void Function(ChatImage image) onAddImageUrl;
   final void Function(int index) onRemoveImage;
@@ -105,6 +112,19 @@ class ChatView extends StatelessWidget {
   final Future<void> Function()? onDeleteSelected;
   final Future<void> Function()? onExportSelectedMarkdown;
 
+  /// E-05：批量朗读所选消息。
+  final VoidCallback? onSpeakSelected;
+
+  /// B-04：空态建议气泡（null 用静态模板；点击即发送）。
+  final List<String>? suggestions;
+  final void Function(String text)? onSuggestionTap;
+
+  /// B-07：统一「更多」菜单入口。
+  final void Function(ChatMessage message)? onMessageMore;
+
+  /// B-08：上下文管理面板入口。
+  final VoidCallback? onManageContext;
+
   const ChatView({
     super.key,
     required this.session,
@@ -125,6 +145,7 @@ class ChatView extends StatelessWidget {
     required this.onDelete,
     required this.onExportMarkdown,
     required this.onExportJson,
+    this.onExportJsonl,
     required this.onExportHtml,
     required this.onExportPdf,
     required this.onCopyMarkdown,
@@ -138,6 +159,7 @@ class ChatView extends StatelessWidget {
     required this.onPickImages,
     this.pendingDocuments = const [],
     this.onPickDocuments = _noopDoc,
+    this.onVoiceInput,
     this.onRemoveDocument = _noopDocIndex,
     required this.onAddImageUrl,
     required this.onRemoveImage,
@@ -152,6 +174,11 @@ class ChatView extends StatelessWidget {
     this.onRangeSelect,
     this.onDeleteSelected,
     this.onExportSelectedMarkdown,
+    this.onSpeakSelected,
+    this.suggestions,
+    this.onSuggestionTap,
+    this.onMessageMore,
+    this.onManageContext,
     required this.speakingMessageId,
     required this.onMessageSpeak,
     this.initialScrollIndex,
@@ -187,6 +214,8 @@ class ChatView extends StatelessWidget {
               ? _EmptyState(
                   hasSession: session != null,
                   onNewSession: onNewSession,
+                  suggestions: suggestions,
+                  onSuggestionTap: onSuggestionTap,
                 )
               : Column(
                   children: [
@@ -218,6 +247,8 @@ class ChatView extends StatelessWidget {
                         streamMarkdown: streamMarkdown,
                         documentThreshold: documentThreshold,
                         onOcr: onOcr,
+                        // B-07：统一「更多」菜单
+                        onMore: onMessageMore,
                         // B-01：多选模式
                         selectionActive: selectionActive,
                         selectedIndices: selectedIndices,
@@ -234,6 +265,7 @@ class ChatView extends StatelessWidget {
             count: selectedCount,
             onDelete: onDeleteSelected,
             onExportMarkdown: onExportSelectedMarkdown,
+            onSpeak: onSpeakSelected,
             onCancel: onExitSelection,
           )
         else if (session != null)
@@ -254,6 +286,7 @@ class ChatView extends StatelessWidget {
             onPickImages: onPickImages,
             pendingDocuments: pendingDocuments,
             onPickDocuments: onPickDocuments,
+            onVoiceInput: onVoiceInput,
             onRemoveDocument: onRemoveDocument,
             onAddImageUrl: onAddImageUrl,
             onRemoveImage: onRemoveImage,
@@ -377,6 +410,13 @@ class ChatView extends StatelessWidget {
               tooltip: l10n.chatSessionContext,
               onPressed: onOpenContextSettings,
             ),
+            // B-08：上下文管理面板（分段/压缩/清除）
+            if (onManageContext != null)
+              IconButton(
+                icon: const Icon(Icons.space_dashboard_outlined),
+                tooltip: l10n.contextManageTitle,
+                onPressed: onManageContext,
+              ),
             MenuAnchor(
               alignmentOffset: const Offset(0, 6),
               menuChildren: [
@@ -411,6 +451,14 @@ class ChatView extends StatelessWidget {
                   child: Text(l10n.chatExportJson,
                       style: const TextStyle(fontSize: 13)),
                 ),
+                // G-03：JSONL 导出
+                if (onExportJsonl != null)
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.segment_rounded, size: 17),
+                    onPressed: onExportJsonl,
+                    child: Text(l10n.chatExportJsonl,
+                        style: const TextStyle(fontSize: 13)),
+                  ),
                 MenuItemButton(
                   leadingIcon: const Icon(Icons.copy_all_outlined, size: 17),
                   onPressed: onCopyMarkdown,
@@ -455,14 +503,18 @@ class ChatView extends StatelessWidget {
   }
 }
 
-/// 空状态：品牌 hero + 快捷入口。
+/// 空状态：品牌 hero + 快捷入口 + B-04 建议气泡。
 class _EmptyState extends StatelessWidget {
   final bool hasSession;
   final VoidCallback onNewSession;
+  final List<String>? suggestions;
+  final void Function(String text)? onSuggestionTap;
 
   const _EmptyState({
     required this.hasSession,
     required this.onNewSession,
+    this.suggestions,
+    this.onSuggestionTap,
   });
 
   @override
@@ -515,9 +567,19 @@ class _EmptyState extends StatelessWidget {
               icon: const Icon(Icons.add_comment_outlined, size: 18),
               label: Text(context.l10n.chatNewSession),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
             ),
+            if (hasSession && onSuggestionTap != null) ...[
+              const SizedBox(height: 32),
+              SuggestionBubbles(
+                suggestions: suggestions,
+                onTap: onSuggestionTap!,
+              ),
+            ],
           ],
         ),
       ),
@@ -533,12 +595,14 @@ class _SelectionToolbar extends StatelessWidget {
   final int count;
   final Future<void> Function()? onDelete;
   final Future<void> Function()? onExportMarkdown;
+  final VoidCallback? onSpeak;
   final VoidCallback? onCancel;
 
   const _SelectionToolbar({
     required this.count,
     this.onDelete,
     this.onExportMarkdown,
+    this.onSpeak,
     this.onCancel,
   });
 
@@ -573,6 +637,18 @@ class _SelectionToolbar extends StatelessWidget {
                   icon: const Icon(Icons.description_outlined, size: 18),
                   label: Text(
                     l10n.chatExportMarkdown,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // E-05：批量朗读
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: count == 0 ? null : onSpeak,
+                  icon: const Icon(Icons.volume_up_outlined, size: 18),
+                  label: Text(
+                    l10n.chatSpeak,
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),

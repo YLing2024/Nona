@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import '../../network/app_http_client.dart';
 import '../network_log_service.dart';
 import '../../../version.dart';
+
+/// MCP 传输类型（F-01：stdio 本地进程）。
+enum McpTransportKind { http, sse, stdio }
 
 /// 一个 MCP 工具的 JSON Schema 参数定义。
 class McpToolDefinition {  final String name;
@@ -71,27 +75,75 @@ class McpToolResult {
   }
 }
 
-/// 轻量 MCP 客户端：JSON-RPC 2.0 over Streamable HTTP / SSE。
+/// 轻量 MCP 客户端：JSON-RPC 2.0 over Streamable HTTP / SSE / STDIO。
 ///
 /// 协议版本：2025-03-26。核心方法：initialize / tools/list / tools/call；
-/// 响应以 `application/json` 返回（服务端如支持 SSE 通知流则忽略通知）。
+/// HTTP 响应以 `application/json` 返回（服务端如支持 SSE 通知流则忽略通知）。
 class McpClient {
   final String baseUrl;
   final Map<String, String> headers;
+
+  /// F-01：stdio 传输配置（非空时走本地进程）。
+  final StdioConfig? stdio;
 
   /// 会话标识（initialize 返回），供后续请求携带。
   String? _sessionId;
   int _requestId = 0;
   bool _initialized = false;
+  StdioMcpTransport? _stdioTransport;
 
-  McpClient({required this.baseUrl, this.headers = const {}});
+  McpClient({
+    required this.baseUrl,
+    this.headers = const {},
+    this.stdio,
+  });
 
   /// 服务器信息（initialize 结果）。
   Map<String, dynamic>? serverInfo;
 
+  /// F-01：传输进程是否存活。
+  bool get isAlive => _stdioTransport?.isAlive ?? true;
+
+  /// F-01：关闭传输（stdio 杀进程；退出前调用）。
+  Future<void> close() async {
+    await _stdioTransport?.close();
+    _stdioTransport = null;
+    _initialized = false;
+  }
+
   /// 发送请求。[notify] 为 true 时不携带 id（JSON-RPC 通知，部分严格
   /// 服务端会拒绝带 id 的通知请求）。
   Future<Map<String, dynamic>> _post(
+    String method,
+    Map<String, dynamic> params, {
+    bool notify = false,
+  }) async {
+    if (stdio != null) {
+      final transport = _stdioTransport ??= StdioMcpTransport(stdio!);
+      final id = ++_requestId;
+      final body = {
+        'jsonrpc': '2.0',
+        if (!notify) 'id': id,
+        'method': method,
+        'params': params,
+      };
+      if (notify) {
+        await transport.sendNotification(body);
+        return const {};
+      }
+      final result = await transport.request(id, body);
+      if (result['error'] != null) {
+        final error = result['error'] as Map<String, dynamic>;
+        throw McpException(
+          'MCP error (${error['code']}): ${error['message']}',
+        );
+      }
+      return result['result'] as Map<String, dynamic>? ?? const {};
+    }
+    return _postHttp(method, params, notify: notify);
+  }
+
+  Future<Map<String, dynamic>> _postHttp(
     String method,
     Map<String, dynamic> params, {
     bool notify = false,
@@ -230,4 +282,217 @@ class McpException implements Exception {
 
   @override
   String toString() => message;
+}
+
+/// F-01：stdio 传输配置（命令 + 参数 + 环境 + 工作目录）。
+class StdioConfig {
+  final String command;
+  final List<String> args;
+  final Map<String, String> env;
+  final String? cwd;
+
+  const StdioConfig({
+    required this.command,
+    this.args = const [],
+    this.env = const {},
+    this.cwd,
+  });
+
+  factory StdioConfig.fromJson(Map<String, dynamic> json) => StdioConfig(
+        command: json['command'] as String? ?? '',
+        args: (json['args'] as List<dynamic>? ?? []).cast<String>(),
+        env: {
+          for (final e in (json['env'] as Map<String, dynamic>? ?? {}).entries)
+            e.key: e.value.toString(),
+        },
+        cwd: json['cwd'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'command': command,
+        'args': args,
+        'env': env,
+        if (cwd != null) 'cwd': cwd,
+      };
+}
+
+
+/// F-01：stdio 传输——json-rpc over stdin/stdout 行协议。
+///
+/// 生命周期：首次请求时启动进程；[close] 终止。stderr 转发日志。
+class StdioMcpTransport {
+  final StdioConfig config;
+  Process? _process;
+  final Map<int, Completer<Map<String, dynamic>>> _pending = {};
+  late final Future<void> _ready;
+
+  StdioMcpTransport(this.config) {
+    _ready = _init();
+  }
+
+  Future<void> _init() async {
+    final command = await resolveCommand(config.command);
+    if (command == null) {
+      throw McpException('command not found: ${config.command}');
+    }
+    final process = await Process.start(
+      command,
+      config.args,
+      environment: config.env.isEmpty ? null : config.env,
+      workingDirectory: config.cwd,
+    );
+    _process = process;
+    // stdout 行监听：增量拼接后按行解析（json 单行响应）
+    final lines = process.stdout
+        .transform(utf8.decoder)
+        .transform(const LineSplitter());
+    lines.listen(_onLine, onError: (_) {}, onDone: _onProcessExit);
+    process.stderr.transform(utf8.decoder).listen((chunk) {
+      _lastStderr.write(chunk);
+    });
+  }
+
+  bool get isAlive => _process != null;
+
+  void _onLine(String line) {
+    final trimmed = line.trim();
+    if (trimmed.isEmpty) return;
+    Object? decoded;
+    try {
+      decoded = jsonDecode(trimmed);
+    } catch (_) {
+      return;
+    }
+    if (decoded is! Map<String, dynamic>) return;
+    final id = decoded['id'];
+    if (id == null) {
+      // 服务端主动通知：忽略（上层用不到）
+      return;
+    }
+    final completer = _pending.remove(int.tryParse(id.toString()) ?? -1);
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(decoded);
+    }
+  }
+
+  void _onProcessExit() {
+    for (final c in _pending.values) {
+      if (!c.isCompleted) {
+        c.completeError(const McpException('stdio process exited'));
+      }
+    }
+    _pending.clear();
+    _process = null;
+  }
+
+  /// 最近 stderr 内容（错误提示用）。
+  static final StringBuffer _lastStderr = StringBuffer();
+
+  static String get recentStderr => _lastStderr.toString();
+
+  /// 解析命令路径：Windows 合并注册表 Machine/User PATH 与进程 PATH；
+  /// 其余平台用 which。
+  static Future<String?> resolveCommand(String command) async {
+    if (command.contains('/') || command.contains(r'\')) {
+      return File(command).existsSync() ? command : null;
+    }
+    if (Platform.isWindows) {
+      final pathEnv = await _windowsPath();
+      for (final dir in pathEnv.split(';')) {
+        if (dir.trim().isEmpty) continue;
+        final candidate = '$dir\\$command';
+        for (final ext in _pathext()) {
+          if (File('$candidate$ext').existsSync()) return '$candidate$ext';
+        }
+        if (File(candidate).existsSync()) return candidate;
+      }
+      return null;
+    }
+    final which = await Process.run('which', [command]);
+    if (which.exitCode == 0 && (which.stdout as String).trim().isNotEmpty) {
+      return (which.stdout as String).trim();
+    }
+    return null;
+  }
+
+  static Future<String> _windowsPath() async {
+    final parts = <String>[
+      if (Platform.environment['PATH'] != null) Platform.environment['PATH']!,
+    ];
+    try {
+      for (final scope in ['HKEY_LOCAL_MACHINE', 'HKEY_CURRENT_USER']) {
+        final result = await Process.run(
+          'reg',
+          ['query', '$scope\\Environment', '/v', 'Path'],
+        );
+        if (result.exitCode == 0) {
+          final out = (result.stdout as String);
+          final match = RegExp(
+            r'Path\s+REG_(?:EXPAND_)?SZ\s+(.+)$',
+            multiLine: true,
+          ).firstMatch(out);
+          if (match != null) parts.add(match.group(1)!.trim());
+        }
+      }
+    } catch (_) {}
+    final seen = <String>{};
+    final merged = <String>[];
+    for (final p in parts) {
+      for (final dir in p.split(';')) {
+        final normalized = dir.trim().toLowerCase();
+        if (dir.trim().isEmpty || !seen.add(normalized)) continue;
+        merged.add(dir.trim());
+      }
+    }
+    return merged.join(';');
+  }
+
+  static List<String> _pathext() {
+    final ext = Platform.environment['PATHEXT'] ?? '.EXE;.BAT;.CMD';
+    return [
+      for (final e in ext.split(';'))
+        if (e.trim().isNotEmpty) e.trim().toLowerCase(),
+    ];
+  }
+
+  Future<void> sendNotification(Map<String, dynamic> body) async {
+    await _ready;
+    _process?.stdin.writeln(jsonEncode(body));
+  }
+
+  Future<Map<String, dynamic>> request(
+    int id,
+    Map<String, dynamic> body,
+  ) async {
+    await _ready;
+    final completer = Completer<Map<String, dynamic>>();
+    _pending[id] = completer;
+    _process?.stdin.writeln(jsonEncode(body));
+    return completer.future.timeout(
+      const Duration(seconds: 60),
+      onTimeout: () {
+        _pending.remove(id);
+        throw McpException('MCP stdio request timeout: ${body['method']}');
+      },
+    );
+  }
+
+  Future<void> close() async {
+    final process = _process;
+    _process = null;
+    if (process == null) return;
+    try {
+      unawaited(process.stdin.close());
+      await process.exitCode.timeout(const Duration(seconds: 2));
+    } catch (_) {}
+    try {
+      process.kill();
+    } catch (_) {}
+    for (final c in _pending.values) {
+      if (!c.isCompleted) {
+        c.completeError(const McpException('stdio transport closed'));
+      }
+    }
+    _pending.clear();
+  }
 }

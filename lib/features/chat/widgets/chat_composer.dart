@@ -43,6 +43,9 @@ class ChatComposer extends StatefulWidget {
   /// 待发送文档附件（PDF/DOCX/TXT 提取文本）。
   final List<ChatDocument> pendingDocuments;
   final VoidCallback onPickDocuments;
+
+  /// E-03：语音输入。
+  final VoidCallback? onVoiceInput;
   final void Function(int index) onRemoveDocument;
 
   /// 会话估算 token 数（用于上下文用量提示）。
@@ -100,6 +103,7 @@ class ChatComposer extends StatefulWidget {
     required this.onRemoveImage,
     this.pendingDocuments = const [],
     this.onPickDocuments = _noop,
+    this.onVoiceInput,
     this.onRemoveDocument = _noopIndex,
     this.autoSelectModel = true,
     this.quickPhrasesLoader,
@@ -237,6 +241,7 @@ class _ChatComposerState extends State<ChatComposer> {
               onStreamChanged: widget.onStreamChanged,
               onPickImages: widget.onPickImages,
               onPickDocuments: widget.onPickDocuments,
+              onVoiceInput: widget.onVoiceInput,
               autoSelectModel: widget.autoSelectModel,
             ),
           ),

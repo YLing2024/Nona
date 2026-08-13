@@ -9,6 +9,7 @@ import '../../../core/utils/l10n_ext.dart';
 import '../../../core/utils/load_guarded.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/load_failed_banner.dart';
+import 'knowledge_debug_screen.dart';
 
 /// 知识库管理页（F4-1 多库）：库选择 + 文档管理 + 对话注入。
 class KnowledgeBaseScreen extends StatefulWidget {
@@ -189,6 +190,16 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
       appBar: AppBar(
         title: Text(l10n.kbTitle),
         actions: [
+          // D-04：检索测试台入口
+          IconButton(
+            icon: const Icon(Icons.travel_explore_rounded),
+            tooltip: l10n.kbDebugTitle,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const KnowledgeDebugScreen(),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.create_new_folder_outlined),
             tooltip: l10n.kbCreateLibrary,

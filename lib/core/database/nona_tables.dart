@@ -259,6 +259,9 @@ class WorldBookEntries extends Table {
   /// v6：所属书 id（D-06；null = 默认书）。
   TextColumn get bookId => text().named('book_id').nullable()();
 
+  /// D-06：深度注入——第 N 轮用户消息后才注入（at_depth 位置配合）。
+  IntColumn get injectDepth => integer().named('inject_depth').withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }

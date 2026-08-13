@@ -5,8 +5,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/chat_provider.dart';
 import '../../../core/services/chat_protocol.dart';
+import '../../../core/services/protocol/vertex_auth.dart';
 import '../../../core/services/provider_service.dart';
 import '../../../core/services/settings_service.dart';
+import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/l10n_ext.dart';
 import '../../../core/utils/logger.dart';
 import '../../../shared/widgets/add_model_dialog.dart';
@@ -38,6 +40,18 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
   late ProviderKind _providerKind;
   bool _obscureApiKey = true;
 
+  /// C-01：Responses API 开关。
+  late bool _useResponseApi;
+
+  /// C-03：服务商分组 id。
+  String? _groupId;
+
+  /// C-02：Vertex 认证字段。
+  late String _authMode;
+  late String _saJson;
+  late String _vertexProject;
+  late String _vertexRegion;
+
   /// 服务商 id：编辑已有服务商时沿用原 id，新增时立即生成。
   late final String _providerId;
 
@@ -65,6 +79,12 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       text: widget.provider?.apiKey ?? '',
     );
     _providerKind = widget.provider?.kind ?? ProviderKind.auto;
+    _useResponseApi = widget.provider?.useResponseApi ?? false;
+    _groupId = widget.provider?.groupId;
+    _authMode = widget.provider?.authMode ?? 'apiKey';
+    _saJson = widget.provider?.saJson ?? '';
+    _vertexProject = widget.provider?.vertexProject ?? '';
+    _vertexRegion = widget.provider?.vertexRegion ?? 'us-central1';
     _customHeadersController = TextEditingController(
       text: (widget.provider?.customHeaders ?? const {})
           .entries
@@ -214,6 +234,12 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
       baseUrl: _baseUrlController.text.trim(),
       apiKey: _apiKeyController.text.trim(),
       kind: _providerKind,
+      useResponseApi: _useResponseApi,
+      groupId: _groupId,
+      authMode: _authMode,
+      saJson: _saJson,
+      vertexProject: _vertexProject,
+      vertexRegion: _vertexRegion,
       customHeaders: _parseHeaders(_customHeadersController.text),
       customBody: _parseBody(_customBodyController.text),
       modelIds: List.of(_modelIds),
@@ -248,6 +274,11 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
         apiKey: _apiKeyController.text.trim(),
         modelIds: List.of(_modelIds),
         modelConfigs: Map.of(_modelConfig),
+        useResponseApi: _useResponseApi,
+        authMode: _authMode,
+        saJson: _saJson,
+        vertexProject: _vertexProject,
+        vertexRegion: _vertexRegion,
       );
 
   Future<ModelTestResult?> _testSingle(String model) async {
@@ -406,10 +437,45 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
                   setState(() => _providerKind = kind);
                   _schedulePersist();
                 },
+                useResponseApi: _useResponseApi,
+                onUseResponseApiChanged: (v) {
+                  _useResponseApi = v;
+                },
                 onChanged: _schedulePersist,
               ),
-              const SizedBox(height: 24),
-              ProviderModelTable(
+              // C-02：Vertex Service Account 认证区（仅 Gemini 协议显示）
+              if (_providerKind == ProviderKind.gemini) ...[
+                const SizedBox(height: 16),
+                _VertexAuthSection(
+                  authMode: _authMode,
+                  saConfigured: _saJson.isNotEmpty,
+                  projectId: _vertexProject,
+                  region: _vertexRegion,
+                  onAuthModeChanged: (mode) {
+                    setState(() => _authMode = mode);
+                    _schedulePersist();
+                  },
+                  onImportSa: () async {
+                    final imported = await _importSaJson();
+                    if (imported != null) {
+                      setState(() => _saJson = imported);
+                      _schedulePersist();
+                    }
+                  },
+                  onClearSa: () {
+                    setState(() => _saJson = '');
+                    _schedulePersist();
+                  },
+                  onProjectChanged: (v) {
+                    _vertexProject = v;
+                  },
+                  onRegionChanged: (v) {
+                    _vertexRegion = v;
+                  },
+                  onChanged: _schedulePersist,
+                ),
+              ],
+              const SizedBox(height: 24),              ProviderModelTable(
                 modelIds: _modelIds,
                 modelConfigs: _modelConfig,
                 testResults: _testResults,
@@ -432,6 +498,191 @@ class _ProviderEditScreenState extends State<ProviderEditScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// C-02：导入 Service Account JSON（粘贴或选文件），校验后返回内容。
+  Future<String?> _importSaJson() async {
+    final l10n = context.l10n;
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.providerSaKeyPaste),
+        content: SizedBox(
+          width: 460,
+          child: TextField(
+            controller: controller,
+            maxLines: 8,
+            autocorrect: false,
+            decoration: const InputDecoration(
+              hintText: '{ "type": "service_account", ... }',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(l10n.commonSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || result.isEmpty || !mounted) return null;
+    try {
+      VertexServiceAccountAuth.parseServiceAccountJson(result);
+      return result;
+    } catch (e) {
+      if (!mounted) return null;
+      showAppSnack(context, l10n.providerSaInvalid);
+      return null;
+    }
+  }
+}
+
+/// C-02：Vertex Service Account 认证设置区。
+class _VertexAuthSection extends StatelessWidget {
+  final String authMode;
+  final bool saConfigured;
+  final String projectId;
+  final String region;
+  final ValueChanged<String> onAuthModeChanged;
+  final VoidCallback onImportSa;
+  final VoidCallback onClearSa;
+  final ValueChanged<String> onProjectChanged;
+  final ValueChanged<String> onRegionChanged;
+  final VoidCallback onChanged;
+
+  const _VertexAuthSection({
+    required this.authMode,
+    required this.saConfigured,
+    required this.projectId,
+    required this.region,
+    required this.onAuthModeChanged,
+    required this.onImportSa,
+    required this.onClearSa,
+    required this.onProjectChanged,
+    required this.onRegionChanged,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isSa = authMode == 'serviceAccount';
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.l10n.providerAuthMode,
+                  style: const TextStyle(fontSize: 14),
+                ),
+              ),
+              DropdownButton<String>(
+                value: authMode,
+                onChanged: (v) {
+                  if (v != null) onAuthModeChanged(v);
+                },
+                items: [
+                  DropdownMenuItem(
+                    value: 'apiKey',
+                    child: Text(context.l10n.providerAuthApiKey),
+                  ),
+                  DropdownMenuItem(
+                    value: 'serviceAccount',
+                    child: Text(context.l10n.providerAuthServiceAccount),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (isSa) ...[
+            const SizedBox(height: 10),
+            Text(
+              context.l10n.providerVertexHint,
+              style: TextStyle(fontSize: 11.5, color: scheme.outline),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onImportSa,
+                    icon: const Icon(Icons.key_rounded, size: 18),
+                    label: Text(
+                      saConfigured
+                          ? context.l10n.providerSaKeyFile
+                          : context.l10n.providerSaKeyPaste,
+                    ),
+                  ),
+                ),
+                if (saConfigured) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    tooltip: context.l10n.commonDelete,
+                    onPressed: onClearSa,
+                  ),
+                ],
+              ],
+            ),
+            if (saConfigured)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  context.l10n.providerAuthorized,
+                  style: TextStyle(fontSize: 12, color: scheme.primary),
+                ),
+              ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: TextEditingController(text: projectId),
+              autocorrect: false,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+              onChanged: (v) {
+                onProjectChanged(v.trim());
+                onChanged();
+              },
+              decoration: InputDecoration(
+                labelText: context.l10n.providerSaProjectId,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: TextEditingController(text: region),
+              autocorrect: false,
+              onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+              onChanged: (v) {
+                onRegionChanged(v.trim());
+                onChanged();
+              },
+              decoration: InputDecoration(
+                labelText: context.l10n.providerSaRegion,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

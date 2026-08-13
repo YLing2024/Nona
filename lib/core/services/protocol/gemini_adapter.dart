@@ -7,15 +7,42 @@ import 'protocol_adapter.dart';
 import 'protocol_factory.dart' show ProviderKind;
 
 /// Google Gemini 协议（streamGenerateContent / generateContent）。
+///
+/// C-02：Vertex 模式（[vertexProject]/[vertexRegion] 非空）时
+/// 拼 aiplatform 端点并用 Bearer 令牌（[accessTokenOverride]，
+/// 由 RequestRunner 预取注入）。
 class GeminiAdapter implements ProtocolAdapter {
-  GeminiAdapter();
+  GeminiAdapter({this.vertexProject, this.vertexRegion});
+
+  /// C-02：Vertex 项目 id（非空时启用 Vertex 端点）。
+  final String? vertexProject;
+
+  /// C-02：Vertex 区域，默认 us-central1。
+  final String? vertexRegion;
+
+  /// C-02：预取的 access token（RequestRunner 在请求前注入）。
+  String? accessTokenOverride;
+
+  bool get _isVertex => vertexProject != null && vertexProject!.isNotEmpty;
 
   @override
   ProviderKind get kind => ProviderKind.gemini;
 
   /// 流式走 streamGenerateContent；非流式走 generateContent（无 alt=sse）。
+  /// Vertex 模式拼 aiplatform v1 端点。
   @override
   Uri uriFor(String baseUrl, String model, {bool streaming = true}) {
+    if (_isVertex) {
+      final region = (vertexRegion == null || vertexRegion!.isEmpty)
+          ? 'us-central1'
+          : vertexRegion!;
+      final m = Uri.encodeComponent(model);
+      final base = 'https://aiplatform.googleapis.com/v1/projects/'
+          '$vertexProject/locations/$region/publishers/google/models';
+      return streaming
+          ? Uri.parse('$base/$m:streamGenerateContent?alt=sse')
+          : Uri.parse('$base/$m:generateContent');
+    }
     final base = baseUrl.replaceAll(RegExp(r'/+$'), '');
     final m = Uri.encodeComponent(model);
     return streaming
@@ -24,10 +51,18 @@ class GeminiAdapter implements ProtocolAdapter {
   }
 
   @override
-  Map<String, String> headersFor(String apiKey) => {
-    'Content-Type': 'application/json',
-    'x-goog-api-key': apiKey,
-  };
+  Map<String, String> headersFor(String apiKey) {
+    if (_isVertex) {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${accessTokenOverride ?? apiKey}',
+      };
+    }
+    return {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    };
+  }
 
   @override
   Map<String, dynamic> buildBody(

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +12,10 @@ import '../../platform/fs.dart' show pathSeparator, readTextFile, writeTextFile;
 /// - 24h 过期重置；失败标记短期不再选中（5 分钟冷却）；
 /// - 持久化 `roulette_<providerId>.json`（应用支持目录），Web 回退 prefs；
 /// - 文件锁防并发（同一进程内同步队列）。
-class KeyRoulette {
+///
+/// C-04：暴露逐 key 状态（lastUsed/failedAt/failCount/disabled），
+/// 连续失败 ≥3 次自动停用，可手动恢复。
+class KeyRoulette extends ChangeNotifier {
   final String providerId;
 
   static const Duration ttl = Duration(hours: 24);
@@ -24,6 +27,8 @@ class KeyRoulette {
   final Map<String, int> _lastUsed = {}; // key → 单调序号（排序用，杜绝平局）
   final Map<String, int> _lastUsedWall = {}; // key → 墙上时钟 µs（TTL 用）
   final Map<String, int> _failedAt = {}; // key → 失败时间 µs
+  final Map<String, int> _failCounts = {}; // key → 连续失败次数（≥3 停用）
+  final Set<String> _disabled = {}; // 手动/自动停用的 key
   bool _loaded = false;
   Future<void>? _loading;
   Future<void>? _writeQueue;
@@ -76,6 +81,9 @@ class KeyRoulette {
           .forEach((k, v) => _lastUsedWall[k] = (v as num).toInt());
       (data['failedAt'] as Map<String, dynamic>? ?? {})
           .forEach((k, v) => _failedAt[k] = (v as num).toInt());
+      (data['failCounts'] as Map<String, dynamic>? ?? {})
+          .forEach((k, v) => _failCounts[k] = (v as num).toInt());
+      _disabled.addAll((data['disabled'] as List<dynamic>? ?? []).cast<String>());
     }
     _loaded = true;
   }
@@ -95,6 +103,8 @@ class KeyRoulette {
       _lastUsed.remove(k);
       _lastUsedWall.remove(k);
       _failedAt.remove(k);
+      _failCounts.remove(k);
+      _disabled.remove(k);
     }
     await _persist();
   }
@@ -121,6 +131,7 @@ class KeyRoulette {
     String? best;
     var bestScore = _maxSafeInt;
     for (final key in _allKeys) {
+      if (_disabled.contains(key)) continue; // C-04：停用 key 不参与轮换
       final failedAt = _failedAt[key];
       if (failedAt != null && nowWall - failedAt < failureCooldown.inMicroseconds) {
         continue; // 冷却中
@@ -137,6 +148,7 @@ class KeyRoulette {
       String? oldestKey;
       var oldest = _maxSafeInt;
       for (final key in _allKeys) {
+        if (_disabled.contains(key)) continue;
         final last = _lastUsed[key] ?? 0;
         if (last < oldest) {
           oldest = last;
@@ -152,18 +164,57 @@ class KeyRoulette {
     return best;
   }
 
-  /// 标记 key 失败（短期不再选中）。
+  /// 标记 key 失败（短期不再选中；连续 ≥3 次自动停用）。
   Future<void> markFailed(String key) async {
     await _ensureLoaded();
     _failedAt[key] = DateTime.now().microsecondsSinceEpoch;
+    _failCounts[key] = (_failCounts[key] ?? 0) + 1;
+    if (_failCounts[key]! >= 3) {
+      _disabled.add(key);
+    }
     await _persist();
+    notifyListeners();
+  }
+
+  /// C-04：手动停用/恢复某个 key。
+  Future<void> setKeyEnabled(String key, {required bool enabled}) async {
+    await _ensureLoaded();
+    if (enabled) {
+      _disabled.remove(key);
+      _failCounts.remove(key);
+      _failedAt.remove(key);
+    } else {
+      _disabled.add(key);
+    }
+    await _persist();
+    notifyListeners();
+  }
+
+  /// C-04：逐 key 状态（供管理页展示）。
+  Future<List<KeyStatus>> status() async {
+    await _ensureLoaded();
+    final now = DateTime.now().microsecondsSinceEpoch;
+    return [
+      for (final key in _allKeys)
+        KeyStatus(
+          key: key,
+          lastUsedWall: _lastUsedWall[key],
+          failedAt: _failedAt[key],
+          failCount: _failCounts[key] ?? 0,
+          disabled: _disabled.contains(key),
+          cooling: _failedAt[key] != null &&
+              now - _failedAt[key]! < failureCooldown.inMicroseconds,
+        ),
+    ];
   }
 
   /// 标记 key 成功（清除失败标记）。
   Future<void> markSuccess(String key) async {
     await _ensureLoaded();
     _failedAt.remove(key);
+    _failCounts.remove(key);
     await _persist();
+    notifyListeners();
   }
 
   Future<void> _persist() {
@@ -172,6 +223,8 @@ class KeyRoulette {
       'lastUsed': _lastUsed,
       'lastUsedWall': _lastUsedWall,
       'failedAt': _failedAt,
+      'failCounts': _failCounts,
+      'disabled': _disabled.toList(),
     });
     _writeQueue = (_writeQueue ?? Future.value()).then((_) async {
       try {
@@ -206,4 +259,33 @@ class KeyRoulette {
     await _ensureLoaded();
     return List.of(_allKeys);
   }
+}
+
+/// C-04：单个 key 的运行时状态（管理页展示用）。
+class KeyStatus {
+  final String key;
+
+  /// 上次使用墙上时钟（µs）；从未使用为 null。
+  final int? lastUsedWall;
+
+  /// 上次失败时间（µs）；从未失败为 null。
+  final int? failedAt;
+
+  /// 连续失败次数。
+  final int failCount;
+
+  /// 是否停用（自动 ≥3 次失败 / 手动）。
+  final bool disabled;
+
+  /// 是否处于 5 分钟冷却期。
+  final bool cooling;
+
+  const KeyStatus({
+    required this.key,
+    this.lastUsedWall,
+    this.failedAt,
+    this.failCount = 0,
+    this.disabled = false,
+    this.cooling = false,
+  });
 }

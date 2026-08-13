@@ -1,5 +1,10 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'voice_settings_screen.dart';
+import '../../../features/platform/desktop_launcher.dart';
+import '../../../core/utils/app_snackbar.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../main.dart';
@@ -23,10 +28,29 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
   AppSettings _settings = const AppSettings();
   bool _loadFailed = false;
 
+  /// I-03：开机自启状态（桌面）。
+  bool _autostartEnabled = false;
+
+  Future<void> _loadAutostart() async {
+    _autostartEnabled = await DesktopLauncher.isAutostartEnabled();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleAutostart(bool value) async {
+    setState(() => _autostartEnabled = value);
+    final ok = await DesktopLauncher.setAutostart(enabled: value);
+    if (!ok && mounted) {
+      showAppSnack(context, context.l10n.desktopAutostartError(''));
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _load();
+    if (!kIsWeb && DesktopLauncher.supported) {
+      _loadAutostart();
+    }
   }
 
   Future<void> _load() async {
@@ -171,6 +195,11 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     await _settingsService.save(_settings);
   }
 
+  Future<void> _updateBackgroundMode(String value) async {
+    setState(() => _settings = _settings.copyWith(androidBackgroundMode: value));
+    await _settingsService.save(_settings);
+  }
+
   Future<void> _updateWebSearchEngine(String? value) async {
     if (value == null) return;
     setState(() => _settings = _settings.copyWith(webSearchEngine: value));
@@ -269,6 +298,9 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       switch (value) {
         'zh' => l10n.preferencesLanguageZh,
         'en' => l10n.preferencesLanguageEn,
+        'zh_Hant' => '繁體中文',
+        'ja' => '日本語',
+        'ko' => '한국어',
         _ => l10n.preferencesLanguageSystem,
       };
 
@@ -559,7 +591,14 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 initialValue: _settings.locale,
                 onSelected: _updateLocale,
                 itemBuilder: (context) => [
-                  for (final v in const ['system', 'zh', 'en'])
+                  for (final v in const [
+                    'system',
+                    'zh',
+                    'en',
+                    'zh_Hant',
+                    'ja',
+                    'ko',
+                  ])
                     PopupMenuItem(
                       value: v,
                       child: Text(_localeLabel(l10n, v)),
@@ -672,16 +711,19 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   ),
                 ),
               ),
-              if (_settings.webSearchEngine == 'tavily' ||
-                  _settings.webSearchEngine == 'bocha') ...[
+              // D-01：需要 Key 的引擎显示 Key 编辑（按引擎存入 map）
+              if (WebSearchService.needsKey(_settings.webSearchEngine)) ...[
                 const SizedBox(height: 12),
                 _PreferenceTile(
                   icon: Icons.key_rounded,
                   iconColor: theme.colorScheme.primary,
                   title: l10n.preferencesWebSearchApiKey,
-                  subtitle: _settings.webSearchApiKey.isEmpty
-                      ? l10n.preferencesWebSearchApiKeyHint
-                      : '••••••••',
+                  subtitle: _settings
+                          .webSearchApiKeys[_settings.webSearchEngine]
+                          ?.isNotEmpty ==
+                      true
+                      ? '••••••••'
+                      : l10n.preferencesWebSearchApiKeyHint,
                   trailing: Icon(
                     Icons.chevron_right_rounded,
                     size: 20,
@@ -689,8 +731,15 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                   ),
                   onTap: () => _editWebSearchText(
                     title: l10n.preferencesWebSearchApiKey,
-                    initial: _settings.webSearchApiKey,
-                    apply: (s, v) => s.copyWith(webSearchApiKey: v),
+                    initial:
+                        _settings.webSearchApiKeys[_settings.webSearchEngine] ??
+                        _settings.webSearchApiKey,
+                    apply: (s, v) => s.copyWith(
+                      webSearchApiKeys: {
+                        ...s.webSearchApiKeys,
+                        s.webSearchEngine: v,
+                      },
+                    ),
                   ),
                 ),
               ],
@@ -717,6 +766,71 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
               ],
             ],
             _buildProxySection(theme, l10n),
+            const SizedBox(height: 12),
+            // I-03：桌面开机自启
+            if (!kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.windows ||
+                    defaultTargetPlatform == TargetPlatform.linux ||
+                    defaultTargetPlatform == TargetPlatform.macOS)) ...[
+              _PreferenceTile(
+                icon: Icons.power_settings_new_rounded,
+                iconColor: theme.colorScheme.primary,
+                title: l10n.desktopAutostart,
+                subtitle: l10n.desktopAutostartHint,
+                trailing: Switch(
+                  value: _autostartEnabled,
+                  onChanged: _toggleAutostart,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // I-01：Android 后台生成
+            if (defaultTargetPlatform == TargetPlatform.android) ...[
+              _PreferenceTile(
+                icon: Icons.battery_saver_rounded,
+                iconColor: theme.colorScheme.primary,
+                title: l10n.androidBackgroundMode,
+                subtitle: l10n.androidBackgroundHint,
+                trailing: PopupMenuButton<String>(
+                  initialValue: _settings.androidBackgroundMode,
+                  onSelected: (v) => _updateBackgroundMode(v),
+                  itemBuilder: (context) => [
+                    for (final v in const ['off', 'on', 'onNotify'])
+                      PopupMenuItem(
+                        value: v,
+                        child: Text(
+                          switch (v) {
+                            'off' => l10n.androidBackgroundOff,
+                            'on' => l10n.androidBackgroundOn,
+                            _ => l10n.androidBackgroundOnNotify,
+                          },
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                      ),
+                  ],
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(Icons.expand_more, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // E-01：语音服务（网络 TTS 管理）
+            _PreferenceTile(
+              icon: Icons.record_voice_over_rounded,
+              iconColor: theme.colorScheme.secondary,
+              title: l10n.voiceServicesTitle,
+              subtitle: l10n.voiceTtsProviders,
+              trailing: Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: theme.colorScheme.outline,
+              ),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const VoiceSettingsScreen()),
+              ),
+            ),
             const SizedBox(height: 12),
             _PreferenceTile(
               icon: Icons.language_rounded,

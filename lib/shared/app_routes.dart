@@ -30,9 +30,11 @@ import '../features/automation/workflows_screen.dart';
 import '../features/settings/screens/model_router_screen.dart';
 import '../features/settings/screens/privacy_screen.dart';
 import '../features/provider/screens/provider_edit_screen.dart';
+import '../features/provider/screens/provider_keys_screen.dart';
 import '../features/provider/screens/provider_list_screen.dart';
 import '../features/search/screens/search_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
+import '../features/settings/screens/tags_screen.dart';
 import '../features/stats/screens/stats_screen.dart';
 import '../features/sync/screens/sync_screen.dart';
 import '../features/settings/screens/theme_settings_screen.dart';
@@ -55,6 +57,10 @@ abstract final class AppRoutes {
 
   static Route<T> preferences<T>() =>
       MaterialPageRoute<T>(builder: (_) => const PreferencesScreen());
+
+  /// G-06：标签管理页。
+  static Route<T> tags<T>() =>
+      MaterialPageRoute<T>(builder: (_) => const TagsScreen());
 
   static Route<T> quickPhrases<T>() =>
       MaterialPageRoute<T>(builder: (_) => const QuickPhrasesScreen());
@@ -108,6 +114,12 @@ abstract final class AppRoutes {
   static Route<T> providerEdit<T>({ChatProvider? provider}) =>
       MaterialPageRoute<T>(
         builder: (_) => ProviderEditScreen(provider: provider),
+      );
+
+  /// C-04：服务商多 Key 管理页。
+  static Route<T> providerKeys<T>({required ChatProvider provider}) =>
+      MaterialPageRoute<T>(
+        builder: (_) => ProviderKeysScreen(provider: provider),
       );
 
   static Route<T> agentList<T>() =>

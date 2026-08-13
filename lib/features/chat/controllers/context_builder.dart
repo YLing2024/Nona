@@ -3,6 +3,36 @@ import '../../../core/models/chat_session.dart';
 import '../../../core/services/model_capability_service.dart';
 import '../../../core/utils/token_counter.dart';
 
+/// B-08：上下文注入分段（面板展示用）。
+class ContextSegment {
+  /// 分段类型（system/agent/summary/memory/injection/knowledge/search/worldBook/history）。
+  final String type;
+
+  /// 展示标题（调用方传入本地化文案）。
+  final String title;
+
+  /// 内容预览（前 120 字符）。
+  final String preview;
+
+  /// 估算 token 数。
+  final int tokens;
+
+  /// 该分段是否可临时开关（false 表示信息类分段）。
+  final bool toggleable;
+
+  /// 当前开关状态。
+  final bool enabled;
+
+  const ContextSegment({
+    required this.type,
+    required this.title,
+    required this.preview,
+    required this.tokens,
+    this.toggleable = false,
+    this.enabled = true,
+  });
+}
+
 /// 摘要压缩计划（F3-1）：由 [ContextBuilder.buildPlan] 产出，
 /// 调用方生成摘要后通过 [ContextBuilder.applyCompaction] 落地。
 class CompactionPlan {
@@ -231,5 +261,104 @@ class ContextBuilder {
     session.summary = '';
     session.summaryTokens = null;
     session.compressedBlocks = [];
+  }
+
+  /// B-08：上下文分段报告——复现请求注入顺序（摘要→记忆→指令→知识库→
+  /// 搜索→世界书→系统提示词→历史消息），每段估算 token 与预览。
+  ///
+  /// 异步分段（记忆/指令/知识库/搜索/世界书）由调用方以 [extraSegments]
+  /// 注入；本方法保证「系统提示词/摘要/历史」等同步段与真实请求一致。
+  List<ContextSegment> buildContextReport(
+    ChatSession session, {
+    String? agentPrompt,
+    String? memoryText,
+    String? instructionText,
+    List<ContextSegment> extraSegments = const [],
+  }) {
+    final modelId = session.modelId;
+    final segments = <ContextSegment>[];
+
+    // 会话摘要（压缩产物，最先注入）
+    if (session.summary.trim().isNotEmpty) {
+      segments.add(
+        ContextSegment(
+          type: 'summary',
+          title: 'summary',
+          preview: session.summary.trim(),
+          tokens: TokenCounter.estimate(session.summary, modelId: modelId),
+        ),
+      );
+    }
+    // 记忆注入
+    if (memoryText != null && memoryText.trim().isNotEmpty) {
+      segments.add(
+        ContextSegment(
+          type: 'memory',
+          title: 'memory',
+          preview: memoryText.trim(),
+          tokens: TokenCounter.estimate(memoryText, modelId: modelId),
+        ),
+      );
+    }
+    // 指令注入
+    if (instructionText != null && instructionText.trim().isNotEmpty) {
+      segments.add(
+        ContextSegment(
+          type: 'injection',
+          title: 'injection',
+          preview: instructionText.trim(),
+          tokens: TokenCounter.estimate(instructionText, modelId: modelId),
+        ),
+      );
+    }
+    // 调用方提供的异步分段（知识库/搜索/世界书）
+    segments.addAll(extraSegments);
+
+    // 系统提示词（含 Agent 提示词合成，与请求一致）
+    final systemPrompt = [
+      if (agentPrompt != null && agentPrompt.trim().isNotEmpty)
+        agentPrompt.trim(),
+      session.options.systemPrompt.trim(),
+    ].where((s) => s.isNotEmpty).join('\n\n');
+    if (systemPrompt.isNotEmpty) {
+      segments.add(
+        ContextSegment(
+          type: 'system',
+          title: 'system',
+          preview: systemPrompt,
+          tokens: TokenCounter.estimate(systemPrompt, modelId: modelId) + 4,
+        ),
+      );
+    }
+    // 历史消息（受 truncateIndex 影响）
+    final messages = session.messages;
+    final from = (session.truncateIndex ?? 0).clamp(0, messages.length);
+    var historyTokens = 0;
+    final previewParts = <String>[];
+    for (final m in messages.skip(from).take(4)) {
+      historyTokens += estimateMessage(m, modelId);
+      final text = m.content.trim().replaceAll('\n', ' ');
+      if (text.isNotEmpty) {
+        previewParts.add('${m.role}: ${text.substring(0, text.length.clamp(0, 40))}');
+      }
+    }
+    for (final m in messages.skip(from + 4)) {
+      historyTokens += estimateMessage(m, modelId);
+    }
+    segments.add(
+      ContextSegment(
+        type: 'history',
+        title: 'history',
+        preview: previewParts.join('\n'),
+        tokens: historyTokens,
+      ),
+    );
+    return segments;
+  }
+
+  /// B-08：可注入分段是否已被会话级临时停用。
+  static bool segmentEnabled(ChatSession session, String type) {
+    final disabled = session.options.disabledContextSegments;
+    return !disabled.contains(type);
   }
 }

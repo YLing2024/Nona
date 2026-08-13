@@ -15,6 +15,9 @@ class MessageCheckpoint {
   final String reasoning;
   final String? toolCallsJson;
 
+  /// F-04：工具执行步骤（tool_steps_json）。
+  final String? toolStepsJson;
+
   /// 是否处于流式中间态（true=写 streaming 标记；false=终态清标记）。
   final bool streaming;
 
@@ -24,6 +27,7 @@ class MessageCheckpoint {
     required this.content,
     required this.reasoning,
     this.toolCallsJson,
+    this.toolStepsJson,
     this.streaming = true,
   });
 }
@@ -66,6 +70,7 @@ class CheckpointService {
       content: c.content,
       reasoningContent: c.reasoning,
       toolCallsJson: c.toolCallsJson,
+      toolStepsJson: c.toolStepsJson,
       streamingState: c.streaming ? 'streaming' : null,
       clearStreamingState: !c.streaming,
     );

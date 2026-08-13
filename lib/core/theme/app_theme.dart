@@ -105,20 +105,56 @@ final List<BoxShadow> kCardShadowDark = [
 ];
 
 /// 构建浅色主题；[accent] 为强调色 seed（null 使用品牌靛蓝）。
-ThemeData buildLightTheme({Color? accent}) =>
-    _buildTheme(Brightness.light, accent);
+///
+/// H-02/H-03：[fontFamily] 自定义界面字体（null=系统）；[density]
+/// 界面密度（compact 更紧凑，comfortable 更宽松）；[chatFontScale]
+/// 聊天字号倍率。
+ThemeData buildLightTheme({
+  Color? accent,
+  String? fontFamily,
+  String density = 'standard',
+  double chatFontScale = 1.0,
+}) => _buildTheme(
+      Brightness.light,
+      accent,
+      fontFamily: fontFamily,
+      density: density,
+      chatFontScale: chatFontScale,
+    );
 
 /// 构建深色主题；[accent] 为强调色 seed；[oled] 时背景使用纯黑。
-ThemeData buildDarkTheme({Color? accent, bool oled = false}) =>
-    _buildTheme(Brightness.dark, accent, oled: oled);
+ThemeData buildDarkTheme({
+  Color? accent,
+  bool oled = false,
+  String? fontFamily,
+  String density = 'standard',
+  double chatFontScale = 1.0,
+}) => _buildTheme(
+      Brightness.dark,
+      accent,
+      oled: oled,
+      fontFamily: fontFamily,
+      density: density,
+      chatFontScale: chatFontScale,
+    );
 
 ThemeData _buildTheme(
   Brightness brightness,
   Color? accent, {
   bool oled = false,
+  String? fontFamily,
+  String density = 'standard',
+  double chatFontScale = 1.0,
 }) {
   final isDark = brightness == Brightness.dark;
   final seed = accent ?? AppColors.primary;
+
+  // H-03：密度 → visualDensity / 间距缩放
+  final visualDensity = switch (density) {
+    'compact' => VisualDensity.compact,
+    'comfortable' => VisualDensity.comfortable,
+    _ => VisualDensity.standard,
+  };
 
   // 基于 seed 的 M3 色板；表面/背景保留品牌冷灰色系（OLED 时深色用纯黑）
   final seedScheme = ColorScheme.fromSeed(
@@ -190,12 +226,22 @@ ThemeData _buildTheme(
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: bg,
+    // H-02/H-03：字体与密度
+    fontFamily: fontFamily,
+    visualDensity: visualDensity,
   );
 
   final inputRadius = BorderRadius.circular(14);
 
+  // H-03：聊天字号倍率（仅放大，不缩小）
+  final chatScale = chatFontScale < 1.0 ? 1.0 : chatFontScale;
+
   return base.copyWith(
     textTheme: base.textTheme.copyWith(
+      // 聊天正文/消息字号随倍率
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(
+        fontSize: 14 * chatScale,
+      ),
       headlineSmall: base.textTheme.headlineSmall?.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,

@@ -6,6 +6,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -95,7 +97,10 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('ja'),
+    Locale('ko'),
     Locale('zh'),
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
   /// No description provided for @aboutCopyright.
@@ -4555,6 +4560,1524 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'翻译中…'**
   String get translatorTranslating;
+
+  /// No description provided for @chatSuggestionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'你可以这样开始'**
+  String get chatSuggestionTitle;
+
+  /// No description provided for @chatSuggestionStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'介绍你自己，包括能力和限制'**
+  String get chatSuggestionStart;
+
+  /// No description provided for @chatSuggestionFiles.
+  ///
+  /// In zh, this message translates to:
+  /// **'如何上传文档并获得摘要？'**
+  String get chatSuggestionFiles;
+
+  /// No description provided for @chatSuggestionMcp.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接外部工具需要什么配置？'**
+  String get chatSuggestionMcp;
+
+  /// No description provided for @chatMoreActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多操作'**
+  String get chatMoreActions;
+
+  /// No description provided for @chatSelectCopy.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择复制'**
+  String get chatSelectCopy;
+
+  /// No description provided for @chatExportImage.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出图片'**
+  String get chatExportImage;
+
+  /// No description provided for @chatExportSelectedImage.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出长图'**
+  String get chatExportSelectedImage;
+
+  /// No description provided for @chatExportJsonl.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出 JSONL'**
+  String get chatExportJsonl;
+
+  /// No description provided for @chatLongImageCapturing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在生成长图…'**
+  String get chatLongImageCapturing;
+
+  /// No description provided for @chatLongImageDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'长图已导出'**
+  String get chatLongImageDone;
+
+  /// No description provided for @chatSelectCopyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'长按或拖选文本后复制；可附带上下文发送'**
+  String get chatSelectCopyHint;
+
+  /// No description provided for @chatCopyWithContext.
+  ///
+  /// In zh, this message translates to:
+  /// **'附带上下文发送'**
+  String get chatCopyWithContext;
+
+  /// No description provided for @chatNoSelection.
+  ///
+  /// In zh, this message translates to:
+  /// **'未选择文本'**
+  String get chatNoSelection;
+
+  /// No description provided for @contextManageTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文管理'**
+  String get contextManageTitle;
+
+  /// No description provided for @contextSegments.
+  ///
+  /// In zh, this message translates to:
+  /// **'注入分段'**
+  String get contextSegments;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'{tokens} tokens'**
+  String contextSegmentTokens(String tokens);
+
+  /// No description provided for @contextSegmentSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统提示词'**
+  String get contextSegmentSystem;
+
+  /// No description provided for @contextSegmentMemory.
+  ///
+  /// In zh, this message translates to:
+  /// **'记忆'**
+  String get contextSegmentMemory;
+
+  /// No description provided for @contextSegmentKnowledge.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识库'**
+  String get contextSegmentKnowledge;
+
+  /// No description provided for @contextSegmentSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索结果'**
+  String get contextSegmentSearch;
+
+  /// No description provided for @contextSegmentWorldBook.
+  ///
+  /// In zh, this message translates to:
+  /// **'世界书'**
+  String get contextSegmentWorldBook;
+
+  /// No description provided for @contextSegmentHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'历史消息'**
+  String get contextSegmentHistory;
+
+  /// No description provided for @contextSegmentSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'会话摘要'**
+  String get contextSegmentSummary;
+
+  /// No description provided for @contextSegmentInjection.
+  ///
+  /// In zh, this message translates to:
+  /// **'指令注入'**
+  String get contextSegmentInjection;
+
+  /// No description provided for @contextSegmentAgent.
+  ///
+  /// In zh, this message translates to:
+  /// **'Agent 提示词'**
+  String get contextSegmentAgent;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'已用 {used} / 上限 {limit}'**
+  String contextUsedTokens(String limit, String used);
+
+  /// No description provided for @contextNoLimit.
+  ///
+  /// In zh, this message translates to:
+  /// **'未设置上限'**
+  String get contextNoLimit;
+
+  /// No description provided for @contextCompress.
+  ///
+  /// In zh, this message translates to:
+  /// **'压缩上下文'**
+  String get contextCompress;
+
+  /// No description provided for @contextCompressHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成摘要并折叠历史消息'**
+  String get contextCompressHint;
+
+  /// No description provided for @contextClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除上下文'**
+  String get contextClear;
+
+  /// No description provided for @contextClearHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'标记截断点，历史可恢复'**
+  String get contextClearHint;
+
+  /// No description provided for @contextRestore.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复被清除的上下文'**
+  String get contextRestore;
+
+  /// No description provided for @contextCompressing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在压缩…'**
+  String get contextCompressing;
+
+  /// No description provided for @contextCompressDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文已压缩，新会话以摘要开头'**
+  String get contextCompressDone;
+
+  /// No description provided for @contextToggleOffHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停用该分段（仅本次请求生效）'**
+  String get contextToggleOffHint;
+
+  /// No description provided for @contextEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用'**
+  String get contextEnabled;
+
+  /// No description provided for @contextDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停用'**
+  String get contextDisabled;
+
+  /// No description provided for @providerUseResponseApi.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 Responses API'**
+  String get providerUseResponseApi;
+
+  /// No description provided for @providerUseResponseApiHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'面向 o1/o3/o4/gpt-5 系列；ChatCompletions 兼容服务商请勿开启'**
+  String get providerUseResponseApiHint;
+
+  /// No description provided for @providerAuthMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'认证方式'**
+  String get providerAuthMode;
+
+  /// No description provided for @providerAuthApiKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key'**
+  String get providerAuthApiKey;
+
+  /// No description provided for @providerAuthServiceAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'Service Account（Vertex）'**
+  String get providerAuthServiceAccount;
+
+  /// No description provided for @providerSaProjectId.
+  ///
+  /// In zh, this message translates to:
+  /// **'Project ID'**
+  String get providerSaProjectId;
+
+  /// No description provided for @providerSaRegion.
+  ///
+  /// In zh, this message translates to:
+  /// **'区域（Region）'**
+  String get providerSaRegion;
+
+  /// No description provided for @providerSaEmail.
+  ///
+  /// In zh, this message translates to:
+  /// **'Service Account 邮箱'**
+  String get providerSaEmail;
+
+  /// No description provided for @providerSaKeyFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择 SA JSON 密钥文件'**
+  String get providerSaKeyFile;
+
+  /// No description provided for @providerSaKeyPaste.
+  ///
+  /// In zh, this message translates to:
+  /// **'粘贴 SA JSON'**
+  String get providerSaKeyPaste;
+
+  /// No description provided for @providerSaInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'无效的 SA JSON：缺少 client_email/private_key/project_id'**
+  String get providerSaInvalid;
+
+  /// No description provided for @providerVertexHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'baseUrl 含 aiplatform 时使用 Bearer 令牌访问 Vertex 端点'**
+  String get providerVertexHint;
+
+  /// No description provided for @providerGroupUngrouped.
+  ///
+  /// In zh, this message translates to:
+  /// **'未分组'**
+  String get providerGroupUngrouped;
+
+  /// No description provided for @providerGroupAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get providerGroupAll;
+
+  /// No description provided for @providerGroupAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建分组'**
+  String get providerGroupAdd;
+
+  /// No description provided for @providerGroupName.
+  ///
+  /// In zh, this message translates to:
+  /// **'分组名称'**
+  String get providerGroupName;
+
+  /// No description provided for @providerGroupRename.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名'**
+  String get providerGroupRename;
+
+  /// No description provided for @providerGroupDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除分组'**
+  String get providerGroupDelete;
+
+  /// No description provided for @providerGroupEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无分组'**
+  String get providerGroupEmpty;
+
+  /// No description provided for @providerKeysTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key 管理'**
+  String get providerKeysTitle;
+
+  /// No description provided for @providerKeysBatchAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'批量添加 Key（每行一个）'**
+  String get providerKeysBatchAdd;
+
+  /// No description provided for @providerKeysTest.
+  ///
+  /// In zh, this message translates to:
+  /// **'测活'**
+  String get providerKeysTest;
+
+  /// No description provided for @providerKeysTesting.
+  ///
+  /// In zh, this message translates to:
+  /// **'测活中…'**
+  String get providerKeysTesting;
+
+  /// No description provided for @providerKeysStatusActive.
+  ///
+  /// In zh, this message translates to:
+  /// **'正常'**
+  String get providerKeysStatusActive;
+
+  /// No description provided for @providerKeysStatusCooling.
+  ///
+  /// In zh, this message translates to:
+  /// **'冷却中'**
+  String get providerKeysStatusCooling;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'失败 {count} 次'**
+  String providerKeysStatusError(String count);
+
+  /// No description provided for @providerKeysStatusDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停用（连续失败）'**
+  String get providerKeysStatusDisabled;
+
+  /// No description provided for @providerKeysEnable.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用'**
+  String get providerKeysEnable;
+
+  /// No description provided for @providerKeysDisable.
+  ///
+  /// In zh, this message translates to:
+  /// **'停用'**
+  String get providerKeysDisable;
+
+  /// No description provided for @providerKeysNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无 Key'**
+  String get providerKeysNone;
+
+  /// No description provided for @providerKeysCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制（可能被剪贴板暴露，请谨慎）'**
+  String get providerKeysCopied;
+
+  /// No description provided for @providerKeysTestOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'测活通过'**
+  String get providerKeysTestOk;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'测活失败：{detail}'**
+  String providerKeysTestFail(String detail);
+
+  /// No description provided for @providerKeysRemoved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已删除 Key'**
+  String get providerKeysRemoved;
+
+  /// No description provided for @imggenSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'尺寸'**
+  String get imggenSize;
+
+  /// No description provided for @imggenQuality.
+  ///
+  /// In zh, this message translates to:
+  /// **'质量'**
+  String get imggenQuality;
+
+  /// No description provided for @imggenCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'数量'**
+  String get imggenCount;
+
+  /// No description provided for @imggenSendToChat.
+  ///
+  /// In zh, this message translates to:
+  /// **'发送到对话'**
+  String get imggenSendToChat;
+
+  /// No description provided for @imggenHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成历史'**
+  String get imggenHistory;
+
+  /// No description provided for @imggenHistoryEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无生成记录'**
+  String get imggenHistoryEmpty;
+
+  /// No description provided for @modelSearch.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索模型'**
+  String get modelSearch;
+
+  /// No description provided for @modelFilterMultimodal.
+  ///
+  /// In zh, this message translates to:
+  /// **'多模态'**
+  String get modelFilterMultimodal;
+
+  /// No description provided for @modelFilterReasoning.
+  ///
+  /// In zh, this message translates to:
+  /// **'推理'**
+  String get modelFilterReasoning;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文 {window}'**
+  String modelContextWindow(String window);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'¥{price}/M'**
+  String modelPrice(String price);
+
+  /// No description provided for @modelNoCapability.
+  ///
+  /// In zh, this message translates to:
+  /// **'能力未知'**
+  String get modelNoCapability;
+
+  /// No description provided for @searchServicesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索服务'**
+  String get searchServicesTitle;
+
+  /// No description provided for @searchServiceEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用'**
+  String get searchServiceEnabled;
+
+  /// No description provided for @searchServiceKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key'**
+  String get searchServiceKey;
+
+  /// No description provided for @searchServiceTest.
+  ///
+  /// In zh, this message translates to:
+  /// **'测活'**
+  String get searchServiceTest;
+
+  /// No description provided for @searchServiceTesting.
+  ///
+  /// In zh, this message translates to:
+  /// **'测活中…'**
+  String get searchServiceTesting;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'返回 {count} 条结果'**
+  String searchServiceTestOk(String count);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'测活失败：{detail}'**
+  String searchServiceTestFail(String detail);
+
+  /// No description provided for @searchServiceNeedKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要 API Key'**
+  String get searchServiceNeedKey;
+
+  /// No description provided for @searchServiceNoKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'无需 Key'**
+  String get searchServiceNoKey;
+
+  /// No description provided for @searchServiceSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前使用'**
+  String get searchServiceSelected;
+
+  /// No description provided for @searchServiceUsageTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索用量'**
+  String get searchServiceUsageTitle;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 次调用'**
+  String searchServiceCalls(String count);
+
+  /// No description provided for @searchNoKeyFallback.
+  ///
+  /// In zh, this message translates to:
+  /// **'未配置 Key，回退 Bing 免费引擎'**
+  String get searchNoKeyFallback;
+
+  /// No description provided for @searchFilterTime.
+  ///
+  /// In zh, this message translates to:
+  /// **'时间范围'**
+  String get searchFilterTime;
+
+  /// No description provided for @searchFilterProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务商'**
+  String get searchFilterProvider;
+
+  /// No description provided for @searchFilterModel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get searchFilterModel;
+
+  /// No description provided for @searchFilterAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get searchFilterAll;
+
+  /// No description provided for @searchFilterToday.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天'**
+  String get searchFilterToday;
+
+  /// No description provided for @searchFilterWeek.
+  ///
+  /// In zh, this message translates to:
+  /// **'近 7 天'**
+  String get searchFilterWeek;
+
+  /// No description provided for @searchFilterMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'近 30 天'**
+  String get searchFilterMonth;
+
+  /// No description provided for @searchFilterYear.
+  ///
+  /// In zh, this message translates to:
+  /// **'近一年'**
+  String get searchFilterYear;
+
+  /// No description provided for @searchExportResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出结果'**
+  String get searchExportResults;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'已导出 {count} 条结果'**
+  String searchExported(String count);
+
+  /// No description provided for @kbDebugTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'检索测试台'**
+  String get kbDebugTitle;
+
+  /// No description provided for @kbDebugQuery.
+  ///
+  /// In zh, this message translates to:
+  /// **'检索词'**
+  String get kbDebugQuery;
+
+  /// No description provided for @kbDebugTopK.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回条数'**
+  String get kbDebugTopK;
+
+  /// No description provided for @kbDebugSimilarity.
+  ///
+  /// In zh, this message translates to:
+  /// **'相似度阈值'**
+  String get kbDebugSimilarity;
+
+  /// No description provided for @kbDebugChunkSize.
+  ///
+  /// In zh, this message translates to:
+  /// **'分块大小（覆盖，不落库）'**
+  String get kbDebugChunkSize;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'向量命中 {count}'**
+  String kbDebugVectorHits(String count);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'关键词命中 {count}'**
+  String kbDebugBigramHits(String count);
+
+  /// No description provided for @kbDebugNoHits.
+  ///
+  /// In zh, this message translates to:
+  /// **'无命中'**
+  String get kbDebugNoHits;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'分数 {score}'**
+  String kbDebugScore(String score);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'来源：{source}'**
+  String kbDebugSource(String source);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'文档 {id}'**
+  String kbDebugDocId(String id);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'第 {rank} 位'**
+  String kbDebugRank(String rank);
+
+  /// No description provided for @worldBookNewBook.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建世界书'**
+  String get worldBookNewBook;
+
+  /// No description provided for @worldBookName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get worldBookName;
+
+  /// No description provided for @worldBookDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'描述'**
+  String get worldBookDescription;
+
+  /// No description provided for @worldBookActive.
+  ///
+  /// In zh, this message translates to:
+  /// **'激活'**
+  String get worldBookActive;
+
+  /// No description provided for @worldBookActivateForAgent.
+  ///
+  /// In zh, this message translates to:
+  /// **'为 Agent 激活'**
+  String get worldBookActivateForAgent;
+
+  /// No description provided for @worldBookHitTest.
+  ///
+  /// In zh, this message translates to:
+  /// **'命中测试'**
+  String get worldBookHitTest;
+
+  /// No description provided for @worldBookHitTestInput.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入文本来测试匹配'**
+  String get worldBookHitTestInput;
+
+  /// No description provided for @worldBookHitTestNoHit.
+  ///
+  /// In zh, this message translates to:
+  /// **'无命中条目'**
+  String get worldBookHitTestNoHit;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'命中 {count} 条，注入 {chars} 字符'**
+  String worldBookHitTestHit(String chars, String count);
+
+  /// No description provided for @worldBookGlobal.
+  ///
+  /// In zh, this message translates to:
+  /// **'全局'**
+  String get worldBookGlobal;
+
+  /// No description provided for @voiceServicesTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音服务'**
+  String get voiceServicesTitle;
+
+  /// No description provided for @voiceTtsSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统 TTS'**
+  String get voiceTtsSystem;
+
+  /// No description provided for @voiceTtsProviders.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络 TTS'**
+  String get voiceTtsProviders;
+
+  /// No description provided for @voiceTtsProviderName.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务商'**
+  String get voiceTtsProviderName;
+
+  /// No description provided for @voiceTtsVoice.
+  ///
+  /// In zh, this message translates to:
+  /// **'音色'**
+  String get voiceTtsVoice;
+
+  /// No description provided for @voiceTtsRate.
+  ///
+  /// In zh, this message translates to:
+  /// **'语速'**
+  String get voiceTtsRate;
+
+  /// No description provided for @voiceTtsModel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get voiceTtsModel;
+
+  /// No description provided for @voiceTtsPreview.
+  ///
+  /// In zh, this message translates to:
+  /// **'试听'**
+  String get voiceTtsPreview;
+
+  /// No description provided for @voiceTtsPreviewing.
+  ///
+  /// In zh, this message translates to:
+  /// **'试听中…'**
+  String get voiceTtsPreviewing;
+
+  /// No description provided for @voiceTtsAddProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加 TTS 服务'**
+  String get voiceTtsAddProvider;
+
+  /// No description provided for @voiceTtsTestOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'试听完成'**
+  String get voiceTtsTestOk;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'试听失败：{detail}'**
+  String voiceTtsTestFail(String detail);
+
+  /// No description provided for @voiceTtsFallbackSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'未配置网络 TTS，回退系统朗读'**
+  String get voiceTtsFallbackSystem;
+
+  /// No description provided for @voiceAsrTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音输入（ASR）'**
+  String get voiceAsrTitle;
+
+  /// No description provided for @voiceAsrSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统语音识别'**
+  String get voiceAsrSystem;
+
+  /// No description provided for @voiceAsrCloud.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端识别'**
+  String get voiceAsrCloud;
+
+  /// No description provided for @voiceAsrLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'本地离线识别'**
+  String get voiceAsrLocal;
+
+  /// No description provided for @voiceAsrListening.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在聆听…'**
+  String get voiceAsrListening;
+
+  /// No description provided for @voiceAsrDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'识别完成'**
+  String get voiceAsrDone;
+
+  /// No description provided for @voiceAsrCancelled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已取消'**
+  String get voiceAsrCancelled;
+
+  /// No description provided for @voiceAsrNoPermission.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有麦克风权限'**
+  String get voiceAsrNoPermission;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'识别失败：{detail}'**
+  String voiceAsrError(String detail);
+
+  /// No description provided for @voiceAsrUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前平台不支持语音输入'**
+  String get voiceAsrUnavailable;
+
+  /// No description provided for @voiceAsrTapToSpeak.
+  ///
+  /// In zh, this message translates to:
+  /// **'点击开始说话'**
+  String get voiceAsrTapToSpeak;
+
+  /// No description provided for @voiceModelDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载模型'**
+  String get voiceModelDownload;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'下载中 {percent}%'**
+  String voiceModelDownloading(String percent);
+
+  /// No description provided for @voiceModelInstalled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已安装'**
+  String get voiceModelInstalled;
+
+  /// No description provided for @voiceModelDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除模型'**
+  String get voiceModelDelete;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'{size}'**
+  String voiceModelSize(String size);
+
+  /// No description provided for @mcpTransport.
+  ///
+  /// In zh, this message translates to:
+  /// **'传输方式'**
+  String get mcpTransport;
+
+  /// No description provided for @mcpTransportHttp.
+  ///
+  /// In zh, this message translates to:
+  /// **'Streamable HTTP'**
+  String get mcpTransportHttp;
+
+  /// No description provided for @mcpTransportSse.
+  ///
+  /// In zh, this message translates to:
+  /// **'SSE'**
+  String get mcpTransportSse;
+
+  /// No description provided for @mcpTransportStdio.
+  ///
+  /// In zh, this message translates to:
+  /// **'STDIO（本地进程）'**
+  String get mcpTransportStdio;
+
+  /// No description provided for @mcpStdioCommand.
+  ///
+  /// In zh, this message translates to:
+  /// **'命令'**
+  String get mcpStdioCommand;
+
+  /// No description provided for @mcpStdioArgs.
+  ///
+  /// In zh, this message translates to:
+  /// **'参数（每行一个）'**
+  String get mcpStdioArgs;
+
+  /// No description provided for @mcpStdioEnv.
+  ///
+  /// In zh, this message translates to:
+  /// **'环境变量（KEY=VALUE，每行一个）'**
+  String get mcpStdioEnv;
+
+  /// No description provided for @mcpStdioCwd.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作目录（可选）'**
+  String get mcpStdioCwd;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'找不到命令 {command}，请检查 PATH'**
+  String mcpCommandNotFound(String command);
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'stderr：{line}'**
+  String mcpStdioStderr(String line);
+
+  /// No description provided for @mcpAuthorize.
+  ///
+  /// In zh, this message translates to:
+  /// **'授权'**
+  String get mcpAuthorize;
+
+  /// No description provided for @mcpReauthorize.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新授权'**
+  String get mcpReauthorize;
+
+  /// No description provided for @mcpAuthorized.
+  ///
+  /// In zh, this message translates to:
+  /// **'已授权'**
+  String get mcpAuthorized;
+
+  /// No description provided for @mcpNotAuthorized.
+  ///
+  /// In zh, this message translates to:
+  /// **'未授权'**
+  String get mcpNotAuthorized;
+
+  /// No description provided for @mcpOAuthInProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在打开授权页面…'**
+  String get mcpOAuthInProgress;
+
+  /// No description provided for @mcpOAuthDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'授权成功'**
+  String get mcpOAuthDone;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'授权失败：{detail}'**
+  String mcpOAuthFailed(String detail);
+
+  /// No description provided for @mcpOAuthServerFound.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现授权服务器'**
+  String get mcpOAuthServerFound;
+
+  /// No description provided for @mcpOAuthTokenRefreshed.
+  ///
+  /// In zh, this message translates to:
+  /// **'令牌已刷新'**
+  String get mcpOAuthTokenRefreshed;
+
+  /// No description provided for @approvalWhitelist.
+  ///
+  /// In zh, this message translates to:
+  /// **'免审批白名单（工具名，每行一个）'**
+  String get approvalWhitelist;
+
+  /// No description provided for @approvalBlacklist.
+  ///
+  /// In zh, this message translates to:
+  /// **'强制审批黑名单（工具名，每行一个）'**
+  String get approvalBlacklist;
+
+  /// No description provided for @approvalTimeout.
+  ///
+  /// In zh, this message translates to:
+  /// **'审批超时（秒）'**
+  String get approvalTimeout;
+
+  /// No description provided for @approvalRememberSession.
+  ///
+  /// In zh, this message translates to:
+  /// **'本次会话记住'**
+  String get approvalRememberSession;
+
+  /// No description provided for @toolExecuting.
+  ///
+  /// In zh, this message translates to:
+  /// **'执行中'**
+  String get toolExecuting;
+
+  /// No description provided for @toolDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成'**
+  String get toolDone;
+
+  /// No description provided for @toolError.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败'**
+  String get toolError;
+
+  /// No description provided for @toolDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'工具详情'**
+  String get toolDetail;
+
+  /// No description provided for @toolArguments.
+  ///
+  /// In zh, this message translates to:
+  /// **'参数'**
+  String get toolArguments;
+
+  /// No description provided for @toolResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'结果'**
+  String get toolResult;
+
+  /// No description provided for @toolResultTruncated.
+  ///
+  /// In zh, this message translates to:
+  /// **'（结果过长已截断）'**
+  String get toolResultTruncated;
+
+  /// No description provided for @toolApprove.
+  ///
+  /// In zh, this message translates to:
+  /// **'同意'**
+  String get toolApprove;
+
+  /// No description provided for @toolReject.
+  ///
+  /// In zh, this message translates to:
+  /// **'拒绝'**
+  String get toolReject;
+
+  /// No description provided for @toolWaitingApproval.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待审批'**
+  String get toolWaitingApproval;
+
+  /// No description provided for @toolShowDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看详情'**
+  String get toolShowDetail;
+
+  /// No description provided for @toolHideDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起详情'**
+  String get toolHideDetail;
+
+  /// No description provided for @restoreModeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复模式'**
+  String get restoreModeTitle;
+
+  /// No description provided for @restoreModeOverwrite.
+  ///
+  /// In zh, this message translates to:
+  /// **'整体覆盖（推荐）'**
+  String get restoreModeOverwrite;
+
+  /// No description provided for @restoreModeMerge.
+  ///
+  /// In zh, this message translates to:
+  /// **'合并（保留现有数据）'**
+  String get restoreModeMerge;
+
+  /// No description provided for @restoreModeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'覆盖模式将替换全部本地数据；合并模式保留现有会话与服务商'**
+  String get restoreModeHint;
+
+  /// No description provided for @restorePreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在恢复…'**
+  String get restorePreparing;
+
+  /// No description provided for @restoreDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复完成'**
+  String get restoreDone;
+
+  /// No description provided for @restoreRolledBack.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复失败，已回滚到原数据'**
+  String get restoreRolledBack;
+
+  /// No description provided for @restoreCorrupt.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份包损坏或校验失败'**
+  String get restoreCorrupt;
+
+  /// No description provided for @restoreResume.
+  ///
+  /// In zh, this message translates to:
+  /// **'检测到未完成的恢复，正在收敛…'**
+  String get restoreResume;
+
+  /// No description provided for @shareQrTab.
+  ///
+  /// In zh, this message translates to:
+  /// **'二维码'**
+  String get shareQrTab;
+
+  /// No description provided for @scanQrTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'扫码导入'**
+  String get scanQrTitle;
+
+  /// No description provided for @scanQrCameraPermission.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要相机权限以扫描二维码'**
+  String get scanQrCameraPermission;
+
+  /// No description provided for @scanQrInvalid.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法识别的二维码内容'**
+  String get scanQrInvalid;
+
+  /// No description provided for @scanQrProviderImported.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务商导入成功'**
+  String get scanQrProviderImported;
+
+  /// No description provided for @tagsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签'**
+  String get tagsTitle;
+
+  /// No description provided for @tagsAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建标签'**
+  String get tagsAdd;
+
+  /// No description provided for @tagsName.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签名'**
+  String get tagsName;
+
+  /// No description provided for @tagsColor.
+  ///
+  /// In zh, this message translates to:
+  /// **'颜色'**
+  String get tagsColor;
+
+  /// No description provided for @tagsApply.
+  ///
+  /// In zh, this message translates to:
+  /// **'打标签'**
+  String get tagsApply;
+
+  /// No description provided for @tagsFilter.
+  ///
+  /// In zh, this message translates to:
+  /// **'按标签筛选'**
+  String get tagsFilter;
+
+  /// No description provided for @tagsNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无标签'**
+  String get tagsNone;
+
+  /// No description provided for @tagsManage.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理标签'**
+  String get tagsManage;
+
+  /// No description provided for @statsHeatmapTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'活跃热力图'**
+  String get statsHeatmapTitle;
+
+  /// No description provided for @statsHeatmapLegend.
+  ///
+  /// In zh, this message translates to:
+  /// **'少 → 多'**
+  String get statsHeatmapLegend;
+
+  /// No description provided for @statsTrendTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'趋势'**
+  String get statsTrendTitle;
+
+  /// No description provided for @statsRankProviders.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务商排行'**
+  String get statsRankProviders;
+
+  /// No description provided for @statsRankModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型排行'**
+  String get statsRankModels;
+
+  /// No description provided for @statsRankSessions.
+  ///
+  /// In zh, this message translates to:
+  /// **'会话排行'**
+  String get statsRankSessions;
+
+  /// No description provided for @statsViewAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看全部'**
+  String get statsViewAll;
+
+  /// No description provided for @statsRangeAllTime.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部时间'**
+  String get statsRangeAllTime;
+
+  /// No description provided for @statsRangeLast30.
+  ///
+  /// In zh, this message translates to:
+  /// **'近 30 天'**
+  String get statsRangeLast30;
+
+  /// No description provided for @statsRangePrevMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'上一月'**
+  String get statsRangePrevMonth;
+
+  /// No description provided for @statsRangeCustom.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义'**
+  String get statsRangeCustom;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 条消息'**
+  String statsMessages(String count);
+
+  /// No description provided for @displayFontFamily.
+  ///
+  /// In zh, this message translates to:
+  /// **'界面字体'**
+  String get displayFontFamily;
+
+  /// No description provided for @displayFontSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统'**
+  String get displayFontSystem;
+
+  /// No description provided for @displayCodeFont.
+  ///
+  /// In zh, this message translates to:
+  /// **'代码字体'**
+  String get displayCodeFont;
+
+  /// No description provided for @displayUiDensity.
+  ///
+  /// In zh, this message translates to:
+  /// **'界面密度'**
+  String get displayUiDensity;
+
+  /// No description provided for @densityCompact.
+  ///
+  /// In zh, this message translates to:
+  /// **'紧凑'**
+  String get densityCompact;
+
+  /// No description provided for @densityStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'标准'**
+  String get densityStandard;
+
+  /// No description provided for @densityComfortable.
+  ///
+  /// In zh, this message translates to:
+  /// **'宽松'**
+  String get densityComfortable;
+
+  /// No description provided for @displayChatFontScale.
+  ///
+  /// In zh, this message translates to:
+  /// **'聊天字号'**
+  String get displayChatFontScale;
+
+  /// No description provided for @fontImportLocal.
+  ///
+  /// In zh, this message translates to:
+  /// **'导入本地字体文件'**
+  String get fontImportLocal;
+
+  /// No description provided for @fontImported.
+  ///
+  /// In zh, this message translates to:
+  /// **'字体已导入'**
+  String get fontImported;
+
+  /// No description provided for @androidBackgroundMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'后台生成'**
+  String get androidBackgroundMode;
+
+  /// No description provided for @androidBackgroundOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭'**
+  String get androidBackgroundOff;
+
+  /// No description provided for @androidBackgroundOn.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启'**
+  String get androidBackgroundOn;
+
+  /// No description provided for @androidBackgroundOnNotify.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启并通知'**
+  String get androidBackgroundOnNotify;
+
+  /// No description provided for @androidBackgroundHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启后锁屏/退后台时保持生成不中断'**
+  String get androidBackgroundHint;
+
+  /// No description provided for @notificationChatCompleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成完成'**
+  String get notificationChatCompleted;
+
+  /// No description provided for @notificationChatFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成失败'**
+  String get notificationChatFailed;
+
+  /// No description provided for @desktopAutostart.
+  ///
+  /// In zh, this message translates to:
+  /// **'开机自启'**
+  String get desktopAutostart;
+
+  /// No description provided for @desktopAutostartHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'登录系统时自动启动 Nona'**
+  String get desktopAutostartHint;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'设置自启失败：{detail}'**
+  String desktopAutostartError(String detail);
+
+  /// No description provided for @deeplinkChatTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'来自外部链接'**
+  String get deeplinkChatTitle;
+
+  /// No description provided for @devColdStartTiming.
+  ///
+  /// In zh, this message translates to:
+  /// **'冷启动耗时（毫秒）'**
+  String get devColdStartTiming;
+
+  /// No description provided for @chatOpenDocument.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开文本文档'**
+  String get chatOpenDocument;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'请用简洁的中文总结以下对话的要点，保留关键结论、决定与待办，不超过 300 字：\n\n{source}'**
+  String contextSummaryPrompt(String source);
+
+  /// No description provided for @providerAuthorized.
+  ///
+  /// In zh, this message translates to:
+  /// **'已导入（认证信息已加密保存）'**
+  String get providerAuthorized;
+
+  /// No description provided for @commonAuto.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动'**
+  String get commonAuto;
 }
 
 class _AppLocalizationsDelegate
@@ -4568,17 +6091,33 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+      <String>['en', 'ja', 'ko', 'zh'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
+  // Lookup logic when language+script codes are specified.
+  switch (locale.languageCode) {
+    case 'zh':
+      {
+        switch (locale.scriptCode) {
+          case 'Hant':
+            return AppLocalizationsZhHant();
+        }
+        break;
+      }
+  }
+
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'ko':
+      return AppLocalizationsKo();
     case 'zh':
       return AppLocalizationsZh();
   }

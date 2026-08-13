@@ -21,13 +21,15 @@ class ApprovalDecision {
 /// MCP 工具审批策略。
 ///
 /// 策略持久化于 prefs `mcp_approval_policy_<serverId>`：
-/// `{"mode": "always|on_approval|auto", "remembered": {"toolName": ts}}`。
+/// `{"mode": "always|on_approval|auto", "remembered": {"toolName": ts},
+///   "whitelist": [...], "blacklist": [...], "timeout": 60}`。
 ///
 /// - mode `auto`：全部工具免审批（用户显式选择）
 /// - mode `on_approval`（默认，未显式配置时等同 `needsApproval ?? true`）：
 ///   每次调用弹窗确认
 /// - mode `always`：服务端配置 needsApproval 时强制弹窗，但仍可「记住并允许」
-/// - 已被记住的工具直接放行
+/// - F-03：白名单（免审批）> 黑名单（强制审批）> 已记住 > 按模式
+/// - F-03：审批超时可配置（默认 60s）
 class ApprovalPolicy {
   static const String modeAlways = 'always';
   static const String modeOnApproval = 'on_approval';
@@ -100,10 +102,41 @@ class ApprovalPolicy {
     return remembered.keys.toList();
   }
 
+  // ---------------- F-03：白名单 / 黑名单 / 超时 ----------------
+
+  /// 读取工具名单（白/黑）。
+  static Future<List<String>> toolList(String serverId, {required bool whitelist}) async {
+    final policy = await _load(serverId);
+    final key = whitelist ? 'whitelist' : 'blacklist';
+    return (policy[key] as List<dynamic>? ?? []).cast<String>();
+  }
+
+  static Future<void> setToolList(
+    String serverId, {
+    required bool whitelist,
+    required List<String> tools,
+  }) async {
+    final policy = Map<String, dynamic>.from(await _load(serverId));
+    policy[whitelist ? 'whitelist' : 'blacklist'] = tools;
+    await _save(serverId, policy);
+  }
+
+  /// 审批超时（秒，默认 60）。
+  static Future<int> timeout(String serverId) async {
+    final policy = await _load(serverId);
+    return policy['timeout'] as int? ?? 60;
+  }
+
+  static Future<void> setTimeout(String serverId, int seconds) async {
+    final policy = Map<String, dynamic>.from(await _load(serverId));
+    policy['timeout'] = seconds.clamp(5, 300);
+    await _save(serverId, policy);
+  }
+
   /// 该服务该工具是否需要人工审批。
   ///
-  /// 默认语义：未显式配置策略时按 `needsApproval ?? true` 决定
-  /// （竞品默认均需审批，避免外部工具无感知执行）。
+  /// 决策顺序（F-03）：auto → false；白名单含 → false；黑名单含 → true；
+  /// 已记住 → false；按模式。
   static Future<bool> needsApproval(
     McpServerConfig server,
     String toolName,
@@ -112,6 +145,10 @@ class ApprovalPolicy {
     final mode = policy['mode'] as String? ??
         (server.needsApproval ? modeAlways : modeOnApproval);
     if (mode == modeAuto) return false;
+    final whitelist = policy['whitelist'] as List<dynamic>? ?? const [];
+    if (whitelist.contains(toolName)) return false;
+    final blacklist = policy['blacklist'] as List<dynamic>? ?? const [];
+    if (blacklist.contains(toolName)) return true;
     final remembered = policy['remembered'] as Map<String, dynamic>? ?? {};
     if (remembered.containsKey(toolName)) return false;
     return true;

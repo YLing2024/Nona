@@ -284,6 +284,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const TileDivider(),
+                // G-06：标签管理
+                SettingsTile(
+                  icon: Icons.sell_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.tagsTitle,
+                  subtitle: l10n.tagsManage,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.tags(),
+                  ),
+                ),
+                const TileDivider(),
                 SettingsTile(
                   icon: Icons.text_snippet_outlined,
                   iconColor: Theme.of(context).colorScheme.tertiary,

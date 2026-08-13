@@ -1,4 +1,6 @@
 import 'package:file_selector/file_selector.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
@@ -93,6 +95,204 @@ class _WorldBookScreenState extends State<WorldBookScreen> {
     );
   }
 
+  // ---------------- D-06：多书管理 ----------------
+
+  Future<void> _openBookManager() async {
+    final books = await _service.listBooks();
+    if (!mounted) return;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(ctx.l10n.worldBookNewBook),
+        children: [
+          for (final b in books)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(ctx, 'toggle:${b.id}'),
+              child: Row(
+                children: [
+                  Icon(
+                    b.enabled
+                        ? Icons.book_rounded
+                        : Icons.bookmark_border_rounded,
+                    size: 18,
+                    color: Theme.of(ctx).colorScheme.outline,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '${b.name}${b.description.isEmpty ? '' : ' — ${b.description}'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: b.enabled,
+                    onChanged: (v) {
+                      b.enabled = v;
+                      unawaited(_service.saveBook(b));
+                      Navigator.pop(ctx, 'refresh');
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    tooltip: ctx.l10n.commonDelete,
+                    onPressed: () => Navigator.pop(ctx, 'delete:${b.id}'),
+                  ),
+                ],
+              ),
+            ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'add'),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.add_rounded,
+                  size: 18,
+                  color: Theme.of(ctx).colorScheme.primary,
+                ),
+                const SizedBox(width: 10),
+                Text(ctx.l10n.worldBookNewBook),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'add') {
+      final controller = TextEditingController();
+      final name = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(ctx.l10n.worldBookNewBook),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 30,
+            decoration: InputDecoration(
+              labelText: ctx.l10n.worldBookName,
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(ctx.l10n.commonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+              child: Text(ctx.l10n.commonSave),
+            ),
+          ],
+        ),
+      );
+      controller.dispose();
+      if (name == null || name.isEmpty || !mounted) return;
+      await _service.saveBook(
+        WorldBook(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          name: name,
+        ),
+      );
+    } else if (action.startsWith('delete:')) {
+      final id = action.substring('delete:'.length);
+      await _service.deleteBook(id);
+    }
+    await _load();
+  }
+
+  // ---------------- D-06：命中测试 ----------------
+
+  Future<void> _openHitTest() async {
+    final controller = TextEditingController();
+    if (!mounted) return;
+    final text = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.worldBookHitTest),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 4,
+          decoration: InputDecoration(
+            hintText: ctx.l10n.worldBookHitTestInput,
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: Text(ctx.l10n.wbAdd),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (text == null || text.trim().isEmpty || !mounted) return;
+    final hits = await _service.hitTest(text.trim());
+    if (!mounted) return;
+    final chars = hits.fold<int>(0, (sum, h) => sum + h.entry.content.length);
+    final hitCount = hits.length;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            ctx.l10n.worldBookHitTestHit('$hitCount', '$chars'),
+          ),
+        content: SizedBox(
+          width: 420,
+          child: hits.isEmpty
+              ? Text(
+                  ctx.l10n.worldBookHitTestNoHit,
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.outline),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: hits.length,
+                  itemBuilder: (context, index) {
+                    final h = hits[index];
+                    return ListTile(
+                      dense: true,
+                      title: Text(
+                        h.entry.title,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: Text(
+                        h.preview,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: Text(
+                        'P${h.entry.priority}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(ctx).colorScheme.outline,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(ctx.l10n.commonClose),
+          ),
+        ],
+      ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -101,6 +301,18 @@ class _WorldBookScreenState extends State<WorldBookScreen> {
       appBar: AppBar(
         title: Text(l10n.wbTitle),
         actions: [
+          // D-06：命中测试
+          IconButton(
+            icon: const Icon(Icons.travel_explore_rounded),
+            tooltip: l10n.worldBookHitTest,
+            onPressed: () => _openHitTest(),
+          ),
+          // D-06：多书管理
+          IconButton(
+            icon: const Icon(Icons.collections_bookmark_outlined),
+            tooltip: l10n.worldBookNewBook,
+            onPressed: () => _openBookManager(),
+          ),
           IconButton(
             icon: const Icon(Icons.file_download_outlined),
             tooltip: l10n.wbImport,

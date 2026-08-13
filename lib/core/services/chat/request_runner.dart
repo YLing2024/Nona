@@ -9,6 +9,8 @@ import '../../network/app_http_client.dart';
 import '../chat_protocol.dart' show ProtocolAdapter, ProtocolFactory;
 import '../chat_service.dart' show ChatResult, ChatService;
 import '../network_log_service.dart';
+import '../protocol/gemini_adapter.dart';
+import '../protocol/vertex_auth.dart';
 import '../settings_service.dart';
 import 'chat_exceptions.dart';
 import 'chat_request_handle.dart';
@@ -37,11 +39,33 @@ class RequestRunner {
   /// 单次请求实际使用的 key（供失败标记回写）。
   String? usedApiKey;
 
-  /// 按设置选定的协议适配器（auto 时按 Base URL 探测）。
+  /// 按设置选定的协议适配器（auto 时按 Base URL 探测；
+  /// C-01：useResponseApi 时走 Responses 适配器；
+  /// C-02：Vertex 模式按项目/区域构建端点）。
   late final ProtocolAdapter _protocol = ProtocolFactory.resolve(
     settings.providerKind,
     settings.baseUrl,
+    useResponseApi: settings.useResponseApi,
+    vertexProject: settings.useVertex ? settings.vertexProject : null,
+    vertexRegion: settings.vertexRegion,
   );
+
+  /// C-02：Vertex Service Account 预取令牌（请求发送前完成）。
+  Future<void> _prefetchVertexToken() async {
+    if (!settings.useVertex || settings.saJson.isEmpty) return;
+    final adapter = _protocol;
+    if (adapter is! GeminiAdapter) return;
+    try {
+      final sa = VertexServiceAccountAuth.parseServiceAccountJson(
+        settings.saJson,
+      );
+      adapter.accessTokenOverride = await VertexServiceAccountAuth.accessToken(
+        sa,
+      );
+    } catch (_) {
+      // 令牌获取失败：保持占位（后续请求将带 401 由上层报错）
+    }
+  }
 
   /// 响应流解析器（逐行状态机）。
   late final SseStreamParser _parser = SseStreamParser(
@@ -141,6 +165,8 @@ class RequestRunner {
     // jsonEncode 遇 NaN 等），必须纳入错误处理，否则 handle.result
     // 永未完成 → 调用方挂起。
     try {
+      // C-02：Vertex Service Account 令牌预取（含缓存，5 分钟窗口一次）
+      await _prefetchVertexToken();
       final baseUrl = settings.baseUrl.replaceAll(RegExp(r'/+$'), '');
       final uri = _protocol.uriFor(baseUrl, settings.model);
 

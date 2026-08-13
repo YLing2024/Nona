@@ -15,6 +15,15 @@ final ValueNotifier<Color> accentColorNotifier = ValueNotifier(
 /// 深色模式是否使用 OLED 纯黑背景。
 final ValueNotifier<bool> oledDarkNotifier = ValueNotifier(false);
 
+/// H-02：界面字体（空 = 系统）。
+final ValueNotifier<String> fontFamilyNotifier = ValueNotifier('');
+
+/// H-03：界面密度（compact/standard/comfortable）。
+final ValueNotifier<String> uiDensityNotifier = ValueNotifier('standard');
+
+/// H-03：聊天字号倍率。
+final ValueNotifier<double> chatFontScaleNotifier = ValueNotifier(1.0);
+
 ThemeMode themeModeFromStr(String value) => switch (value) {
   'light' => ThemeMode.light,
   'dark' => ThemeMode.dark,

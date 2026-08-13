@@ -19,6 +19,7 @@ import '../../../core/services/session_service.dart';
 import '../../../core/services/settings_service.dart';
 import '../../../core/services/title_generator.dart';
 import '../../../core/services/web_search/web_search_service.dart';
+import '../../../core/utils/token_counter.dart';
 import 'attachment_manager.dart';
 import 'chat_run_orchestrator.dart';
 import 'context_builder.dart';
@@ -322,6 +323,110 @@ class ChatController {
   /// F3-1：清空会话摘要与压缩记录。
   void clearCompaction(ChatSession session) =>
       _contextBuilder.clearCompaction(session);
+
+  /// B-08：上下文分段报告（系统/摘要/历史 + 调用方注入的异步段）。
+  List<ContextSegment> buildContextReport(
+    ChatSession session, {
+    String? agentPrompt,
+    String? memoryText,
+    String? instructionText,
+    List<ContextSegment> extraSegments = const [],
+  }) => _contextBuilder.buildContextReport(
+    session,
+    agentPrompt: agentPrompt,
+    memoryText: memoryText,
+    instructionText: instructionText,
+    extraSegments: extraSegments,
+  );
+
+  /// B-08：压缩上下文——摘要模型链（titleModel → 会话当前模型），
+  /// 成功后以摘要替换早期消息（复用现有压缩落地管线）。
+  Future<void> compressContext(ChatSession session) async {
+    if (session.messages.isEmpty) return;
+    final localized = l10n;
+    final source = session.messages
+        .map((m) => '${m.role}: ${m.content.trim()}')
+        .where((s) => s.isNotEmpty)
+        .join('\n\n');
+    if (source.trim().isEmpty) return;
+    // 模型回退链：titleModel → 会话当前模型
+    final candidates = <String>[
+      if (settings.titleModel.isNotEmpty) settings.titleModel,
+      if (session.modelId != null) session.modelId!,
+    ];
+    String? summary;
+    for (final modelId in candidates.toSet()) {
+      try {
+        final provider = await _resolveProviderFor(modelId);
+        if (provider == null || provider.apiKey.isEmpty) continue;
+        final result = await chatService.sendSimple(
+          settings: AppSettings(
+            apiKey: provider.apiKey,
+            baseUrl: provider.baseUrl,
+            model: modelId,
+          ),
+          userMessage:
+              localized?.contextSummaryPrompt(source) ?? _fallbackSummaryPrompt,
+          maxTokens: 400,
+        );
+        summary = result.trim();
+        if (summary.isNotEmpty) break;
+      } catch (_) {
+        // 尝试下一个候选模型
+      }
+    }
+    if (summary == null || summary.isEmpty) {
+      throw StateError('summary generation failed');
+    }
+    // 压缩全部历史 → 摘要（保留会话结构）
+    final removed = List<ChatMessage>.from(session.messages);
+    session.messages.clear();
+    session.summary = summary;
+    session.summaryTokens = TokenCounter.estimate(
+      summary,
+      modelId: session.modelId,
+    );
+    session.compressedBlocks = [
+      ...session.compressedBlocks,
+      CompressedBlock(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        startIndex: 0,
+        endIndex: removed.length - 1,
+        summary: summary,
+        messages: removed,
+        createdAt: DateTime.now(),
+      ),
+    ];
+    session.updatedAt = DateTime.now();
+    bumpTokenVersion();
+    await persist();
+    _notify();
+  }
+
+  /// 摘要提示词兜底（未加载本地化时）。
+  static const _fallbackSummaryPrompt =
+      'Summarize the key points of the following conversation concisely, '
+      'keeping conclusions, decisions and todos, within 300 words:\n\n';
+
+  /// 按模型 id 找持有它的服务商。
+  Future<ChatProvider?> _resolveProviderFor(String modelId) async {
+    final providers = await providerService.load();
+    for (final p in providers) {
+      if (p.modelIds.contains(modelId)) return p;
+    }
+    return providers.firstOrNull;
+  }
+
+  /// B-08：清除/恢复上下文（truncateIndex 可逆标记）。
+  void setContextTruncated(ChatSession session, {required bool clear}) {
+    session.truncateIndex = clear
+        ? session.messages.length.clamp(0, session.messages.length)
+        : null;
+    session.updatedAt = DateTime.now();
+    bumpTokenVersion();
+    persist();
+    _notify();
+  }
 
   // ---------------- 会话管理（委托 SessionManager） ----------------
 

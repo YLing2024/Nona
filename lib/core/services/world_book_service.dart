@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/nona_app_database.dart';
 import '../database/nona_db_factory.dart';
@@ -92,6 +93,35 @@ class WorldBookEntry {
     'enabled': enabled,
     'useRegex': useRegex,
     'bookId': bookId,
+  };
+}
+
+/// D-06：世界书（多书容器，条目按 bookId 归属）。
+class WorldBook {
+  final String id;
+  String name;
+  String description;
+  bool enabled;
+
+  WorldBook({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.enabled = true,
+  });
+
+  factory WorldBook.fromJson(Map<String, dynamic> json) => WorldBook(
+    id: json['id'] as String,
+    name: json['name'] as String? ?? 'Unnamed',
+    description: json['description'] as String? ?? '',
+    enabled: json['enabled'] as bool? ?? true,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'enabled': enabled,
   };
 }
 
@@ -244,9 +274,19 @@ class WorldBookService {
   List<WorldBookEntry> _matchEntries(List<ChatMessage> messages) {
     final all = _cachedEntries;
     if (all.isEmpty) return const [];
+    // D-06：停用的书整体不参与注入
+    final disabledBooks = {
+      for (final b in _cachedBooks)
+        if (!b.enabled) b.id,
+    };
+    final effective = [
+      for (final e in all)
+        if (!disabledBooks.contains(e.bookId)) e,
+    ];
+    if (effective.isEmpty) return const [];
     final recent = messages.takeLast(8).toList();
     final matched = <WorldBookEntry>[];
-    for (final e in all) {
+    for (final e in effective) {
       if (!e.enabled) continue;
       if (e.constantActive) {
         matched.add(e);
@@ -299,6 +339,7 @@ class WorldBookService {
   final Map<String, RegExp> _regexCache = {};
 
   List<WorldBookEntry> _cachedEntries = [];
+  final List<WorldBook> _cachedBooks = [];
   bool _loaded = false;
   Future<void>? _loading;
 
@@ -314,6 +355,9 @@ class WorldBookService {
     _loading = completer.future;
     try {
       _cachedEntries = await list();
+      _cachedBooks
+        ..clear()
+        ..addAll(await listBooks());
       _loaded = true;
     } finally {
       completer.complete();
@@ -360,6 +404,94 @@ class WorldBookService {
     _loaded = false;
     _cachedEntries = [];
     await ensureLoaded();
+  }
+
+  // ---------------- D-06：多书 / 激活 / 命中测试 ----------------
+
+  /// 读取全部书（prefs JSON，损坏自愈）。
+  Future<List<WorldBook>> listBooks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('world_books');
+      if (raw == null || raw.isEmpty) return [];
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return [
+        for (final e in decoded)
+          if (e is Map<String, dynamic>) WorldBook.fromJson(e),
+      ];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveBook(WorldBook book) async {
+    final books = await listBooks();
+    final index = books.indexWhere((b) => b.id == book.id);
+    if (index >= 0) {
+      books[index] = book;
+    } else {
+      books.add(book);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'world_books',
+      jsonEncode(books.map((b) => b.toJson()).toList()),
+    );
+    await reload();
+  }
+
+  Future<void> deleteBook(String id) async {
+    final books = await listBooks()..removeWhere((b) => b.id == id);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'world_books',
+      jsonEncode(books.map((b) => b.toJson()).toList()),
+    );
+    // 清空该书条目的归属（回默认书）
+    final entries = await list();
+    for (final e in entries) {
+      if (e.bookId == id) {
+        e.bookId = null;
+        await save(e);
+      }
+    }
+    await reload();
+  }
+
+  /// 某 Agent 激活的书 id 列表（`__global__` 为全局兜底）。
+  Future<List<String>> activeBookIds({String? agentId}) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('world_books_active_${agentId ?? '__global__'}') ??
+        const [];
+  }
+
+  Future<void> setActiveBooks({
+    String? agentId,
+    required List<String> ids,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      'world_books_active_${agentId ?? '__global__'}',
+      ids,
+    );
+  }
+
+  /// D-06：命中测试——返回（命中条目, 注入预览）。
+  Future<List<({WorldBookEntry entry, String preview})>> hitTest(
+    String text,
+  ) async {
+    await ensureLoaded();
+    final userMsg = ChatMessage(role: 'user', content: text);
+    final matched = _matchEntries([userMsg]);
+    return [
+      for (final e in matched)
+        (
+          entry: e,
+          preview: e.content.length > 120
+              ? '${e.content.substring(0, 120)}…'
+              : e.content,
+        ),
+    ];
   }
 }
 

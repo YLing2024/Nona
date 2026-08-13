@@ -22,6 +22,10 @@ class ProviderFormFields extends StatelessWidget {
   final ValueChanged<ProviderKind> onKindChanged;
   final VoidCallback onChanged;
 
+  /// C-01：Responses API 开关（仅 kind=openai 显示）。
+  final bool useResponseApi;
+  final ValueChanged<bool>? onUseResponseApiChanged;
+
   const ProviderFormFields({
     super.key,
     required this.nameController,
@@ -34,6 +38,8 @@ class ProviderFormFields extends StatelessWidget {
     required this.onToggleObscure,
     required this.onKindChanged,
     required this.onChanged,
+    this.useResponseApi = false,
+    this.onUseResponseApiChanged,
   });
 
   @override
@@ -133,6 +139,40 @@ class ProviderFormFields extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
+        // C-01：Responses API 开关（仅 OpenAI 兼容协议显示）
+        if (kind == ProviderKind.openai &&
+            onUseResponseApiChanged != null) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.l10n.providerUseResponseApi,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    Text(
+                      context.l10n.providerUseResponseApiHint,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: useResponseApi,
+                onChanged: (v) {
+                  onUseResponseApiChanged!(v);
+                  onChanged();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           controller: customHeadersController,
           maxLines: 3,

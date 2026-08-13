@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../core/services/usage/usage_stats_service.dart';
+import '../widgets/stats_heatmap.dart';
 
 /// 统计看板（F3-2）：每日 token 堆叠柱状 / 模型 Top10 / 会话 Top10 /
 /// 成本趋势 / 累计花费；入口在设置页。
@@ -21,6 +22,8 @@ class _StatsScreenState extends State<StatsScreen> {
   List<ModelUsage> _models = [];
   List<SessionUsageStat> _sessions = [];
   (int, int, double) _totals = (0, 0, 0);
+  Map<String, int> _heatmap = {};
+  List<({String provider, int tokens, int calls})> _providers = [];
   bool _loading = true;
   String? _error;
 
@@ -44,12 +47,16 @@ class _StatsScreenState extends State<StatsScreen> {
         _stats.topSessions(),
         _stats.totals(),
       ]);
+      final heat = await _stats.heatmap();
+      final providers = await _stats.rankProviders(days: _days);
       if (!mounted) return;
       setState(() {
         _daily = results[0] as List<DailyUsage>;
         _models = results[1] as List<ModelUsage>;
         _sessions = results[2] as List<SessionUsageStat>;
         _totals = results[3] as (int, int, double);
+        _heatmap = heat;
+        _providers = providers;
         _loading = false;
       });
     } catch (e) {
@@ -117,6 +124,52 @@ class _StatsScreenState extends State<StatsScreen> {
                                 )
                               : _dailyChart(),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      // H-01：活跃热力图
+                      _card(
+                        context,
+                        l10n.statsHeatmapTitle,
+                        child: StatsHeatmap(data: _heatmap),
+                      ),
+                      const SizedBox(height: 16),
+                      _card(
+                        context,
+                        l10n.statsRankProviders,
+                        child: _providers.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Text(
+                                  l10n.statsEmpty,
+                                  style: TextStyle(color: scheme.outline),
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  for (final p in _providers)
+                                    ListTile(
+                                      dense: true,
+                                      leading: Icon(
+                                        Icons.cloud_outlined,
+                                        size: 18,
+                                        color: scheme.primary,
+                                      ),
+                                      title: Text(
+                                        p.provider.isEmpty
+                                            ? 'unknown'
+                                            : p.provider,
+                                        style: const TextStyle(fontSize: 13),
+                                      ),
+                                      trailing: Text(
+                                        l10n.statsMessages(''),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: scheme.outline,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                       ),
                       const SizedBox(height: 16),
                       _card(
