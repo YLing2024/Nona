@@ -23,6 +23,7 @@ import 'core/utils/logger.dart';
 import 'core/utils/token_estimator.dart';
 import 'features/chat/screens/home_screen.dart';
 import 'features/desktop/desktop_shell.dart';
+import 'features/automation/workflow_service.dart';
 import 'features/settings/widgets/update_dialog.dart';
 import 'l10n/app_localizations.dart';
 
@@ -96,6 +97,8 @@ Future<void> main() async {
     unawaited(CheckpointService().recover());
     // A-03：桌面基座（窗口/托盘/热键；非桌面平台 no-op）
     unawaited(DesktopShell.instance.init());
+    // X-01：自动化工作流调度（分钟级 tick + 事件订阅）
+    WorkflowService().start();
     // B-06/A-03：退出前冲刷注册（checkpoint barrier + 网络日志落盘）
     AppExitFlush.instance.register(() async {
       await CheckpointService().barrier();

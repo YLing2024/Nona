@@ -644,6 +644,90 @@ abstract class AppLocalizations {
   /// **'启用后异常自动上报（需构建时配置 SENTRY_DSN）；默认关闭'**
   String get devCrashReportingHint;
 
+  /// No description provided for @wfTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动化工作流'**
+  String get wfTitle;
+
+  /// No description provided for @wfAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建工作流'**
+  String get wfAdd;
+
+  /// No description provided for @wfEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑工作流'**
+  String get wfEdit;
+
+  /// No description provided for @wfName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get wfName;
+
+  /// No description provided for @wfActionText.
+  ///
+  /// In zh, this message translates to:
+  /// **'动作（当前仅 send_message 文本；支持 cur_date 变量）'**
+  String get wfActionText;
+
+  /// No description provided for @wfDeleteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除工作流'**
+  String get wfDeleteTitle;
+
+  /// No description provided for @wfDeleteBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'将删除「{name}」。确定继续吗？'**
+  String wfDeleteBody(String name);
+
+  /// No description provided for @wfRunSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作流执行完成'**
+  String get wfRunSuccess;
+
+  /// No description provided for @wfRunFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作流执行失败，见运行历史'**
+  String get wfRunFailed;
+
+  /// No description provided for @wfEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有工作流，点击右下角新建'**
+  String get wfEmpty;
+
+  /// No description provided for @wfListTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作流'**
+  String get wfListTitle;
+
+  /// No description provided for @wfRun.
+  ///
+  /// In zh, this message translates to:
+  /// **'试运行'**
+  String get wfRun;
+
+  /// No description provided for @wfHistoryTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'运行历史'**
+  String get wfHistoryTitle;
+
+  /// No description provided for @settingsWfSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'定时 / 事件触发自动执行动作'**
+  String get settingsWfSubtitle;
+
   /// No description provided for @chatDocument.
   ///
   /// In zh, this message translates to:

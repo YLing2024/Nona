@@ -305,6 +305,52 @@ class AppLocalizationsEn extends AppLocalizations {
       'Send crash reports when enabled (requires SENTRY_DSN at build time); off by default';
 
   @override
+  String get wfTitle => 'Automation workflows';
+
+  @override
+  String get wfAdd => 'New workflow';
+
+  @override
+  String get wfEdit => 'Edit workflow';
+
+  @override
+  String get wfName => 'Name';
+
+  @override
+  String get wfActionText =>
+      'Action (send_message text; supports cur_date variables)';
+
+  @override
+  String get wfDeleteTitle => 'Delete workflow';
+
+  @override
+  String wfDeleteBody(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String get wfRunSuccess => 'Workflow finished';
+
+  @override
+  String get wfRunFailed => 'Workflow failed, see run history';
+
+  @override
+  String get wfEmpty => 'No workflows yet. Tap + to create one.';
+
+  @override
+  String get wfListTitle => 'Workflows';
+
+  @override
+  String get wfRun => 'Run now';
+
+  @override
+  String get wfHistoryTitle => 'Run history';
+
+  @override
+  String get settingsWfSubtitle =>
+      'Scheduled / event-triggered automated actions';
+
+  @override
   String get chatDocument => 'Document';
 
   @override

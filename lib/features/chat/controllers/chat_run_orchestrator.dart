@@ -16,6 +16,7 @@ import '../../../core/services/chat_service.dart';
 import '../../../core/services/checkpoint_service.dart';
 import '../../../core/services/instruction_injection_service.dart';
 import '../../../core/services/document_extractor.dart';
+import '../../../../shared/workflow_event_bus.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';import '../../../core/services/mcp/mcp_client.dart';
 import '../../../core/services/mcp/mcp_service.dart';
@@ -730,6 +731,15 @@ class ChatRunOrchestrator {
         await sessionManager.persist();
         // F3-2：用量冗余更新（usage_daily 预聚合）
         unawaited(_usageStats.recordSessions([session]));
+        // X-01：会话完成事件（触发 event 型工作流）
+        WorkflowEventBus.instance.emit(
+          'chat_completed',
+          context: {
+            'session.id': session.id,
+            'session.title': session.title,
+            'session.model': session.modelId ?? '',
+          },
+        );
         // F2-3：本 Key 成功
         _markRoulette(success: true);
         // F4-3：每 10 轮自动提取记忆（失败静默，不阻塞）

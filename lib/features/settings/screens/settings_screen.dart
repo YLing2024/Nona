@@ -295,6 +295,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const TileDivider(),
                 SettingsTile(
+                  icon: Icons.bolt_outlined,
+                  iconColor: Theme.of(context).colorScheme.tertiary,
+                  title: l10n.wfTitle,
+                  subtitle: l10n.settingsWfSubtitle,
+                  onTap: () => Navigator.of(context).push(
+                    AppRoutes.workflows(),
+                  ),
+                ),
+                const TileDivider(),
+                SettingsTile(
                   icon: Icons.image_outlined,
                   iconColor: Theme.of(context).colorScheme.tertiary,
                   title: l10n.imgGenTitle,

@@ -298,6 +298,50 @@ class AppLocalizationsZh extends AppLocalizations {
   String get devCrashReportingHint => '启用后异常自动上报（需构建时配置 SENTRY_DSN）；默认关闭';
 
   @override
+  String get wfTitle => '自动化工作流';
+
+  @override
+  String get wfAdd => '新建工作流';
+
+  @override
+  String get wfEdit => '编辑工作流';
+
+  @override
+  String get wfName => '名称';
+
+  @override
+  String get wfActionText => '动作（当前仅 send_message 文本；支持 cur_date 变量）';
+
+  @override
+  String get wfDeleteTitle => '删除工作流';
+
+  @override
+  String wfDeleteBody(String name) {
+    return '将删除「$name」。确定继续吗？';
+  }
+
+  @override
+  String get wfRunSuccess => '工作流执行完成';
+
+  @override
+  String get wfRunFailed => '工作流执行失败，见运行历史';
+
+  @override
+  String get wfEmpty => '还没有工作流，点击右下角新建';
+
+  @override
+  String get wfListTitle => '工作流';
+
+  @override
+  String get wfRun => '试运行';
+
+  @override
+  String get wfHistoryTitle => '运行历史';
+
+  @override
+  String get settingsWfSubtitle => '定时 / 事件触发自动执行动作';
+
+  @override
   String get chatDocument => '文档';
 
   @override
