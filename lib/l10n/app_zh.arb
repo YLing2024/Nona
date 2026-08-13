@@ -1732,5 +1732,26 @@
     }
   },
   "providerAuthorized": "已导入（认证信息已加密保存）",
-  "commonAuto": "自动"
+  "commonAuto": "自动",
+  "kbChunkCount": "共 {count} 个分块",
+  "@kbChunkCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsSpeakSelection": "朗读所选",
+  "ttsFloatingPaused": "已暂停",
+  "ttsFloatingSpeaking": "朗读中",
+  "ttsFloatingPause": "暂停",
+  "ttsFloatingResume": "继续",
+  "ttsFloatingStop": "停止朗读",
+  "ttsFloatingSpeed": "速度",
+  "offlineBadge": "离线",
+  "voiceSherpaSelected": "当前使用",
+  "voiceSherpaUse": "设为默认",
+  "voiceSherpaNotInstalled": "未安装（需下载模型）",
+  "voiceSherpaHint": "下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。"
 }

@@ -3219,6 +3219,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get commonAuto => '自动';
+
+  @override
+  String kbChunkCount(String count) {
+    return '共 $count 个分块';
+  }
+
+  @override
+  String get ttsSpeakSelection => '朗读所选';
+
+  @override
+  String get ttsFloatingPaused => '已暂停';
+
+  @override
+  String get ttsFloatingSpeaking => '朗读中';
+
+  @override
+  String get ttsFloatingPause => '暂停';
+
+  @override
+  String get ttsFloatingResume => '继续';
+
+  @override
+  String get ttsFloatingStop => '停止朗读';
+
+  @override
+  String get ttsFloatingSpeed => '速度';
+
+  @override
+  String get offlineBadge => '离线';
+
+  @override
+  String get voiceSherpaSelected => '当前使用';
+
+  @override
+  String get voiceSherpaUse => '设为默认';
+
+  @override
+  String get voiceSherpaNotInstalled => '未安装（需下载模型）';
+
+  @override
+  String get voiceSherpaHint => '下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -6436,4 +6477,33 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get commonAuto => '自动';
+
+  @override
+  String kbChunkCount(String count) {
+    return '共 $count 個分塊';
+  }
+
+  @override
+  String get ttsSpeakSelection => '朗讀所選';
+
+  @override
+  String get ttsFloatingPaused => '已暫停';
+
+  @override
+  String get ttsFloatingSpeaking => '朗讀中';
+
+  @override
+  String get ttsFloatingPause => '暫停';
+
+  @override
+  String get ttsFloatingResume => '繼續';
+
+  @override
+  String get ttsFloatingStop => '停止朗讀';
+
+  @override
+  String get ttsFloatingSpeed => '速度';
+
+  @override
+  String get offlineBadge => '離線';
 }

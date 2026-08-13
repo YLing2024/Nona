@@ -1,5 +1,9 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../core/services/asr/sherpa_asr_service.dart';
 import '../../../core/services/tts/tts_config.dart';
 import '../../../core/services/tts/tts_provider.dart';
 import '../../../core/services/tts_service.dart' show FlutterTtsEngine;
@@ -21,6 +25,12 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   String? _selectedId;
   String? _previewingId;
 
+  /// E-04：sherpa 本地模型状态。
+  final Map<String, bool> _installed = {};
+  final Map<String, double> _progress = {};
+  String? _downloadingId;
+  String? _defaultSherpaId;
+
   @override
   void initState() {
     super.initState();
@@ -30,11 +40,74 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
   Future<void> _load() async {
     final services = await TtsConfigStore.load();
     final selected = await TtsConfigStore.selectedId();
+    final prefs = await SharedPreferences.getInstance();
+    final defaultSherpa = prefs.getString(_kDefaultSherpa);
+    final installed = <String, bool>{};
+    for (final spec in kSherpaModels) {
+      installed[spec.id] = await SherpaModelManager.installed(spec.id);
+    }
     if (!mounted) return;
     setState(() {
       _services = services;
       _selectedId = selected;
+      _installed
+        ..clear()
+        ..addAll(installed);
+      _defaultSherpaId = defaultSherpa;
     });
+  }
+
+  /// E-04：默认 sherpa 模型 prefs 键。
+  static const _kDefaultSherpa = 'asr_sherpa_model_id';
+
+  Future<void> _downloadModel(SherpaModelSpec spec) async {
+    if (_downloadingId != null) return;
+    setState(() {
+      _downloadingId = spec.id;
+      _progress[spec.id] = 0;
+    });
+    try {
+      await SherpaModelManager.download(
+        spec,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress[spec.id] = p);
+        },
+        isCancelled: () => _downloadingId != spec.id,
+      );
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.voiceModelInstalled);
+    } catch (e) {
+      if (!mounted) return;
+      showAppSnack(context, context.l10n.voiceAsrError(e.toString()));
+    } finally {
+      if (mounted) {
+        setState(() => _downloadingId = null);
+        await _load();
+      }
+    }
+  }
+
+  Future<void> _deleteModel(SherpaModelSpec spec) async {
+    final confirmed = await confirmAction(
+      context,
+      title: context.l10n.commonDelete,
+      message: spec.name,
+      confirmText: context.l10n.commonDelete,
+      danger: true,
+    );
+    if (!confirmed || !mounted) return;
+    await SherpaModelManager.remove(spec.id);
+    final prefs = await SharedPreferences.getInstance();
+    if (_defaultSherpaId == spec.id) {
+      await prefs.remove(_kDefaultSherpa);
+    }
+    if (mounted) await _load();
+  }
+
+  Future<void> _selectSherpa(SherpaModelSpec spec) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kDefaultSherpa, spec.id);
+    if (mounted) await _load();
   }
 
   Future<void> _addOrEdit([TtsServiceConfig? existing]) async {
@@ -325,6 +398,148 @@ class _VoiceSettingsScreenState extends State<VoiceSettingsScreen> {
                     ),
                   ),
                 ),
+            const SizedBox(height: 16),
+            // E-04：本地离线识别（sherpa）
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                l10n.voiceAsrLocal,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            const SizedBox(height: 4),
+            for (final spec in kSherpaModels)
+              Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                elevation: 0,
+                color: scheme.surfaceContainerLow,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.memory_rounded,
+                            size: 18,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              spec.name,
+                              style: const TextStyle(fontSize: 13.5),
+                            ),
+                          ),
+                          if (_installed[spec.id] == true) ...[
+                            if (_defaultSherpaId == spec.id)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: scheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  l10n.voiceSherpaSelected,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: scheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              )
+                            else
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                ),
+                                onPressed: () => _selectSherpa(spec),
+                                child: Text(
+                                  l10n.voiceSherpaUse,
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                          ],
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _downloadingId == spec.id
+                                ? Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      LinearProgressIndicator(
+                                        value:
+                                            _progress[spec.id] ?? 0,
+                                        minHeight: 4,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        l10n.voiceModelDownloading(
+                                          ((_progress[spec.id] ?? 0) * 100)
+                                              .round()
+                                              .toString(),
+                                        ),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                    ],
+                                  )
+                                : Text(
+                                    _installed[spec.id] == true
+                                        ? l10n.voiceModelInstalled
+                                        : l10n.voiceSherpaNotInstalled,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: scheme.outline,
+                                    ),
+                                  ),
+                          ),
+                          if (_installed[spec.id] == true)
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              iconSize: 18,
+                              icon: const Icon(Icons.delete_outline_rounded),
+                              tooltip: l10n.voiceModelDelete,
+                              onPressed: () => _deleteModel(spec),
+                            )
+                          else
+                            FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              onPressed: _downloadingId == null
+                                  ? () => _downloadModel(spec)
+                                  : null,
+                              icon: const Icon(Icons.download_rounded, size: 16),
+                              label: Text(
+                                l10n.voiceModelDownload,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 24),
+              child: Text(
+                l10n.voiceSherpaHint,
+                style: TextStyle(fontSize: 11.5, color: scheme.outline),
+              ),
+            ),
           ],
         ),
       ),

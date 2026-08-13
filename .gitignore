@@ -51,3 +51,6 @@ app.*.map.json
 android/key.properties
 android/app/*.jks
 android/app/*.keystore
+
+# gen-l10n 产物（历史 commit 已移除，不再入库）
+untranslated.json

@@ -1732,5 +1732,22 @@
     }
   },
   "providerAuthorized": "已导入（认证信息已加密保存）",
-  "commonAuto": "自动"
+  "commonAuto": "自动",
+  "kbChunkCount": "총 {count}개 청크",
+  "@kbChunkCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsSpeakSelection": "선택 읽기",
+  "ttsFloatingPaused": "일시정지",
+  "ttsFloatingSpeaking": "읽는 중",
+  "ttsFloatingPause": "일시정지",
+  "ttsFloatingResume": "재개",
+  "ttsFloatingStop": "중지",
+  "ttsFloatingSpeed": "속도",
+  "offlineBadge": "오프라인"
 }

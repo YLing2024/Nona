@@ -16,6 +16,7 @@ import 'core/services/knowledge_base_service.dart';
 import 'core/services/mcp/mcp_service.dart';
 import 'core/services/model_capability_service.dart';
 import 'core/services/network_log_service.dart';
+import 'core/services/network_monitor.dart';
 import 'core/services/export/restore_service.dart';
 import 'core/services/settings_service.dart';
 import 'core/services/theme_controller.dart';
@@ -25,7 +26,7 @@ import 'core/utils/logger.dart';
 import 'core/utils/token_estimator.dart';
 import 'features/chat/screens/home_screen.dart';
 import 'features/desktop/desktop_shell.dart';
-import 'features/platform/desktop_launcher.dart';
+import 'core/platform/desktop_launcher.dart';
 import 'features/automation/workflow_service.dart';
 import 'features/settings/widgets/update_dialog.dart';
 import 'l10n/app_localizations.dart';
@@ -89,6 +90,10 @@ Future<void> main() async {
       'startup',
       'settings loaded in ${stopwatch.elapsedMilliseconds}ms',
     );
+    // J-04：继续计时到首帧（上一段打点后重置，避免被停止的秒表污染）
+    stopwatch
+      ..reset()
+      ..start();
     // I-03：单实例（第二实例唤醒首实例后退出）——在 runApp 前探测
     if (!kIsWeb) {
       final primary = await DesktopLauncher.acquireSingleInstance();
@@ -125,6 +130,8 @@ Future<void> main() async {
     unawaited(DesktopShell.instance.init());
     // X-01：自动化工作流调度（分钟级 tick + 事件订阅）
     WorkflowService().start();
+    // X-05：网络可达性监控（首帧后探测，不阻塞启动；离线徽标/降级链联动）
+    NetworkMonitor.instance.start();
     // B-06/A-03：退出前冲刷注册（checkpoint barrier + 网络日志落盘）
     AppExitFlush.instance.register(() async {
       await CheckpointService().barrier();

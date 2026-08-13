@@ -106,6 +106,87 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
     if (mounted) showAppSnack(context, context.l10n.commonDeleted);
   }
 
+  /// D-05：文档分块预览（核对引用出处）。
+  Future<void> _previewChunks(String name) async {
+    final chunks = await loadGuarded(
+      () => _service.listChunks(name, libraryId: _selectedLibId),
+      label: 'kb_chunks',
+    );
+    if (!mounted || chunks == null) return;
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        builder: (_, controller) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: theme.textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    l10n.kbChunkCount('${chunks.length}'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: chunks.isEmpty
+                  ? Center(
+                      child: Text(
+                        l10n.kbEmpty,
+                        style: TextStyle(color: theme.colorScheme.outline),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: controller,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: chunks.length,
+                      itemBuilder: (_, i) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '#${i + 1}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            SelectableText(
+                              chunks[i].text,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _createLibrary() async {
     final controller = TextEditingController();
     final name = await showDialog<String>(
@@ -342,6 +423,7 @@ class _KnowledgeBaseScreenState extends State<KnowledgeBaseScreen> {
                                 tooltip: l10n.commonDelete,
                                 onPressed: () => _remove(name),
                               ),
+                              onTap: () => _previewChunks(name),
                             ),
                           ),
                       ],

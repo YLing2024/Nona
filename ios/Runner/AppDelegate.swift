@@ -57,6 +57,8 @@ import BackgroundTasks
     backgroundTaskId = UIApplication.shared.beginBackgroundTask { [weak self] in
       self?.endBackgroundTask()
     }
+    // 完成通知权限（首次使用请求；拒绝后静默跳过通知）
+    UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     scheduleAppRefresh()
   }
 

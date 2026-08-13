@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
+import 'sherpa_asr_service.dart' show SherpaAsrService, SherpaModelManager;
+
 /// E-03：ASR 转写增量。
 class AsrPartial {
   final String text;
@@ -162,12 +164,31 @@ class AsrAudioCapture {
 class AsrServiceRegistry {
   AsrServiceRegistry._();
 
-  /// 按配置创建：未配置云端时用系统识别。
-  static AsrService effective({String? cloudKind, String? apiKey}) {
+  /// 按配置创建：本地 sherpa 模型已装（且被选中）→ sherpa；
+  /// 否则云端识别；再否则系统识别。
+  ///
+  /// E-04：[defaultLocalModelId] 为 prefs 选中的 sherpa 模型 id；
+  /// 模型未安装/平台不支持时回退系统识别。
+  static Future<AsrService> effective({
+    String? cloudKind,
+    String? apiKey,
+    String? defaultLocalModelId,
+  }) async {
+    final localId = defaultLocalModelId;
+    if (localId != null && localId.isNotEmpty) {
+      try {
+        final installed = await _isLocalInstalled(localId);
+        if (installed) return SherpaAsrService(modelId: localId);
+      } catch (_) {}
+    }
     if (cloudKind == 'realtime' && apiKey != null && apiKey.isNotEmpty) {
       return RealtimeAsrService(apiKey: apiKey);
     }
     return SystemAsrService();
+  }
+
+  static Future<bool> _isLocalInstalled(String modelId) async {
+    return SherpaModelManager.installed(modelId);
   }
 }
 

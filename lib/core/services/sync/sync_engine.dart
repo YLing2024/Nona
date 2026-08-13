@@ -23,7 +23,10 @@ import 'sync_service.dart';
 /// 合并规则：同 entity+id 按 ts_micros last-write-wins；本地 head 之后
 /// 远端已读指针记录在 prefs（`sync_read_` + deviceId）。
 class SyncEngine {
-  final ChangeLogService _log = ChangeLogService();
+  /// 变更日志（可注入：测试环境数据库每次全新打开，需显式传入同一实例）。
+  final ChangeLogService _log;
+
+  SyncEngine({ChangeLogService? changeLog}) : _log = changeLog ?? ChangeLogService();
 
   static const _kHeadKey = 'sync_self_head';
   static const _kDeviceIdKey = 'sync_device_id';

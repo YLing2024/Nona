@@ -3219,4 +3219,45 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get commonAuto => '自动';
+
+  @override
+  String kbChunkCount(String count) {
+    return '全 $count チャンク';
+  }
+
+  @override
+  String get ttsSpeakSelection => '選択を読み上げ';
+
+  @override
+  String get ttsFloatingPaused => '一時停止';
+
+  @override
+  String get ttsFloatingSpeaking => '読み上げ中';
+
+  @override
+  String get ttsFloatingPause => '一時停止';
+
+  @override
+  String get ttsFloatingResume => '再開';
+
+  @override
+  String get ttsFloatingStop => '停止';
+
+  @override
+  String get ttsFloatingSpeed => '速度';
+
+  @override
+  String get offlineBadge => 'オフライン';
+
+  @override
+  String get voiceSherpaSelected => '当前使用';
+
+  @override
+  String get voiceSherpaUse => '设为默认';
+
+  @override
+  String get voiceSherpaNotInstalled => '未安装（需下载模型）';
+
+  @override
+  String get voiceSherpaHint => '下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。';
 }

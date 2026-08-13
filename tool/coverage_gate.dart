@@ -46,8 +46,9 @@ void main(List<String> args) {
   void flush() {
     if (current != null && lf != null && lh != null) {
       final rel = current!.replaceAll(r'\', '/');
-      // 生成代码（drift .g.dart）不参与覆盖率统计
-      if (!rel.endsWith('.g.dart')) {
+      // 生成代码不参与覆盖率统计：drift 生成（.g.dart）与
+      // gen-l10n 生成（lib/l10n/app_localizations*.dart，模板化产物）
+      if (!rel.endsWith('.g.dart') && !rel.startsWith('lib/l10n/')) {
         final domain = _domainOf(rel);
         if (domain != null) {
           final (lf0, lh0) = domains[domain] ?? (0, 0);

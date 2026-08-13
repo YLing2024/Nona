@@ -539,7 +539,10 @@ class JinaSearchEngine implements SearchEngine {
     if (response.statusCode != 200) return const [];
     final body = response.body;
     final items = <SearchResultItem>[];
-    final links = RegExp(r'\[([^\]]+)\]\((https?://[^)\s]+)\)').allMatches(body);
+    // 排除图片语法（![alt](url)）与空标题链接
+    final links = RegExp(
+      r'(?<!!)\[([^\]]+)\]\((https?://[^)\s]+)\)',
+    ).allMatches(body);
     for (final m in links) {
       final title = m.group(1)!.trim();
       final url = m.group(2)!;

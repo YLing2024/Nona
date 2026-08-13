@@ -1,0 +1,31 @@
+# J-03：手写 Baseline Profile（对齐 RikkaHub 覆盖路径：启动 + 首页 + 聊天输入 + 渲染）。
+# 格式：ART profile rules。Flutter 引擎与 Dart AOT 已内置，此处覆盖 Flutter 原生启动路径
+# 与插件初始化类；由 androidx.benchmark 录制模块生成的 profile 追加到文件尾部。
+# 冷启动路径：Application → FlutterActivity → FlutterLoader/Engine init → 首帧。
+Landroid/app/NonaApplication;
+Landroid/app/NonaActivity;
+Lio/flutter/app/FlutterActivity;
+Lio/flutter/embedding/engine/FlutterEngine;
+Lio/flutter/embedding/engine/loader/FlutterLoader;
+Lio/flutter/embedding/engine/dart/DartExecutor;
+Lio/flutter/embedding/engine/renderer/FlutterRenderer;
+Lio/flutter/embedding/android/FlutterFragmentActivity;
+Lio/flutter/embedding/engine/plugins/FlutterPluginEngine;
+Lio/flutter/embedding/engine/plugins/util/GeneratedPluginRegister;
+Lio/flutter/view/FlutterMain;
+Lio/flutter/util/HandlerCompat;
+Lio/flutter/plugin/common/StandardMessageCodec;
+Lio/flutter/plugin/common/StandardMethodCodec;
+Lio/flutter/plugin/editing/TextInputPlugin;
+Lio/flutter/plugin/platform/PlatformPlugin;
+Lio/flutter/embedding/engine/systemchannels/PlatformChannel;
+Lio/flutter/embedding/engine/systemchannels/SettingsChannel;
+Lio/flutter/embedding/engine/systemchannels/TextInputChannel;
+Lio/flutter/embedding/engine/systemchannels/LifecycleChannel;
+Lio/flutter/embedding/engine/systemchannels/NavigationChannel;
+# 通知 / 后台生成插件（I-01）
+Lcom/dexterous/flutterlocalnotifications/FlutterLocalNotificationsPlugin;
+Lio/flutter/plugins/flutter_isolate/FlutterIsolatePlugin;
+# 安全存储 / 共享偏好
+Lcom/it_nomads/fluttersecurestorage/SecureStoragePlugin;
+Lio/flutter/plugins/sharedpreferences/SharedPreferencesPlugin;

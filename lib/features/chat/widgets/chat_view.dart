@@ -13,6 +13,7 @@ import 'chat_composer.dart';
 import 'message_list.dart';
 import 'suggestion_bubbles.dart';
 import 'summary_card.dart';
+import 'tts_floating_player.dart';
 
 /// 聊天主视图：页头 + 消息流 + 输入区。
 class ChatView extends StatelessWidget {
@@ -63,6 +64,19 @@ class ChatView extends StatelessWidget {
   final void Function(int index) onRemoveDocument;
   final void Function(ChatImage image) onAddImageUrl;
   final void Function(int index) onRemoveImage;
+
+  /// X-05：离线徽标（离线模式或网络探测离线时显示）。
+  final bool offlineBadge;
+
+  /// E-05：朗读状态与浮动播放器控制。
+  final bool ttsSpeaking;
+  final bool ttsPaused;
+  final double ttsSpeed;
+  final int ttsCurrentChunk;
+  final int ttsTotalChunks;
+  final VoidCallback? onTtsTogglePause;
+  final VoidCallback? onTtsStop;
+  final ValueChanged<double>? onTtsSpeed;
 
   /// 正在朗读的消息标识与朗读切换。
   final int? speakingMessageId;
@@ -163,6 +177,15 @@ class ChatView extends StatelessWidget {
     this.onRemoveDocument = _noopDocIndex,
     required this.onAddImageUrl,
     required this.onRemoveImage,
+    this.ttsSpeaking = false,
+    this.ttsPaused = false,
+    this.ttsSpeed = 1.0,
+    this.ttsCurrentChunk = 0,
+    this.ttsTotalChunks = 0,
+    this.onTtsTogglePause,
+    this.onTtsStop,
+    this.onTtsSpeed,
+    this.offlineBadge = false,
     this.selectionActive = false,
     this.selectedIndices = const {},
     this.selectedCount = 0,
@@ -259,6 +282,17 @@ class ChatView extends StatelessWidget {
                   ],
                 ),
         ),
+        // E-05：朗读浮动播放器（朗读中显示）
+        if (ttsSpeaking)
+          TtsFloatingPlayer(
+            paused: ttsPaused,
+            speed: ttsSpeed,
+            currentChunk: ttsCurrentChunk,
+            totalChunks: ttsTotalChunks,
+            onTogglePause: onTtsTogglePause ?? _noop,
+            onStop: onTtsStop ?? _noop,
+            onSpeed: onTtsSpeed ?? (_) {},
+          ),
         // B-01：多选模式底部工具栏（替换输入区）
         if (selectionActive)
           _SelectionToolbar(
@@ -393,11 +427,41 @@ class ChatView extends StatelessWidget {
                       ],
                     ),
                     if (session != null)
-                      Text(
-                        _modelLabel(context, session),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, color: scheme.outline),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              _modelLabel(context, session),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: scheme.outline,
+                              ),
+                            ),
+                          ),
+                          // X-05：离线徽标
+                          if (offlineBadge) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: scheme.errorContainer,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                l10n.offlineBadge,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: scheme.onErrorContainer,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                   ],
                 ),
@@ -587,6 +651,7 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+void _noop() {}
 void _noopDoc() {}
 void _noopDocIndex(int index) {}
 

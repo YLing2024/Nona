@@ -173,10 +173,14 @@ Future<MessageMoreAction?> showMessageMoreSheet(
 }
 
 /// B-07：选择复制对话框——可选中文本复制，可附带上下文发送。
+///
+/// E-05：[onSpeak] 非空时显示「朗读所选」按钮——优先朗读选中片段，
+/// 未选中时朗读全文。
 Future<String?> showSelectCopySheet(
   BuildContext context, {
   required String text,
   bool allowSendWithContext = true,
+  Future<void> Function(String text)? onSpeak,
 }) async {
   final l10n = AppLocalizations.of(context);
   final controller = TextEditingController(text: text);
@@ -184,7 +188,16 @@ Future<String?> showSelectCopySheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (ctx) => Padding(
+    builder: (ctx) {
+      String selectedText() {
+        final selection = controller.selection;
+        if (selection.isValid && !selection.isCollapsed) {
+          return selection.textInside(controller.text);
+        }
+        return controller.text;
+      }
+
+      return Padding(
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
@@ -216,6 +229,23 @@ Future<String?> showSelectCopySheet(
           const SizedBox(height: 12),
           Row(
             children: [
+              if (onSpeak != null) ...[
+                Expanded(
+                  child: FilledButton.tonalIcon(
+                    onPressed: () async {
+                      final speech = selectedText().trim();
+                      if (speech.isEmpty) {
+                        showAppSnack(ctx, l10n.chatNoSelection);
+                        return;
+                      }
+                      await onSpeak(speech);
+                    },
+                    icon: const Icon(Icons.volume_up_outlined, size: 18),
+                    label: Text(l10n.ttsSpeakSelection),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               Expanded(
                 child: FilledButton.tonalIcon(
                   onPressed: () => Navigator.pop(ctx, controller.text),
@@ -238,7 +268,8 @@ Future<String?> showSelectCopySheet(
           ),
         ],
       ),
-    ),
+      );
+    },
   );
   controller.dispose();
   return result;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:super_sliver_list/super_sliver_list.dart';
 
 import '../../../core/utils/l10n_ext.dart';
+import '../controllers/auto_follow_scroll.dart';
 
 import '../../../core/models/chat_message.dart';
 import 'message_bubble.dart';
@@ -112,12 +113,21 @@ class _MessageListState extends State<MessageList> {
     if (_follow != near) {
       setState(() => _follow = near);
     }
+    // B-02：同步贴底开关到控制器（布局期矫正用）
+    final controller = widget.controller;
+    if (controller is AutoFollowScrollController) {
+      controller.stickToBottom = _follow;
+    }
   }
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_onScroll);
+    // B-02：初始贴底模式开启（布局期矫正生效）
+    if (widget.controller is AutoFollowScrollController) {
+      (widget.controller as AutoFollowScrollController).stickToBottom = true;
+    }
     // 搜索结果跳转：定位到指定消息（跳过默认回底，避免打断定位动画）
     if (widget.initialScrollIndex != null) {
       _scrollToIndex(widget.initialScrollIndex!);
@@ -148,7 +158,8 @@ class _MessageListState extends State<MessageList> {
       _jumpToBottom();
       _delayed(_jumpToBottom);
     } else if (widget.streamingIndex != null && _follow) {
-      // 流式输出且贴底：内容持续增长，瞬时跳转保证窗口始终贴住最新数据
+      // 流式输出且贴底：内容持续增长，布局期矫正已贴底；
+      // post-frame jumpTo 保留为兜底（非自定义控制器场景）
       _stickToBottom();
     } else if (widget.messages.length != oldWidget.messages.length) {
       _scrollToBottom();

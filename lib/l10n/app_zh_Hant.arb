@@ -1732,5 +1732,22 @@
     }
   },
   "providerAuthorized": "已导入（认证信息已加密保存）",
-  "commonAuto": "自动"
+  "commonAuto": "自动",
+  "kbChunkCount": "共 {count} 個分塊",
+  "@kbChunkCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsSpeakSelection": "朗讀所選",
+  "ttsFloatingPaused": "已暫停",
+  "ttsFloatingSpeaking": "朗讀中",
+  "ttsFloatingPause": "暫停",
+  "ttsFloatingResume": "繼續",
+  "ttsFloatingStop": "停止朗讀",
+  "ttsFloatingSpeed": "速度",
+  "offlineBadge": "離線"
 }

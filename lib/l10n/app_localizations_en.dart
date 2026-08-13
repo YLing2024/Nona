@@ -3311,4 +3311,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commonAuto => 'Auto';
+
+  @override
+  String kbChunkCount(String count) {
+    return '$count chunks';
+  }
+
+  @override
+  String get ttsSpeakSelection => 'Speak selection';
+
+  @override
+  String get ttsFloatingPaused => 'Paused';
+
+  @override
+  String get ttsFloatingSpeaking => 'Speaking';
+
+  @override
+  String get ttsFloatingPause => 'Pause';
+
+  @override
+  String get ttsFloatingResume => 'Resume';
+
+  @override
+  String get ttsFloatingStop => 'Stop';
+
+  @override
+  String get ttsFloatingSpeed => 'Speed';
+
+  @override
+  String get offlineBadge => 'Offline';
+
+  @override
+  String get voiceSherpaSelected => 'In use';
+
+  @override
+  String get voiceSherpaUse => 'Use';
+
+  @override
+  String get voiceSherpaNotInstalled => 'Not installed (download required)';
+
+  @override
+  String get voiceSherpaHint =>
+      'Works fully offline after download: recognition runs local ONNX inference, no audio leaves your device.';
 }

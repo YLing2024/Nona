@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/asr/asr_service.dart';
 import '../../../core/utils/app_snackbar.dart';
@@ -47,7 +48,10 @@ class _VoiceInputSheetState extends State<_VoiceInputSheet> {
   Future<void> _start() async {
     final l10n = AppLocalizations.of(context);
     final capture = AsrAudioCapture();
-    final asr = SystemAsrService();
+    // E-04：本地 sherpa 模型已装 → 离线识别；否则系统识别
+    final prefs = await SharedPreferences.getInstance();
+    final sherpaId = prefs.getString('asr_sherpa_model_id');
+    final asr = await AsrServiceRegistry.effective(defaultLocalModelId: sherpaId);
     _capture = capture;
     _asr = asr;
     try {

@@ -209,15 +209,43 @@ class TtsProviderRegistry {
 /// 音频字节播放辅助（E-02：预取产物按顺序播放）。
 class TtsAudioPlayer {
   final AudioPlayer _player = AudioPlayer();
+  bool _paused = false;
 
   Future<void> play(TtsAudio audio) async {
     try {
       await _player.stop();
     } catch (_) {}
+    _paused = false;
     await _player.play(BytesSource(audio.bytes));
   }
 
+  /// E-05：暂停当前音频（可恢复）。
+  Future<void> pause() async {
+    if (_paused) return;
+    _paused = true;
+    try {
+      await _player.pause();
+    } catch (_) {}
+  }
+
+  /// E-05：恢复被暂停的音频。
+  Future<void> resume() async {
+    if (!_paused) return;
+    _paused = false;
+    try {
+      await _player.resume();
+    } catch (_) {}
+  }
+
+  /// E-05：播放速度（0.5~2.0）。
+  Future<void> setPlaybackRate(double rate) async {
+    try {
+      await _player.setPlaybackRate(rate.clamp(0.5, 2.0));
+    } catch (_) {}
+  }
+
   Future<void> stop() async {
+    _paused = false;
     try {
       await _player.stop();
     } catch (_) {}

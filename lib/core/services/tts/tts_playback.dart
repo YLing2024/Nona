@@ -29,6 +29,8 @@ class TtsPlaybackController extends ChangeNotifier {
   int _session = 0;
   bool _speaking = false;
   bool _disposed = false;
+  bool _paused = false;
+  double _speed = 1.0;
 
   /// 当前块索引（供 UI 高亮）。
   int get currentChunkIndex => _chunkIndex;
@@ -36,6 +38,12 @@ class TtsPlaybackController extends ChangeNotifier {
   int get totalChunks => _chunks.length;
 
   bool get isSpeaking => _speaking;
+
+  /// E-05：是否已暂停。
+  bool get isPaused => _paused;
+
+  /// E-05：当前播放速度。
+  double get speed => _speed;
 
   TtsPlaybackController(this.provider);
 
@@ -80,8 +88,35 @@ class TtsPlaybackController extends ChangeNotifier {
     if (_disposed) return;
     _session++;
     _speaking = false;
+    _paused = false;
     await _player.stop();
     notifyListeners();
+  }
+
+  /// E-05：暂停/恢复当前播放。
+  Future<void> togglePause() async {
+    if (_disposed || !_speaking) return;
+    if (_paused) {
+      _paused = false;
+      await _player.resume();
+    } else {
+      _paused = true;
+      await _player.pause();
+    }
+    notifyListeners();
+  }
+
+  /// E-05：设置播放速度（0.5~2.0）。
+  Future<void> setSpeed(double rate) async {
+    _speed = rate.clamp(0.5, 2.0);
+    await _player.setPlaybackRate(_speed);
+    notifyListeners();
+  }
+
+  /// E-05：朗读选中文本（立即替换当前播放）。
+  Future<void> speakSelection(String text) async {
+    if (_disposed || text.trim().isEmpty) return;
+    await speak(text);
   }
 
   /// 串行播放 worker：当前块 → 播放（阻塞）→ 120ms 停顿 → 下一块。
@@ -93,6 +128,7 @@ class TtsPlaybackController extends ChangeNotifier {
         final audio = await _synthesize(index);
         if (session != _session) return;
         notifyListeners(); // 块切换（E-05 高亮）
+        await _player.setPlaybackRate(_speed);
         await _player.play(audio);
         if (session != _session) return;
         _chunkIndex++;

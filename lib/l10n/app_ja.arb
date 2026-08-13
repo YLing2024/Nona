@@ -1732,5 +1732,22 @@
     }
   },
   "providerAuthorized": "已导入（认证信息已加密保存）",
-  "commonAuto": "自动"
+  "commonAuto": "自动",
+  "kbChunkCount": "全 {count} チャンク",
+  "@kbChunkCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsSpeakSelection": "選択を読み上げ",
+  "ttsFloatingPaused": "一時停止",
+  "ttsFloatingSpeaking": "読み上げ中",
+  "ttsFloatingPause": "一時停止",
+  "ttsFloatingResume": "再開",
+  "ttsFloatingStop": "停止",
+  "ttsFloatingSpeed": "速度",
+  "offlineBadge": "オフライン"
 }

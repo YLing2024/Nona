@@ -225,6 +225,41 @@ class KnowledgeBaseService {
     }
   }
 
+  /// D-05：文档的分块原文列表（按 position 排序，便于核对引用出处）。
+  Future<List<KnowledgeChunk>> listChunks(
+    String docName, {
+    String? libraryId,
+  }) async {
+    final db = await _db;
+    if (db == null) return const [];
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT c.id, c.text, c.position FROM kb_chunks c '
+            'JOIN kb_documents d ON d.id = c.doc_id '
+            'WHERE d.name = ? AND (? IS NULL OR d.library_id = ?) '
+            'ORDER BY c.position',
+            variables: [
+              Variable.withString(docName),
+              Variable.withString(libraryId ?? ''),
+              Variable.withString(libraryId ?? ''),
+            ],
+          )
+          .get();
+      return [
+        for (final r in rows)
+          KnowledgeChunk(
+            docName: docName,
+            text: r.data['text'] as String,
+            chunkId: r.data['id'] as String,
+          ),
+      ];
+    } catch (e) {
+      Logger.error('kb', 'listChunks failed', e);
+      return const [];
+    }
+  }
+
   // ---------------- 文档 ----------------
 
   /// 添加/更新文档（同名覆盖，增量重建索引）。

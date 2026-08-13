@@ -16,12 +16,17 @@
 
 ## 实测数据
 
-（在 Windows 开发机 profile 模式补录后回填。）
+（2026-08-14，Windows 开发机，profile 模式 `build\windows\x64\runner\Profile\nona.exe`
+两次冷启动取样；时间从进程内 `main()` 开始计时，不包含引擎/插件原生初始化。）
 
 | 阶段 | 耗时 |
 |---|---|
-| dotenv + 设置加载 | 待录 |
-| 首帧 | 待录 |
+| dotenv + 设置加载 | 1ms / 0ms |
+| 首帧（设置加载后重置计时） | 30ms / 29ms |
+
+> 结论：进程内启动路径（dotenv → 设置 → runApp → 首帧）远低于 2s 目标；
+> 冷启动大头在 Flutter 引擎与原生插件初始化（进程启动 → Dart 代码入口），
+> 该段由平台层决定，未计入本表。Android 首帧达标数据待真机 profile 补录。
 
 ## 后续可做
 

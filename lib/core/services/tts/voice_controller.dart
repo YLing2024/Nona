@@ -42,6 +42,33 @@ class VoiceController extends ChangeNotifier {
 
   int get totalChunks => _playback?.totalChunks ?? 0;
 
+  /// E-05：是否已暂停。
+  bool get isPaused => _playback?.isPaused ?? false;
+
+  /// E-05：当前播放速度。
+  double get speed => _playback?.speed ?? 1.0;
+
+  /// E-05：朗读任意文本（选词朗读；不绑定消息身份）。
+  Future<void> speakText(String text) => toggle('__selection__', text);
+
+  /// E-05：暂停/恢复（系统 TTS 无暂停能力，等效停止）。
+  Future<void> togglePause() async {
+    if (_disposed) return;
+    if (_playback != null) {
+      await _playback!.togglePause();
+      notifyListeners();
+    } else if (_legacy.isSpeaking) {
+      await stop();
+    }
+  }
+
+  /// E-05：设置播放速度。
+  Future<void> setSpeed(double rate) async {
+    if (_disposed) return;
+    await _playback?.setSpeed(rate);
+    notifyListeners();
+  }
+
   /// 点击朗读：同一消息正在朗读则停止，否则切换朗读该消息。
   Future<void> toggle(String messageId, String text) async {
     if (_disposed) return;

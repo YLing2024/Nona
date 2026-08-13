@@ -18,8 +18,9 @@ import '../../../core/services/checkpoint_service.dart';
 import '../../../core/services/instruction_injection_service.dart';
 import '../../../core/services/document_extractor.dart';
 import '../../../../shared/workflow_event_bus.dart';
-import '../../../features/platform/android_background.dart';
-import '../../../features/platform/notification_service.dart';
+import '../../../core/platform/android_background.dart';
+import '../../../core/platform/ios_background.dart';
+import '../../../core/platform/notification_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';import '../../../core/services/mcp/mcp_client.dart';
 import '../../../core/services/mcp/mcp_service.dart';
@@ -696,6 +697,13 @@ class ChatRunOrchestrator {
               onPartial: (delta) {
                 contentBuffer.write(delta);
                 scheduleFlush();
+                // I-05：iOS 后台进度（latest-wins 节流）
+                unawaited(
+                  IosBackgroundGeneration.scheduleUpdate(
+                    content: contentBuffer.toString(),
+                    finished: false,
+                  ),
+                );
               },
               onReasoning: (delta) {
                 reasoningBuffer.write(delta);
@@ -715,6 +723,13 @@ class ChatRunOrchestrator {
               onPartial: (delta) {
                 contentBuffer.write(delta);
                 scheduleFlush();
+                // I-05：iOS 后台进度（latest-wins 节流）
+                unawaited(
+                  IosBackgroundGeneration.scheduleUpdate(
+                    content: contentBuffer.toString(),
+                    finished: false,
+                  ),
+                );
               },
               onReasoning: (delta) {
                 reasoningBuffer.write(delta);
@@ -867,29 +882,45 @@ class ChatRunOrchestrator {
     onScrollToBottom?.call();
   }
 
-  /// I-01：后台生成保活（Android 前台服务 + 完成通知）。
+  /// I-01/I-05：后台生成保活（Android 前台服务 + iOS BGTask，均带完成通知）。
   bool _backgroundEnabled = false;
 
   void _startBackgroundKeepalive() {
     final mode = settings().androidBackgroundMode;
     if (mode == 'off') return;
-    if (!AndroidBackground.supported) return;
-    _backgroundEnabled = true;
-    unawaited(AndroidBackground.enable());
+    if (AndroidBackground.supported) {
+      _backgroundEnabled = true;
+      unawaited(AndroidBackground.enable());
+    } else if (IosBackgroundGeneration.supported) {
+      _backgroundEnabled = true;
+      unawaited(IosBackgroundGeneration.enable());
+    }
   }
 
   void _finishBackgroundKeepalive() {
     if (!_backgroundEnabled) return;
     _backgroundEnabled = false;
-    unawaited(AndroidBackground.disable());
     final mode = settings().androidBackgroundMode;
-    if (mode == 'onNotify') {
+    final onNotify = mode == 'onNotify';
+    if (AndroidBackground.supported) {
+      unawaited(AndroidBackground.disable());
+      if (onNotify) {
+        unawaited(
+          NotificationService.showChatCompleted(
+            title: l10n()?.notificationChatCompleted ?? 'Nona',
+            body: l10n()?.notificationChatCompleted ?? '生成完成',
+          ),
+        );
+      }
+    } else if (IosBackgroundGeneration.supported) {
+      // iOS：终态快照由原生侧通知（latest-wins 已收敛到最终内容）
       unawaited(
-        NotificationService.showChatCompleted(
-          title: l10n()?.notificationChatCompleted ?? 'Nona',
-          body: l10n()?.notificationChatCompleted ?? '生成完成',
+        IosBackgroundGeneration.scheduleUpdate(
+          content: '',
+          finished: true,
         ),
       );
+      unawaited(IosBackgroundGeneration.finish());
     }
   }
 

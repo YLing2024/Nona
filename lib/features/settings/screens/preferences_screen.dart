@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'voice_settings_screen.dart';
-import '../../../features/platform/desktop_launcher.dart';
+import '../../../core/platform/desktop_launcher.dart';
 import '../../../core/utils/app_snackbar.dart';
 
 import '../../../l10n/app_localizations.dart';

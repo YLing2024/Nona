@@ -333,6 +333,23 @@ const keys = <String, _Key>{
   'deeplinkChatTitle': _Key('来自外部链接', 'From external link'),
   // ---- J-04 冷启动 ----
   'devColdStartTiming': _Key('冷启动耗时（毫秒）', 'Cold start timings (ms)'),
+  // ---- D-05 知识库 chunk 预览 ----
+  'kbChunkCount': _Key('共 {count} 个分块', '{count} chunks'),
+  // ---- E-05 朗读增强 ----
+  'ttsSpeakSelection': _Key('朗读所选', 'Speak selection'),
+  'ttsFloatingPaused': _Key('已暂停', 'Paused'),
+  'ttsFloatingSpeaking': _Key('朗读中', 'Speaking'),
+  'ttsFloatingPause': _Key('暂停', 'Pause'),
+  'ttsFloatingResume': _Key('继续', 'Resume'),
+  'ttsFloatingStop': _Key('停止朗读', 'Stop'),
+  'ttsFloatingSpeed': _Key('速度', 'Speed'),
+  // ---- X-05 离线徽标 ----
+  'offlineBadge': _Key('离线', 'Offline'),
+  // ---- E-04 sherpa 本地模型管理 ----
+  'voiceSherpaSelected': _Key('当前使用', 'In use'),
+  'voiceSherpaUse': _Key('设为默认', 'Use'),
+  'voiceSherpaNotInstalled': _Key('未安装（需下载模型）', 'Not installed (download required)'),
+  'voiceSherpaHint': _Key('下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。', 'Works fully offline after download: recognition runs local ONNX inference, no audio leaves your device.'),
 };
 
 /// 带占位符键的 meta 元数据（gen-l10n 需要）。

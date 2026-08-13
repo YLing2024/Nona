@@ -8,7 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../core/models/chat_message.dart' show ChatImage;
 import '../../../core/models/chat_provider.dart';
 import '../services/images_adapter.dart';
-import '../services/imggen_share.dart';
+import '../../../core/services/imggen_share.dart';
 import '../../../core/services/provider_service.dart';
 import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/l10n_ext.dart';

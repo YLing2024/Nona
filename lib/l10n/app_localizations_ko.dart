@@ -3219,4 +3219,45 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get commonAuto => '自动';
+
+  @override
+  String kbChunkCount(String count) {
+    return '총 $count개 청크';
+  }
+
+  @override
+  String get ttsSpeakSelection => '선택 읽기';
+
+  @override
+  String get ttsFloatingPaused => '일시정지';
+
+  @override
+  String get ttsFloatingSpeaking => '읽는 중';
+
+  @override
+  String get ttsFloatingPause => '일시정지';
+
+  @override
+  String get ttsFloatingResume => '재개';
+
+  @override
+  String get ttsFloatingStop => '중지';
+
+  @override
+  String get ttsFloatingSpeed => '속도';
+
+  @override
+  String get offlineBadge => '오프라인';
+
+  @override
+  String get voiceSherpaSelected => '当前使用';
+
+  @override
+  String get voiceSherpaUse => '设为默认';
+
+  @override
+  String get voiceSherpaNotInstalled => '未安装（需下载模型）';
+
+  @override
+  String get voiceSherpaHint => '下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。';
 }

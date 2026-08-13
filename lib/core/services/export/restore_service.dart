@@ -79,9 +79,12 @@ class RestoreService {
       await _verifyInstalled(root, sessionsDir, staged.sessions.length);
       _writeReceipt(receiptsDir, 4, 'verified', runId);
 
-      // 5) committed：清 previous + 标记
-      await _commit(previousDir, activeMarker, restoreRoot);
+      // 4.5) committed receipt 先落盘：_commit 会清理整个 run 目录，
+      // 若在此之后再写 receipt_5 会残留孤儿目录。
       _writeReceipt(receiptsDir, 5, 'committed', runId);
+
+      // 5) committed：清 previous + 标记 + run 目录
+      await _commit(previousDir, activeMarker, restoreRoot);
       return count;
     } catch (e) {
       Logger.error('restore', 'restore failed, rolling back', e);
@@ -182,7 +185,7 @@ class RestoreService {
       );
     }
     if (result.agents != null) {
-      await File('${candidateDir.path}$pathSeparator${'agents.json'}}')
+      await File('${candidateDir.path}$pathSeparator${'agents.json'}')
           .writeAsString(
         jsonEncode({'agents': result.agents!.map((a) => a.toJson()).toList()}),
       );
@@ -366,7 +369,7 @@ class RestoreService {
   ) {
     try {
       receiptsDir.createSync(recursive: true);
-      File('${receiptsDir.path}$pathSeparator${'receipt_$seq.json'}}')
+      File('${receiptsDir.path}$pathSeparator${'receipt_$seq.json'}')
           .writeAsStringSync(
         jsonEncode({
           'seq': seq,

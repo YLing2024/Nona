@@ -1732,5 +1732,26 @@
     }
   },
   "providerAuthorized": "Imported (credentials stored encrypted)",
-  "commonAuto": "Auto"
+  "commonAuto": "Auto",
+  "kbChunkCount": "{count} chunks",
+  "@kbChunkCount": {
+    "description": "placeholder",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "ttsSpeakSelection": "Speak selection",
+  "ttsFloatingPaused": "Paused",
+  "ttsFloatingSpeaking": "Speaking",
+  "ttsFloatingPause": "Pause",
+  "ttsFloatingResume": "Resume",
+  "ttsFloatingStop": "Stop",
+  "ttsFloatingSpeed": "Speed",
+  "offlineBadge": "Offline",
+  "voiceSherpaSelected": "In use",
+  "voiceSherpaUse": "Use",
+  "voiceSherpaNotInstalled": "Not installed (download required)",
+  "voiceSherpaHint": "Works fully offline after download: recognition runs local ONNX inference, no audio leaves your device."
 }

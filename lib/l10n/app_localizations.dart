@@ -6078,6 +6078,84 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'自动'**
   String get commonAuto;
+
+  /// placeholder
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 个分块'**
+  String kbChunkCount(String count);
+
+  /// No description provided for @ttsSpeakSelection.
+  ///
+  /// In zh, this message translates to:
+  /// **'朗读所选'**
+  String get ttsSpeakSelection;
+
+  /// No description provided for @ttsFloatingPaused.
+  ///
+  /// In zh, this message translates to:
+  /// **'已暂停'**
+  String get ttsFloatingPaused;
+
+  /// No description provided for @ttsFloatingSpeaking.
+  ///
+  /// In zh, this message translates to:
+  /// **'朗读中'**
+  String get ttsFloatingSpeaking;
+
+  /// No description provided for @ttsFloatingPause.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停'**
+  String get ttsFloatingPause;
+
+  /// No description provided for @ttsFloatingResume.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续'**
+  String get ttsFloatingResume;
+
+  /// No description provided for @ttsFloatingStop.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止朗读'**
+  String get ttsFloatingStop;
+
+  /// No description provided for @ttsFloatingSpeed.
+  ///
+  /// In zh, this message translates to:
+  /// **'速度'**
+  String get ttsFloatingSpeed;
+
+  /// No description provided for @offlineBadge.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线'**
+  String get offlineBadge;
+
+  /// No description provided for @voiceSherpaSelected.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前使用'**
+  String get voiceSherpaSelected;
+
+  /// No description provided for @voiceSherpaUse.
+  ///
+  /// In zh, this message translates to:
+  /// **'设为默认'**
+  String get voiceSherpaUse;
+
+  /// No description provided for @voiceSherpaNotInstalled.
+  ///
+  /// In zh, this message translates to:
+  /// **'未安装（需下载模型）'**
+  String get voiceSherpaNotInstalled;
+
+  /// No description provided for @voiceSherpaHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载模型后完全离线可用：识别走本地 ONNX 推理，不发送任何音频到云端。'**
+  String get voiceSherpaHint;
 }
 
 class _AppLocalizationsDelegate

@@ -125,7 +125,12 @@ class VertexServiceAccountAuth {
     final signer = RSASigner(
       Digest('SHA-256'),
       '0609608648016503040201',
-    )..init(true, PrivateKeyParameter(key));
+    )..init(
+        true,
+        // pointycastle 4.x 泛型推断：必须显式指定 T=RSAPrivateKey，
+        // 否则 T 退化为 PrivateKey，RSAEngine.init 的强转在运行时会失败。
+        PrivateKeyParameter<RSAPrivateKey>(key),
+      );
     final signature = signer.generateSignature(Uint8List.fromList(data));
     return signature.bytes;
   }

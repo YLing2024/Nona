@@ -14,7 +14,7 @@ import '../../../core/models/agent.dart';
 import '../../../core/models/chat_message.dart';
 import '../../../core/models/chat_provider.dart';
 import '../../../core/models/chat_session.dart';
-import '../../imggen/services/imggen_share.dart';
+import '../../../core/services/imggen_share.dart';
 import '../../settings/screens/context_settings_screen.dart';
 import '../../search/screens/search_screen.dart';
 import '../../../shared/widgets/desktop_drop_zone.dart';
@@ -26,7 +26,7 @@ import '../../../core/services/deep_link_service.dart';
 import '../../../core/services/share_text_receiver.dart';
 import '../../../core/services/export/restore_service.dart';
 import '../../../core/services/export_service.dart';
-import '../../../features/platform/desktop_launcher.dart';
+import '../../../core/platform/desktop_launcher.dart';
 import '../../../core/services/quick_phrase_service.dart';
 import '../../../core/services/knowledge_base_service.dart';
 import '../../../core/services/mcp/approval_policy.dart';
@@ -34,6 +34,7 @@ import '../../../core/services/mcp/mcp_service.dart';
 import '../../../core/services/model_capability_service.dart';
 import '../../../core/services/ocr_service.dart';
 import '../../../core/services/network_log_service.dart';
+import '../../../core/services/network_monitor.dart';
 import '../../../core/services/provider_service.dart';
 import '../../../core/services/session_service.dart';
 import '../../../core/services/settings_service.dart';
@@ -48,6 +49,7 @@ import '../../../core/utils/app_snackbar.dart';
 import '../../../core/utils/l10n_ext.dart';
 import '../../../core/utils/load_guarded.dart';
 import '../../../core/utils/logger.dart';
+import '../controllers/auto_follow_scroll.dart';
 import '../widgets/chat_view.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/session_sidebar.dart';
@@ -74,8 +76,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   final _inputController = TextEditingController();
   // 初始滚动位置设为极大值：列表首帧即钳制到底部（最新消息），无入场滚动动画
-  final _scrollController =
-      ScrollController(initialScrollOffset: double.maxFinite);
+  // B-02：自定义控制器——布局期贴底矫正（零闪烁）
+  final _scrollController = AutoFollowScrollController(
+    initialScrollOffset: double.maxFinite,
+  );
   late final SessionService _sessionService = context.read<SessionService>();
   late final AgentService _agentService = context.read<AgentService>();
   late final ProviderService _providerService =
@@ -139,12 +143,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// TTS 朗读控制（使用系统 TTS）。
   /// E-01/E-02：语音控制器（网络 TTS 预取优先，回退系统 TTS）。
-  final VoiceController _ttsController = VoiceController(
-    providerResolver: () => TtsProviderRegistry.effective(
-      systemEngine: FlutterTtsEngine(),
-    ),
-    legacy: LegacySystemTts(SystemTtsProvider(FlutterTtsEngine())),
-  );
+  /// X-05：离线模式强制走系统 TTS（不发起网络合成请求）。
+  late final VoiceController _ttsController;
+
+  /// X-05：离线徽标状态（离线模式开启或网络探测离线）。
+  bool _offline = false;
 
   /// 搜索结果跳转：进入会话后滚动定位到的消息索引（一次性，用后清除）。
   int? _pendingScrollIndex;
@@ -244,6 +247,17 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    _ttsController = VoiceController(
+      providerResolver: () async {
+        if (controller.settings.offlineMode) {
+          return SystemTtsProvider(FlutterTtsEngine());
+        }
+        return TtsProviderRegistry.effective(
+          systemEngine: FlutterTtsEngine(),
+        );
+      },
+      legacy: LegacySystemTts(SystemTtsProvider(FlutterTtsEngine())),
+    );
     WidgetsBinding.instance.addObserver(this);
     // TTS 朗读开始/结束（含自动播完）时刷新朗读状态图标
     _ttsController.addListener(_onTtsChanged);
@@ -251,8 +265,20 @@ class _HomeScreenState extends State<HomeScreen>
     _desktopSub = DesktopEventBus.instance.actions.listen(_onDesktopAction);
     // C-05：图片生成页「发送到对话」投递
     ImggenShare.channel.addListener(_onImggenShared);
+    // X-05：网络探测结果变化 → 离线徽标刷新
+    _offline = NetworkMonitor.instance.online.value == false;
+    NetworkMonitor.instance.online.addListener(_onNetworkChanged);
     _initPlatformEntries();
     _loadData();
+  }
+
+  /// X-05：网络状态变化 → 刷新离线徽标。
+  void _onNetworkChanged() {
+    if (!mounted) return;
+    final offline = NetworkMonitor.instance.online.value == false;
+    if (offline != _offline) {
+      setState(() => _offline = offline);
+    }
   }
 
   /// I-06/I-02/I-03：平台入口初始化（deep-link / 分享文本 / 命令行备份）。
@@ -408,6 +434,7 @@ class _HomeScreenState extends State<HomeScreen>
     _desktopSub?.cancel();
     _ttsController.removeListener(_onTtsChanged);
     ImggenShare.channel.removeListener(_onImggenShared);
+    NetworkMonitor.instance.online.removeListener(_onNetworkChanged);
     _ttsController.dispose();
     controller.dispose();
     _inputController.dispose();
@@ -694,7 +721,12 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _onSelectCopy(ChatMessage message) async {
     final text = message.content.trim();
     if (text.isEmpty) return;
-    final result = await showSelectCopySheet(context, text: text);
+    final result = await showSelectCopySheet(
+      context,
+      text: text,
+      // E-05：选词朗读
+      onSpeak: (speech) => _ttsController.speakText(speech),
+    );
     if (result == null || !mounted) return;
     await Clipboard.setData(ClipboardData(text: result));
     if (!mounted) return;
@@ -1147,6 +1179,17 @@ class _HomeScreenState extends State<HomeScreen>
       onMessageMore: _onMessageMore,
       // B-08：上下文管理面板
       onManageContext: _onManageContext,
+      // E-05：朗读浮动播放器
+      ttsSpeaking: _ttsController.isSpeaking,
+      ttsPaused: _ttsController.isPaused,
+      ttsSpeed: _ttsController.speed,
+      ttsCurrentChunk: _ttsController.currentChunkIndex,
+      ttsTotalChunks: _ttsController.totalChunks,
+      onTtsTogglePause: () => unawaited(_ttsController.togglePause()),
+      onTtsStop: () => unawaited(_ttsController.stop()),
+      onTtsSpeed: (rate) => unawaited(_ttsController.setSpeed(rate)),
+      // X-05：离线徽标
+      offlineBadge: _offline || controller.settings.offlineMode,
     );
 
     return CallbackShortcuts(
