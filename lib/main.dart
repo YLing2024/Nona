@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/foundation.dart' show PlatformDispatcher;
+import 'package:flutter/foundation.dart' show PlatformDispatcher, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/di/app_scope.dart';
 import 'core/services/app_exit_flush.dart';
@@ -15,17 +17,37 @@ import 'core/services/model_capability_service.dart';
 import 'core/services/network_log_service.dart';
 import 'core/services/settings_service.dart';
 import 'core/services/theme_controller.dart';
+import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/logger.dart';
 import 'core/utils/token_estimator.dart';
 import 'features/chat/screens/home_screen.dart';
 import 'features/desktop/desktop_shell.dart';
+import 'features/settings/widgets/update_dialog.dart';
 import 'l10n/app_localizations.dart';
 
 /// 全局界面语言通知器（设置页修改后驱动 MaterialApp 刷新）。
 final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
 
+/// 根导航 key（J-02 更新对话框等启动期全局对话框使用）。
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
+  // J-01：崩溃上报初始化（设置开关控制；默认关闭，隐私友好）。
+  // DSN 由 .env 注入（SENTRY_DSN），未配置时上报自动失效。
+  final prefs = await SharedPreferences.getInstance();
+  final crashEnabled = prefs.getBool('crash_reporting_enabled') ?? false;
+  const dsn = String.fromEnvironment('SENTRY_DSN');
+  if (crashEnabled && dsn.isNotEmpty) {
+    await SentryFlutter.init(
+      (options) {
+        options.dsn = dsn;
+        options.tracesSampleRate = 0;
+        options.environment = kReleaseMode ? 'release' : 'debug';
+        options.beforeSend = (event, hint) => _stripSecrets(event);
+      },
+    );
+  }
   // 全局错误边界：未捕获异常记录日志、不崩溃进程
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
@@ -35,9 +57,18 @@ Future<void> main() async {
       details.exception,
       details.stack,
     );
+    if (crashEnabled) {
+      Sentry.captureException(
+        details.exception,
+        stackTrace: details.stack,
+      );
+    }
   };
   PlatformDispatcher.instance.onError = (e, s) {
     Logger.error('platform_error', e.toString(), e, s);
+    if (crashEnabled) {
+      Sentry.captureException(e, stackTrace: s);
+    }
     return true; // 已处理：不崩溃
   };
   // 错误卡片兜底：替换默认红屏
@@ -72,10 +103,29 @@ Future<void> main() async {
     });
     // 开发者选项开启「启动时自动更新」时，静默更新模型能力映射表，失败不影响启动
     unawaited(_maybeAutoUpdateCapabilities(settings));
+    // J-02：启动时检查更新（设置开启时；静默，不阻塞启动）
+    if (settings.checkUpdatesOnStart) {
+      unawaited(_checkUpdateSilently(settings));
+    }
     runApp(const AiChatApp());
   }, (e, s) {
     Logger.error('zone_error', e.toString(), e, s);
   });
+}
+
+/// J-02：启动更新检查——有新版则弹对话框（首帧后，避免阻塞首屏）。
+Future<void> _checkUpdateSilently(AppSettings settings) async {
+  try {
+    final release = await UpdateService().checkForUpdate(settings: settings);
+    if (release == null) return;
+    await WidgetsBinding.instance.endOfFrame;
+    final ctx = rootNavigatorKey.currentContext;
+    if (ctx != null && ctx.mounted) {
+      await showUpdateDialog(ctx, release);
+    }
+  } catch (_) {
+    // 静默失败
+  }
 }
 
 /// 兜底错误卡片：显示错误信息并提供「复制」按钮（替换默认红屏）。
@@ -134,6 +184,33 @@ Locale? localeFromSetting(String value) => switch (value) {
   _ => null,
 };
 
+/// J-01：上报前脱敏——剥离常见密钥字段（contexts/request）。
+SentryEvent _stripSecrets(SentryEvent event) {
+  const secretKeys = {
+    'apikey',
+    'api_key',
+    'password',
+    'token',
+    'authorization',
+    'secret',
+  };
+  for (final entry in event.contexts.entries) {
+    _stripMap(entry.value, secretKeys);
+  }
+  final request = event.request;
+  if (request != null) {
+    _stripMap(request.headers, secretKeys);
+    if (request.data != null && request.data is Map) {
+      _stripMap((request.data as Map).cast<String, dynamic>(), secretKeys);
+    }
+  }
+  return event;
+}
+
+void _stripMap(Map<String, dynamic> map, Set<String> keys) {
+  map.removeWhere((k, v) => keys.contains(k.toLowerCase()));
+}
+
 /// 按设置静默更新模型能力映射表；异常仅吞掉，不阻塞启动。
 Future<void> _maybeAutoUpdateCapabilities(AppSettings settings) async {
   if (!settings.autoUpdateModelCapabilities) return;
@@ -171,6 +248,7 @@ class AiChatApp extends StatelessWidget {
                         builder: (context, locale, _) {
                           return MaterialApp(
                             title: 'Nona',
+                            navigatorKey: rootNavigatorKey,
                             theme: buildLightTheme(
                               accent: isDefaultAccent
                                   ? (lightDynamic?.primary ?? accent)

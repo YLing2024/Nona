@@ -97,6 +97,12 @@ class AppSettings {
   /// A-04：代理用户名（可选）。
   final String proxyUser;
 
+  /// J-02：启动时检查更新（默认关）。
+  final bool checkUpdatesOnStart;
+
+  /// J-02：自定义更新检查源（GitHub Releases API JSON；空用默认仓库）。
+  final String updateSource;
+
   /// A-04：代理密码（可选）。
   final String proxyPassword;
 
@@ -138,6 +144,8 @@ class AppSettings {
     this.ttsRate = 0.5,
     this.ttsLanguage = 'zh-CN',
     this.providerKind = 'auto',
+    this.checkUpdatesOnStart = false,
+    this.updateSource = '',
     this.proxyEnabled = false,
     this.proxyType = 'http',
     this.proxyHost = '',
@@ -175,6 +183,8 @@ class AppSettings {
     double? ttsRate,
     String? ttsLanguage,
     String? providerKind,
+    bool? checkUpdatesOnStart,
+    String? updateSource,
     bool? proxyEnabled,
     String? proxyType,
     String? proxyHost,
@@ -212,6 +222,8 @@ class AppSettings {
       ttsRate: ttsRate ?? this.ttsRate,
       ttsLanguage: ttsLanguage ?? this.ttsLanguage,
       providerKind: providerKind ?? this.providerKind,
+      checkUpdatesOnStart: checkUpdatesOnStart ?? this.checkUpdatesOnStart,
+      updateSource: updateSource ?? this.updateSource,
       proxyEnabled: proxyEnabled ?? this.proxyEnabled,
       proxyType: proxyType ?? this.proxyType,
       proxyHost: proxyHost ?? this.proxyHost,
@@ -253,6 +265,8 @@ class SettingsService {
   static const _kTtsLanguage = 'tts_language';
   static const _kProviderKind = 'provider_kind';
   static const _kWebSearchEnabled = 'web_search_enabled';
+  static const _kCheckUpdatesOnStart = 'check_updates_on_start';
+  static const _kUpdateSource = 'update_source';
   static const _kProxyEnabled = 'proxy_enabled';
   static const _kProxyType = 'proxy_type';
   static const _kProxyHost = 'proxy_host';
@@ -294,6 +308,8 @@ class SettingsService {
       ttsRate: prefs.getDouble(_kTtsRate) ?? 0.5,
       ttsLanguage: prefs.getString(_kTtsLanguage) ?? 'zh-CN',
       providerKind: prefs.getString(_kProviderKind) ?? 'auto',
+      checkUpdatesOnStart: prefs.getBool(_kCheckUpdatesOnStart) ?? false,
+      updateSource: prefs.getString(_kUpdateSource) ?? '',
       proxyEnabled: prefs.getBool(_kProxyEnabled) ?? false,
       proxyType: prefs.getString(_kProxyType) ?? 'http',
       proxyHost: prefs.getString(_kProxyHost) ?? '',
@@ -351,6 +367,8 @@ class SettingsService {
     await prefs.setDouble(_kTtsRate, settings.ttsRate);
     await prefs.setString(_kTtsLanguage, settings.ttsLanguage);
     await prefs.setString(_kProviderKind, settings.providerKind);
+    await prefs.setBool(_kCheckUpdatesOnStart, settings.checkUpdatesOnStart);
+    await prefs.setString(_kUpdateSource, settings.updateSource);
     await prefs.setBool(_kProxyEnabled, settings.proxyEnabled);
     await prefs.setString(_kProxyType, settings.proxyType);
     await prefs.setString(_kProxyHost, settings.proxyHost);

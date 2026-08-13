@@ -277,6 +277,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsIiSubtitle => '自定义提示词片段，随请求注入';
 
   @override
+  String get updateAvailableTitle => '发现新版本';
+
+  @override
+  String get updateVersion => '版本';
+
+  @override
+  String get updateDownload => '前往下载';
+
+  @override
+  String get settingsUpdateCheck => '启动时检查更新';
+
+  @override
+  String get settingsUpdateSource => '更新源（GitHub Releases URL）';
+
+  @override
+  String get devCrashReporting => '崩溃上报（Sentry）';
+
+  @override
+  String get devCrashReportingHint => '启用后异常自动上报（需构建时配置 SENTRY_DSN）；默认关闭';
+
+  @override
   String get chatDocument => '文档';
 
   @override

@@ -602,6 +602,48 @@ abstract class AppLocalizations {
   /// **'自定义提示词片段，随请求注入'**
   String get settingsIiSubtitle;
 
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现新版本'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @updateVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本'**
+  String get updateVersion;
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'前往下载'**
+  String get updateDownload;
+
+  /// No description provided for @settingsUpdateCheck.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动时检查更新'**
+  String get settingsUpdateCheck;
+
+  /// No description provided for @settingsUpdateSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'更新源（GitHub Releases URL）'**
+  String get settingsUpdateSource;
+
+  /// No description provided for @devCrashReporting.
+  ///
+  /// In zh, this message translates to:
+  /// **'崩溃上报（Sentry）'**
+  String get devCrashReporting;
+
+  /// No description provided for @devCrashReportingHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用后异常自动上报（需构建时配置 SENTRY_DSN）；默认关闭'**
+  String get devCrashReportingHint;
+
   /// No description provided for @chatDocument.
   ///
   /// In zh, this message translates to:

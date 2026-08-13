@@ -61,6 +61,49 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
     await _settingsService.save(_settings);
   }
 
+  // ---------------- J-02：版本更新 ----------------
+
+  Future<void> _updateCheckUpdates(bool? value) async {
+    if (value == null) return;
+    setState(() => _settings = _settings.copyWith(checkUpdatesOnStart: value));
+    await _settingsService.save(_settings);
+  }
+
+  Future<void> _editUpdateSource() async {
+    final controller =
+        TextEditingController(text: _settings.updateSource);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(ctx.l10n.settingsUpdateSource),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          onTapOutside: unfocusOnTap,
+          decoration: const InputDecoration(
+            hintText: 'https://api.github.com/repos/{owner}/{repo}/releases/latest',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(ctx.l10n.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: Text(ctx.l10n.commonSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result == null || !mounted) return;
+    setState(() => _settings = _settings.copyWith(updateSource: result));
+    await _settingsService.save(_settings);
+  }
+
   Future<void> _editTtsRate() async {
     var rate = _settings.ttsRate;
     final result = await showDialog<double>(
@@ -550,6 +593,35 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
                 onChanged: _updateAutoRetry,
               ),
             ),
+            const SizedBox(height: 12),
+            // J-02：版本更新检查
+            _PreferenceTile(
+              icon: Icons.system_update_alt_rounded,
+              iconColor: theme.colorScheme.tertiary,
+              title: l10n.settingsUpdateCheck,
+              subtitle: l10n.settingsUpdateSource,
+              trailing: Switch(
+                value: _settings.checkUpdatesOnStart,
+                onChanged: _updateCheckUpdates,
+              ),
+            ),
+            if (_settings.checkUpdatesOnStart) ...[
+              const SizedBox(height: 12),
+              _PreferenceTile(
+                icon: Icons.link_rounded,
+                iconColor: theme.colorScheme.primary,
+                title: l10n.settingsUpdateSource,
+                subtitle: _settings.updateSource.isEmpty
+                    ? 'GitHub Releases (latest)'
+                    : _settings.updateSource,
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: theme.colorScheme.outline,
+                ),
+                onTap: _editUpdateSource,
+              ),
+            ],
             const SizedBox(height: 12),
             _PreferenceTile(
               icon: Icons.record_voice_over_outlined,

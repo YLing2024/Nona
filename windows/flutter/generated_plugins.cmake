@@ -10,6 +10,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_tts
   hotkey_manager_windows
   screen_retriever_windows
+  sentry_flutter
   sqlite3_flutter_libs
   tray_manager
   url_launcher_windows

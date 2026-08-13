@@ -283,6 +283,28 @@ class AppLocalizationsEn extends AppLocalizations {
       'Custom prompt snippets injected with each request';
 
   @override
+  String get updateAvailableTitle => 'Update available';
+
+  @override
+  String get updateVersion => 'Version';
+
+  @override
+  String get updateDownload => 'Go to download';
+
+  @override
+  String get settingsUpdateCheck => 'Check for updates on start';
+
+  @override
+  String get settingsUpdateSource => 'Update source (GitHub Releases URL)';
+
+  @override
+  String get devCrashReporting => 'Crash reporting (Sentry)';
+
+  @override
+  String get devCrashReportingHint =>
+      'Send crash reports when enabled (requires SENTRY_DSN at build time); off by default';
+
+  @override
   String get chatDocument => 'Document';
 
   @override

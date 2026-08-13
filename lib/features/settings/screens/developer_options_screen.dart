@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/model_capability_service.dart';
 import '../../../core/services/network_log_service.dart';
@@ -30,6 +31,7 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
   bool _capabilityFromNetwork = false;
   bool _updatingCapability = false;
   bool _autoUpdateCapabilities = false;
+  bool _crashReportingEnabled = false;
 
   @override
   void initState() {
@@ -52,6 +54,9 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
   }
 
   Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    _crashReportingEnabled =
+        prefs.getBool('crash_reporting_enabled') ?? false;
     final settings = await _settingsService.load();
     final info = await _capabilityService.info();
     if (!mounted) return;
@@ -364,6 +369,34 @@ class _DeveloperOptionsScreenState extends State<DeveloperOptionsScreen> {
                     ),
                     value: _settings.networkLogEnabled,
                     onChanged: _onNetworkLogEnabledChanged,
+                  ),
+                  const TileDivider(),
+                  // J-01：崩溃上报开关（隐私友好，默认关）
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    title: Text(
+                      context.l10n.devCrashReporting,
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      context.l10n.devCrashReportingHint,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                    value: _crashReportingEnabled,
+                    onChanged: (v) async {
+                      setState(() => _crashReportingEnabled = v);
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('crash_reporting_enabled', v);
+                    },
                   ),
                   const TileDivider(),
                   ListTile(
