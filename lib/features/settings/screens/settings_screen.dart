@@ -221,201 +221,216 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
-                  SettingsSectionLabel(l10n.settingsSectionServices),
-            SettingsCard(
-              children: [
-                SettingsTile(
-                  icon: Icons.dns_outlined,
-                  iconColor: Theme.of(context).colorScheme.primary,
-                  title: l10n.settingsProviders,
-                  subtitle: _providerCount == 0
-                      ? l10n.settingsProvidersSubtitleEmpty
-                      // 生成函数的参数顺序是 (providers, models)
-                      : l10n.settingsProvidersSubtitle(
-                          _providerCount, _modelCount),
-                  onTap: _openProviderList,
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.smart_toy_outlined,
-                  iconColor: Theme.of(context).colorScheme.secondary,
-                  title: l10n.settingsAgents,
-                  subtitle: l10n.settingsAgentsSubtitle(_agentCount),
-                  onTap: _openAgentList,
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.extension_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.mcpTitle,
-                  subtitle: l10n.settingsMcpSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.mcpServers(),
+                  SettingsSectionLabel(l10n.settingsSectionModels),
+                  SettingsCard(
+                    children: [
+                      SettingsTile(
+                        icon: Icons.dns_outlined,
+                        iconColor: Theme.of(context).colorScheme.primary,
+                        title: l10n.settingsProviders,
+                        subtitle: _providerCount == 0
+                            ? l10n.settingsProvidersSubtitleEmpty
+                            // 生成函数的参数顺序是 (providers, models)
+                            : l10n.settingsProvidersSubtitle(
+                                _providerCount, _modelCount),
+                        onTap: _openProviderList,
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.smart_toy_outlined,
+                        iconColor: Theme.of(context).colorScheme.secondary,
+                        title: l10n.settingsAgents,
+                        subtitle: l10n.settingsAgentsSubtitle(_agentCount),
+                        onTap: _openAgentList,
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.model_training_outlined,
+                        iconColor: Theme.of(context).colorScheme.primary,
+                        title: l10n.settingsModelConfig,
+                        subtitle: l10n.settingsModelConfigSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.modelConfig(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.route_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.routerTitle,
+                        subtitle: l10n.settingsRouterSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.modelRouter(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.cloud_sync_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.syncTitle,
-                  subtitle: l10n.settingsSyncSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.sync()
+                  const SizedBox(height: 20),
+                  SettingsSectionLabel(l10n.settingsSectionMemory),
+                  SettingsCard(
+                    children: [
+                      SettingsTile(
+                        icon: Icons.psychology_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.memoryTitle,
+                        subtitle: l10n.settingsMemorySubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.memory(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.auto_stories_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.wbTitle,
+                        subtitle: l10n.settingsWbSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.worldBook(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.menu_book_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.kbTitle,
+                        subtitle: l10n.settingsKbSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.knowledgeBase(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      // G-06：标签管理
+                      SettingsTile(
+                        icon: Icons.sell_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.tagsTitle,
+                        subtitle: l10n.tagsManage,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.tags(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.text_snippet_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.iiTitle,
+                        subtitle: l10n.settingsIiSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.instructionInjections(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.bolt_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.quickPhrasesTitle,
+                        subtitle: l10n.settingsQuickPhrasesSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.quickPhrases(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.input_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.importTitle,
-                  subtitle: l10n.settingsImportSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.importWizard(),
+                  const SizedBox(height: 20),
+                  SettingsSectionLabel(l10n.settingsSectionTools),
+                  SettingsCard(
+                    children: [
+                      SettingsTile(
+                        icon: Icons.extension_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.mcpTitle,
+                        subtitle: l10n.settingsMcpSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.mcpServers(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.image_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.imgGenTitle,
+                        subtitle: l10n.settingsImgGenSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.imgGen(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.compare_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.compareTitle,
+                        subtitle: l10n.settingsCompareSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.compare(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.translate_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.translatorTitle,
+                        subtitle: l10n.settingsTranslatorSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.translator(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.bar_chart_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.statsTitle,
+                        subtitle: l10n.settingsStatsSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.stats(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.bolt_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.wfTitle,
+                        subtitle: l10n.settingsWfSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.workflows(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.bolt_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.quickPhrasesTitle,
-                  subtitle: l10n.settingsQuickPhrasesSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.quickPhrases(),
+                  const SizedBox(height: 20),
+                  SettingsSectionLabel(l10n.settingsSectionIntegrations),
+                  SettingsCard(
+                    children: [
+                      SettingsTile(
+                        icon: Icons.cloud_sync_outlined,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.syncTitle,
+                        subtitle: l10n.settingsSyncSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.sync(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.input_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.importTitle,
+                        subtitle: l10n.settingsImportSubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.importWizard(),
+                        ),
+                      ),
+                      const TileDivider(),
+                      SettingsTile(
+                        icon: Icons.offline_bolt_rounded,
+                        iconColor: Theme.of(context).colorScheme.tertiary,
+                        title: l10n.privacyTitle,
+                        subtitle: l10n.settingsPrivacySubtitle,
+                        onTap: () => Navigator.of(context).push(
+                          AppRoutes.privacy(),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const TileDivider(),
-                // G-06：标签管理
-                SettingsTile(
-                  icon: Icons.sell_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.tagsTitle,
-                  subtitle: l10n.tagsManage,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.tags(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.text_snippet_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.iiTitle,
-                  subtitle: l10n.settingsIiSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.instructionInjections(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.bolt_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.wfTitle,
-                  subtitle: l10n.settingsWfSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.workflows(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.route_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.routerTitle,
-                  subtitle: l10n.settingsRouterSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.modelRouter(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.offline_bolt_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.privacyTitle,
-                  subtitle: l10n.settingsPrivacySubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.privacy(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.image_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.imgGenTitle,
-                  subtitle: l10n.settingsImgGenSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.imgGen(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.compare_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.compareTitle,
-                  subtitle: l10n.settingsCompareSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.compare()
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.menu_book_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.kbTitle,
-                  subtitle: l10n.settingsKbSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.knowledgeBase(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.bar_chart_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.statsTitle,
-                  subtitle: l10n.settingsStatsSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.stats(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.psychology_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.memoryTitle,
-                  subtitle: l10n.settingsMemorySubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.memory(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.auto_stories_outlined,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.wbTitle,
-                  subtitle: l10n.settingsWbSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.worldBook(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.translate_rounded,
-                  iconColor: Theme.of(context).colorScheme.tertiary,
-                  title: l10n.translatorTitle,
-                  subtitle: l10n.settingsTranslatorSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.translator(),
-                  ),
-                ),
-                const TileDivider(),
-                SettingsTile(
-                  icon: Icons.model_training_outlined,
-                  iconColor: Theme.of(context).colorScheme.primary,
-                  title: l10n.settingsModelConfig,
-                  subtitle: l10n.settingsModelConfigSubtitle,
-                  onTap: () => Navigator.of(context).push(
-                    AppRoutes.modelConfig(),
-                  ),
-                ),
-              ],
-            ),
           const SizedBox(height: 20),
           SettingsSectionLabel(l10n.settingsSectionAppearance),
           SettingsCard(

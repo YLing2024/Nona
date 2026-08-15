@@ -3655,17 +3655,35 @@ abstract class AppLocalizations {
   /// **'数据'**
   String get settingsSectionData;
 
+  /// No description provided for @settingsSectionIntegrations.
+  ///
+  /// In zh, this message translates to:
+  /// **'集成与同步'**
+  String get settingsSectionIntegrations;
+
+  /// No description provided for @settingsSectionMemory.
+  ///
+  /// In zh, this message translates to:
+  /// **'记忆与上下文'**
+  String get settingsSectionMemory;
+
+  /// No description provided for @settingsSectionModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型与智能体'**
+  String get settingsSectionModels;
+
   /// No description provided for @settingsSectionPreferences.
   ///
   /// In zh, this message translates to:
   /// **'偏好'**
   String get settingsSectionPreferences;
 
-  /// No description provided for @settingsSectionServices.
+  /// No description provided for @settingsSectionTools.
   ///
   /// In zh, this message translates to:
-  /// **'服务与内容'**
-  String get settingsSectionServices;
+  /// **'工具与增强'**
+  String get settingsSectionTools;
 
   /// No description provided for @settingsSyncSubtitle.
   ///

@@ -1995,10 +1995,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSectionData => 'Data';
 
   @override
+  String get settingsSectionIntegrations => 'Integration & Sync';
+
+  @override
+  String get settingsSectionMemory => 'Memory & Context';
+
+  @override
+  String get settingsSectionModels => 'Models & Agents';
+
+  @override
   String get settingsSectionPreferences => 'Preferences';
 
   @override
-  String get settingsSectionServices => 'Services & Content';
+  String get settingsSectionTools => 'Tools & Enhancements';
 
   @override
   String get settingsSyncSubtitle => 'WebDAV / S3 backup sync';

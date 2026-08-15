@@ -1927,10 +1927,19 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsSectionData => '数据';
 
   @override
+  String get settingsSectionIntegrations => '統合と同期';
+
+  @override
+  String get settingsSectionMemory => '記憶とコンテキスト';
+
+  @override
+  String get settingsSectionModels => 'モデルとエージェント';
+
+  @override
   String get settingsSectionPreferences => '偏好';
 
   @override
-  String get settingsSectionServices => '服务与内容';
+  String get settingsSectionTools => 'ツールと拡張';
 
   @override
   String get settingsSyncSubtitle => 'WebDAV / S3 备份同步';

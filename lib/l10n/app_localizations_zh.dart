@@ -1927,10 +1927,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsSectionData => '数据';
 
   @override
+  String get settingsSectionIntegrations => '集成与同步';
+
+  @override
+  String get settingsSectionMemory => '记忆与上下文';
+
+  @override
+  String get settingsSectionModels => '模型与智能体';
+
+  @override
   String get settingsSectionPreferences => '偏好';
 
   @override
-  String get settingsSectionServices => '服务与内容';
+  String get settingsSectionTools => '工具与增强';
 
   @override
   String get settingsSyncSubtitle => 'WebDAV / S3 备份同步';
@@ -5185,10 +5194,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsSectionData => '数据';
 
   @override
+  String get settingsSectionIntegrations => '整合與同步';
+
+  @override
+  String get settingsSectionMemory => '記憶與上下文';
+
+  @override
+  String get settingsSectionModels => '模型與智慧體';
+
+  @override
   String get settingsSectionPreferences => '偏好';
 
   @override
-  String get settingsSectionServices => '服务与内容';
+  String get settingsSectionTools => '工具與增強';
 
   @override
   String get settingsSyncSubtitle => 'WebDAV / S3 备份同步';

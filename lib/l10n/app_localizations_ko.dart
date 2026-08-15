@@ -1927,10 +1927,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsSectionData => '数据';
 
   @override
+  String get settingsSectionIntegrations => '통합 및 동기화';
+
+  @override
+  String get settingsSectionMemory => '메모리 및 컨텍스트';
+
+  @override
+  String get settingsSectionModels => '모델 및 에이전트';
+
+  @override
   String get settingsSectionPreferences => '偏好';
 
   @override
-  String get settingsSectionServices => '服务与内容';
+  String get settingsSectionTools => '도구 및 강화';
 
   @override
   String get settingsSyncSubtitle => 'WebDAV / S3 备份同步';
