@@ -44,13 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# 环境变量文件（可能包含 API Key 等敏感信息，一律忽略）
+# 鐜鍙橀噺鏂囦欢锛堝彲鑳藉寘鍚?API Key 绛夋晱鎰熶俊鎭紝涓€寰嬪拷鐣ワ級
 .env
 .env.*
-# 正式签名密钥（本地生成，不上库）
+# 姝ｅ紡绛惧悕瀵嗛挜锛堟湰鍦扮敓鎴愶紝涓嶄笂搴擄級
 android/key.properties
 android/app/*.jks
 android/app/*.keystore
 
-# gen-l10n �����ʷ commit ���Ƴ���������⣩
+# gen-l10n 产物（历史 commit 已移除，不再入库）
 untranslated.json

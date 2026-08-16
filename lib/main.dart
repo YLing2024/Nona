@@ -1,7 +1,8 @@
 import 'dart:async';
 
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/foundation.dart' show PlatformDispatcher, kIsWeb, kReleaseMode;
+import 'package:flutter/foundation.dart'
+    show PlatformDispatcher, kIsWeb, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -39,49 +40,54 @@ final ValueNotifier<Locale?> localeNotifier = ValueNotifier(null);
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
-  // J-01：崩溃上报初始化（设置开关控制；默认关闭，隐私友好）。
-  // DSN 由 .env 注入（SENTRY_DSN），未配置时上报自动失效。
-  final prefs = await SharedPreferences.getInstance();
-  final crashEnabled = prefs.getBool('crash_reporting_enabled') ?? false;
-  const dsn = String.fromEnvironment('SENTRY_DSN');
-  if (crashEnabled && dsn.isNotEmpty) {
-    await SentryFlutter.init(
-      (options) {
-        options.dsn = dsn;
-        options.tracesSampleRate = 0;
-        options.environment = kReleaseMode ? 'release' : 'debug';
-        options.beforeSend = (event, hint) => _stripSecrets(event);
-      },
-    );
-  }
-  // 全局错误边界：未捕获异常记录日志、不崩溃进程
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    Logger.error(
-      'flutter_error',
-      details.exceptionAsString(),
-      details.exception,
-      details.stack,
-    );
-    if (crashEnabled) {
-      Sentry.captureException(
-        details.exception,
-        stackTrace: details.stack,
+  await runZonedGuarded(() async {
+    // 必须先初始化 binding 再使用任何平台通道（SharedPreferences 等）。
+    // Android 的 shared_preferences 走 MethodChannel，未初始化时抛
+    // "Binding has not yet been initialized" 导致 main() 中断、首帧不渲染（黑屏）；
+    // Windows/Web 为纯 Dart 实现不依赖 binding，故仅安卓受影响。
+    // 注意：须与 runApp 处于同一 zone（避免 Zone mismatch 警告）。
+    WidgetsFlutterBinding.ensureInitialized();
+    // J-01：崩溃上报初始化（设置开关控制；默认关闭，隐私友好）。
+    // DSN 由 .env 注入（SENTRY_DSN），未配置时上报自动失效。
+    final prefs = await SharedPreferences.getInstance();
+    final crashEnabled = prefs.getBool('crash_reporting_enabled') ?? false;
+    const dsn = String.fromEnvironment('SENTRY_DSN');
+    if (crashEnabled && dsn.isNotEmpty) {
+      await SentryFlutter.init(
+        (options) {
+          options.dsn = dsn;
+          options.tracesSampleRate = 0;
+          options.environment = kReleaseMode ? 'release' : 'debug';
+          options.beforeSend = (event, hint) => _stripSecrets(event);
+        },
       );
     }
-  };
-  PlatformDispatcher.instance.onError = (e, s) {
-    Logger.error('platform_error', e.toString(), e, s);
-    if (crashEnabled) {
-      Sentry.captureException(e, stackTrace: s);
-    }
-    return true; // 已处理：不崩溃
-  };
-  // 错误卡片兜底：替换默认红屏
-  ErrorWidget.builder = (details) => _ErrorCard(details: details);
+    // 全局错误边界：未捕获异常记录日志、不崩溃进程
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      Logger.error(
+        'flutter_error',
+        details.exceptionAsString(),
+        details.exception,
+        details.stack,
+      );
+      if (crashEnabled) {
+        Sentry.captureException(
+          details.exception,
+          stackTrace: details.stack,
+        );
+      }
+    };
+    PlatformDispatcher.instance.onError = (e, s) {
+      Logger.error('platform_error', e.toString(), e, s);
+      if (crashEnabled) {
+        Sentry.captureException(e, stackTrace: s);
+      }
+      return true; // 已处理：不崩溃
+    };
+    // 错误卡片兜底：替换默认红屏
+    ErrorWidget.builder = (details) => _ErrorCard(details: details);
 
-  await runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
     // J-04：冷启动各阶段打点
     final stopwatch = Stopwatch()..start();
     await dotenv.load(fileName: '.env', isOptional: true);
@@ -227,13 +233,14 @@ class _ErrorCard extends StatelessWidget {
 
 /// 语言设置值 → Locale：system 表示跟随系统（null）。
 Locale? localeFromSetting(String value) => switch (value) {
-  'zh' => const Locale('zh'),
-  'en' => const Locale('en'),
-  'zh_Hant' => const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
-  'ja' => const Locale('ja'),
-  'ko' => const Locale('ko'),
-  _ => null,
-};
+      'zh' => const Locale('zh'),
+      'en' => const Locale('en'),
+      'zh_Hant' =>
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      'ja' => const Locale('ja'),
+      'ko' => const Locale('ko'),
+      _ => null,
+    };
 
 /// J-01：上报前脱敏——剥离常见密钥字段（contexts/request）。
 SentryEvent _stripSecrets(SentryEvent event) {
@@ -288,8 +295,7 @@ class AiChatApp extends StatelessWidget {
               // 动态主题色（Android 12+ / iOS）：未自定义强调色时跟随系统取色
               return DynamicColorBuilder(
                 builder: (lightDynamic, darkDynamic) {
-                  final isDefaultAccent =
-                      accent.toARGB32() ==
+                  final isDefaultAccent = accent.toARGB32() ==
                       AppAccentPreset.defaultColor.toARGB32();
                   return ValueListenableBuilder<bool>(
                     valueListenable: oledDarkNotifier,
@@ -312,7 +318,7 @@ class AiChatApp extends StatelessWidget {
                                         theme: buildLightTheme(
                                           accent: isDefaultAccent
                                               ? (lightDynamic?.primary ??
-                                                    accent)
+                                                  accent)
                                               : accent,
                                           fontFamily: fontFamily.isEmpty
                                               ? null
@@ -322,8 +328,7 @@ class AiChatApp extends StatelessWidget {
                                         ),
                                         darkTheme: buildDarkTheme(
                                           accent: isDefaultAccent
-                                              ? (darkDynamic?.primary ??
-                                                    accent)
+                                              ? (darkDynamic?.primary ?? accent)
                                               : accent,
                                           oled: oled,
                                           fontFamily: fontFamily.isEmpty

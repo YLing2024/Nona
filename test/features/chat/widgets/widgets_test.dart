@@ -620,7 +620,10 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('服务与内容'), findsOneWidget);
+      expect(find.text('模型与智能体'), findsOneWidget);
+      expect(find.text('记忆与上下文'), findsOneWidget);
+      expect(find.text('工具与增强'), findsOneWidget);
+      expect(find.text('集成与同步'), findsOneWidget);
       expect(find.text('模型配置'), findsOneWidget);
       expect(find.text('聊天默认模型 · 标题生成模型'), findsOneWidget);
       expect(find.text('偏好设置'), findsOneWidget);
